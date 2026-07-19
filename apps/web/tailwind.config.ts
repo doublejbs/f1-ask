@@ -44,10 +44,47 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      fontFamily: {
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "SF Pro Text",
+          "SF Pro Display",
+          "Segoe UI",
+          "Roboto",
+          "Apple SD Gothic Neo",
+          "Noto Sans KR",
+          "sans-serif",
+        ],
+      },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        "2xl": "calc(var(--radius) + 4px)",
+        xl: "var(--radius)",
+        lg: "calc(var(--radius) - 6px)",
+        md: "calc(var(--radius) - 10px)",
+        sm: "calc(var(--radius) - 14px)",
+      },
+      boxShadow: {
+        glass:
+          "inset 0 1px 0 0 hsl(210 40% 98% / 0.10), 0 1px 2px 0 hsl(225 40% 2% / 0.4), 0 16px 40px -20px hsl(225 40% 2% / 0.85)",
+        elevated:
+          "inset 0 1px 0 0 hsl(210 40% 98% / 0.12), 0 24px 60px -24px hsl(225 40% 2% / 0.9)",
+        glow: "0 0 24px -4px hsl(var(--primary) / 0.5)",
+      },
+      keyframes: {
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(6px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "pulse-ring": {
+          "0%": { opacity: "0.7", transform: "scale(0.9)" },
+          "70%": { opacity: "0", transform: "scale(2.2)" },
+          "100%": { opacity: "0", transform: "scale(2.2)" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both",
+        "pulse-ring": "pulse-ring 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite",
       },
     },
   },

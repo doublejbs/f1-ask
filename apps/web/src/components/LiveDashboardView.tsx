@@ -78,7 +78,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
 
   if (race === null) {
     return (
-      <main className="container flex min-h-screen items-center justify-center py-8">
+      <main className="container flex min-h-[100dvh] items-center justify-center py-8">
         <p className="animate-pulse text-sm text-muted-foreground">
           {dictionary.tagline}…
         </p>
@@ -87,7 +87,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
   }
 
   return (
-    <main className="container flex flex-col gap-4 py-4 md:py-6">
+    <main className="container flex flex-col gap-4 pb-safe pt-safe md:gap-5 md:py-8">
       <SessionHeaderView
         dictionary={dictionary}
         locale={locale}

@@ -8,41 +8,50 @@ type Props = {
   tireAgeLaps: number | null;
 };
 
-const compoundColor = (compound: TireCompound): string => {
+// 컴파운드별 링 색상(HSL) — 3D 비드 그라디언트에 사용.
+const compoundRing = (compound: TireCompound): { ring: string; text: string } => {
   switch (compound) {
     case TireCompound.Soft:
-      return "border-red-500 text-red-400";
+      return { ring: "0 84% 60%", text: "text-red-300" };
     case TireCompound.Medium:
-      return "border-amber-400 text-amber-300";
+      return { ring: "45 93% 58%", text: "text-amber-200" };
     case TireCompound.Hard:
-      return "border-slate-200 text-slate-200";
+      return { ring: "210 20% 92%", text: "text-slate-100" };
     case TireCompound.Intermediate:
-      return "border-emerald-500 text-emerald-400";
+      return { ring: "150 70% 50%", text: "text-emerald-300" };
     case TireCompound.Wet:
-      return "border-sky-500 text-sky-400";
+      return { ring: "205 85% 58%", text: "text-sky-300" };
     default:
-      return "border-slate-600 text-slate-400";
+      return { ring: "215 15% 55%", text: "text-slate-400" };
   }
 };
 
-// 타이어 컴파운드 + 사용 랩 수.
+// 타이어 컴파운드를 입체 비드(도넛 타이어)로 표현 + 사용 랩 수.
 export const TireCompoundView = ({
   dictionary,
   compound,
   tireAgeLaps,
-}: Props) => (
-  <div className="flex items-center gap-2">
-    <span
-      className={cn(
-        "flex h-6 w-6 items-center justify-center rounded-full border-2 text-[10px] font-bold",
-        compoundColor(compound),
-      )}
-      title={dictionary.compound[compound]}
-    >
-      {compound === TireCompound.Unknown ? "?" : compound.charAt(0)}
-    </span>
-    <span className="text-xs tabular-nums text-muted-foreground">
-      {tireAgeLaps === null ? "—" : `${tireAgeLaps}${dictionary.table.lapsUnit}`}
-    </span>
-  </div>
-);
+}: Props) => {
+  const { ring, text } = compoundRing(compound);
+
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className={cn(
+          "flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold",
+          text,
+        )}
+        title={dictionary.compound[compound]}
+        style={{
+          background: `radial-gradient(circle at 50% 35%, hsl(${ring} / 0.28), hsl(220 30% 10%) 62%)`,
+          boxShadow: `inset 0 0 0 2px hsl(${ring} / 0.9), inset 0 -3px 5px hsl(220 40% 4% / 0.7), inset 0 3px 4px hsl(${ring} / 0.35), 0 2px 6px -2px hsl(220 40% 2% / 0.8)`,
+        }}
+      >
+        {compound === TireCompound.Unknown ? "?" : compound.charAt(0)}
+      </span>
+      <span className="text-xs tabular-nums text-muted-foreground">
+        {tireAgeLaps === null ? "—" : `${tireAgeLaps}${dictionary.table.lapsUnit}`}
+      </span>
+    </div>
+  );
+};

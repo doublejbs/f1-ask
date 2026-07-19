@@ -2,34 +2,106 @@
 @tailwind components;
 @tailwind utilities;
 
-/* shadcn/ui 테마 토큰. 기본 다크 테마 (Second Screen 은 야간 시청 환경 가정). */
+/* 다크 전용 테마. Box Box Club 풍의 글래스/깊이감 UI + Apple HIG 지향. */
 :root {
-  --background: 222 47% 8%;
-  --foreground: 210 40% 96%;
-  --card: 222 40% 11%;
-  --card-foreground: 210 40% 96%;
-  --primary: 0 72% 51%;
+  --background: 225 40% 6%;
+  --foreground: 210 40% 98%;
+  --card: 222 32% 12%;
+  --card-foreground: 210 40% 98%;
+  --primary: 0 84% 55%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 217 33% 20%;
-  --secondary-foreground: 210 40% 96%;
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 20%;
-  --accent-foreground: 210 40% 96%;
-  --destructive: 0 72% 51%;
+  --secondary: 217 30% 20%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 28% 16%;
+  --muted-foreground: 216 18% 66%;
+  --accent: 217 30% 22%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 84% 55%;
   --destructive-foreground: 0 0% 100%;
-  --border: 217 33% 22%;
-  --input: 217 33% 22%;
-  --ring: 0 72% 51%;
-  --radius: 0.5rem;
+  --border: 217 30% 24%;
+  --input: 217 30% 24%;
+  --ring: 0 84% 55%;
+  --radius: 1.25rem;
 }
 
 * {
   border-color: hsl(var(--border));
 }
 
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
 body {
-  background-color: hsl(var(--background));
+  min-height: 100dvh;
   color: hsl(var(--foreground));
-  font-feature-settings: "rlig" 1, "calt" 1;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background-color: hsl(var(--background));
+  background-image: radial-gradient(70rem 40rem at 15% -10%, hsla(0, 70%, 30%, 0.18), transparent 60%), radial-gradient(60rem 40rem at 110% 10%, hsla(220, 80%, 40%, 0.16), transparent 55%), radial-gradient(50rem 40rem at 50% 120%, hsla(260, 70%, 40%, 0.12), transparent 60%);
+  background-attachment: fixed;
+}
+
+@layer components {
+  /* 플로팅 글래스 패널: 반투명 + 블러 + 상단 하이라이트 + 앰비언트 섀도. */
+  .glass-panel {
+    position: relative;
+    background: linear-gradient(180deg, hsla(210, 40%, 98%, 0.06), hsla(210, 40%, 98%, 0.015) 22%, transparent 60%), hsla(220, 32%, 14%, 0.55);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid hsla(210, 40%, 98%, 0.1);
+    box-shadow: inset 0 1px 0 0 hsla(210, 40%, 98%, 0.1), 0 1px 2px 0 hsla(225, 40%, 2%, 0.4), 0 16px 40px -20px hsla(225, 40%, 2%, 0.85);
+  }
+
+  /* 눌리는 인터랙션에 부드러운 반응. */
+  .press {
+    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .press:active {
+    transform: scale(0.97);
+  }
+}
+
+@layer utilities {
+  .pt-safe {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
+  .pb-safe {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .press:active {
+    transform: none;
+  }
 }

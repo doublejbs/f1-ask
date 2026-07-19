@@ -3,19 +3,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { type HTMLAttributes } from "react";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold",
+  "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset",
   {
     variants: {
       variant: {
-        default: "bg-secondary text-secondary-foreground",
-        outline: "border border-border text-foreground",
-        live: "bg-emerald-500/15 text-emerald-400",
-        delayed: "bg-amber-500/15 text-amber-400",
-        stale: "bg-red-500/15 text-red-400",
-        critical: "bg-red-500/20 text-red-300",
-        high: "bg-amber-500/15 text-amber-300",
-        medium: "bg-sky-500/15 text-sky-300",
-        low: "bg-slate-500/15 text-slate-300",
+        default: "bg-white/8 text-foreground ring-white/10",
+        outline: "bg-transparent text-muted-foreground ring-white/15",
+        live: "bg-emerald-500/15 text-emerald-300 ring-emerald-400/25",
+        delayed: "bg-amber-500/15 text-amber-300 ring-amber-400/25",
+        stale: "bg-red-500/15 text-red-300 ring-red-400/25",
+        critical: "bg-red-500/20 text-red-200 ring-red-400/30",
+        high: "bg-amber-500/15 text-amber-200 ring-amber-400/25",
+        medium: "bg-sky-500/15 text-sky-200 ring-sky-400/25",
+        low: "bg-slate-500/15 text-slate-300 ring-slate-400/20",
       },
     },
     defaultVariants: {

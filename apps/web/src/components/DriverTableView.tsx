@@ -82,10 +82,10 @@ export const DriverTableView = ({
         <CardTitle>{dictionary.table.title}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
+        <div className="scroll-slim overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-b border-white/8 text-left text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 <th className="w-10 px-2 py-2" />
                 <th className="px-2 py-2">{dictionary.table.position}</th>
                 <th className="px-2 py-2">{dictionary.table.driver}</th>
@@ -122,13 +122,13 @@ export const DriverTableView = ({
                         : undefined
                     }
                     className={cn(
-                      "border-b border-border/50 transition-colors",
+                      "border-b border-white/5 transition-colors",
                       favorite && "bg-primary/10",
-                      driver.retired && "opacity-50",
-                      selectable && "cursor-pointer hover:bg-muted/40",
+                      driver.retired && "opacity-45",
+                      selectable && "cursor-pointer hover:bg-white/[0.04]",
                     )}
                   >
-                    <td className="px-2 py-2">
+                    <td className="py-2.5 pl-2">
                       <button
                         type="button"
                         onClick={(e) => {
@@ -137,7 +137,7 @@ export const DriverTableView = ({
                         }}
                         aria-label={dictionary.table.favorite}
                         aria-pressed={favorite}
-                        className="text-muted-foreground transition-colors hover:text-amber-400"
+                        className="press flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-amber-400"
                       >
                         <Star
                           className={cn(
@@ -147,21 +147,21 @@ export const DriverTableView = ({
                         />
                       </button>
                     </td>
-                    <td className="py-2 pr-2">
-                      <div className="flex items-center gap-2 tabular-nums">
+                    <td className="py-2.5 pr-2">
+                      <div className="flex items-center gap-2.5 tabular-nums">
                         <span
-                          className="h-6 w-1 rounded-full"
+                          className="h-7 w-1.5 rounded-full"
                           style={{
                             backgroundColor: accent ?? "hsl(var(--border))",
                           }}
                           aria-hidden
                         />
-                        <span className="w-5 font-bold">
+                        <span className="w-6 text-center text-base font-bold">
                           {driver.position ?? "—"}
                         </span>
                         <span
                           className={cn(
-                            "text-xs",
+                            "text-xs font-semibold",
                             positionChangeColor(driver.positionChange),
                           )}
                         >

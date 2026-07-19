@@ -30,12 +30,9 @@ export const ConnectionStatusView = ({
   freshness,
 }: Props) => (
   <div className="flex items-center gap-2">
-    <span className="text-xs uppercase tracking-wide text-muted-foreground">
-      {dictionary.header.connection}
-    </span>
     <Badge variant="outline">{dictionary.mode[dataMode]}</Badge>
     <Badge variant={freshnessVariant(freshness)}>
-      <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-current" />
+      <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
       {dictionary.freshness[freshness]}
     </Badge>
   </div>
