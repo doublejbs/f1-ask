@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "development": "f1-second-screen-dev",
+    "staging": "f1-second-screen-staging",
+    "production": "f1-second-screen-prod"
+  }
+}
