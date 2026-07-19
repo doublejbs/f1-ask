@@ -58,6 +58,7 @@ const makeEvent = (
   atMs: number,
   parts: {
     driverNumber?: number;
+    targetDriverNumber?: number;
     lapNumber?: number;
     params: RaceEvent["params"];
     key: string;
@@ -77,6 +78,10 @@ const makeEvent = (
 
   if (parts.driverNumber !== undefined) {
     event.driverNumber = parts.driverNumber;
+  }
+
+  if (parts.targetDriverNumber !== undefined) {
+    event.targetDriverNumber = parts.targetDriverNumber;
   }
 
   if (parts.lapNumber !== undefined) {
@@ -105,6 +110,29 @@ const buildEvents = (
 
     timed.push({ atSecond: (atMs - startMs) / 1000, event });
   };
+
+  // 실제 추월 이벤트 (OpenF1 overtakes 엔드포인트).
+  for (const overtake of data.overtakes ?? []) {
+    const atMs = parseMs(overtake.date);
+
+    if (Number.isNaN(atMs)) {
+      continue;
+    }
+
+    push(
+      atMs,
+      makeEvent(sessionId, RaceEventType.Overtake, RaceEventPriority.High, atMs, {
+        driverNumber: overtake.overtaking_driver_number,
+        targetDriverNumber: overtake.overtaken_driver_number,
+        key: `overtake:${atMs}:${overtake.overtaking_driver_number}:${overtake.overtaken_driver_number}`,
+        params: {
+          driverCode: codeOf.get(overtake.overtaking_driver_number) ?? "",
+          targetDriverCode: codeOf.get(overtake.overtaken_driver_number) ?? "",
+          newPosition: overtake.position,
+        },
+      }),
+    );
+  }
 
   // 피트스톱
   for (const pit of data.pits) {

@@ -2,12 +2,14 @@ import {
   OpenF1Driver,
   OpenF1Interval,
   OpenF1Lap,
+  OpenF1Overtake,
   OpenF1Pit,
   OpenF1Position,
   OpenF1RaceControl,
   OpenF1SessionData,
   OpenF1SessionMeta,
   OpenF1Stint,
+  OpenF1Weather,
 } from "./OpenF1Types";
 
 // OpenF1 API 클라이언트 (외부 provider).
@@ -258,6 +260,21 @@ export const fetchOpenF1SessionData = async (
   const pits = await fetchEndpoint<OpenF1Pit>("pit", "session_key", key, options);
   await sleep(gap);
   const raceControl = await fetchEndpoint<OpenF1RaceControl>("race_control", "session_key", key, options);
+  await sleep(gap);
+  const weather = await fetchEndpoint<OpenF1Weather>("weather", "session_key", key, options);
+  await sleep(gap);
+  const overtakes = await fetchEndpoint<OpenF1Overtake>("overtakes", "session_key", key, options);
 
-  return { meta, drivers, positions, intervals, stints, laps, pits, raceControl };
+  return {
+    meta,
+    drivers,
+    positions,
+    intervals,
+    stints,
+    laps,
+    pits,
+    raceControl,
+    weather,
+    overtakes,
+  };
 };

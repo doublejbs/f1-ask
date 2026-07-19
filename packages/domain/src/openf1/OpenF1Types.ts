@@ -7,6 +7,24 @@ export type OpenF1Driver = {
   name_acronym: string;
   full_name: string;
   team_name: string;
+  team_colour?: string | null;
+  headshot_url?: string | null;
+};
+
+export type OpenF1Weather = {
+  date: string;
+  air_temperature: number | null;
+  track_temperature: number | null;
+  humidity: number | null;
+  rainfall: number | null;
+  wind_speed: number | null;
+};
+
+export type OpenF1Overtake = {
+  date: string;
+  position: number | null;
+  overtaking_driver_number: number;
+  overtaken_driver_number: number;
 };
 
 export type OpenF1Position = {
@@ -36,6 +54,10 @@ export type OpenF1Lap = {
   lap_number: number;
   date_start: string | null;
   lap_duration: number | null;
+  duration_sector_1?: number | null;
+  duration_sector_2?: number | null;
+  duration_sector_3?: number | null;
+  st_speed?: number | null; // 스피드 트랩 (km/h)
 };
 
 export type OpenF1Pit = {
@@ -73,4 +95,7 @@ export type OpenF1SessionData = {
   laps: OpenF1Lap[];
   pits: OpenF1Pit[];
   raceControl: OpenF1RaceControl[];
+  // 확장 데이터 (없을 수 있어 optional).
+  weather?: OpenF1Weather[];
+  overtakes?: OpenF1Overtake[];
 };

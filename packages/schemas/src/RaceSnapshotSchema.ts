@@ -15,6 +15,7 @@ export const weatherStateSchema = z.object({
   trackTemperatureCelsius: z.number().nullable(),
   humidityPercent: z.number().nullable(),
   rainfall: z.boolean(),
+  windSpeedKph: z.number().nullable().optional(),
 }) satisfies z.ZodType<WeatherState>;
 
 export const liveDriverStateSchema = z.object({
@@ -36,6 +37,10 @@ export const liveDriverStateSchema = z.object({
   inPit: z.boolean(),
   retired: z.boolean(),
   recentLapTimesSeconds: z.array(z.number()),
+  teamColour: z.string().nullable().optional(),
+  headshotUrl: z.string().nullable().optional(),
+  lastSectorsSeconds: z.array(z.number().nullable()).optional(),
+  topSpeedKph: z.number().nullable().optional(),
 }) satisfies z.ZodType<LiveDriverState>;
 
 export const liveRaceSnapshotSchema = z.object({

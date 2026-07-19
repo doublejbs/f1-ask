@@ -2,6 +2,7 @@ import { LiveDriverState } from "../LiveDriverState";
 import { LiveRaceSnapshot } from "../LiveRaceSnapshot";
 import { SessionStatus } from "../SessionStatus";
 import { TireCompound } from "../TireCompound";
+import { WeatherState } from "../WeatherState";
 import { scheduledRaceLaps } from "./RaceLapCounts";
 import {
   OpenF1Interval,
@@ -11,6 +12,7 @@ import {
   OpenF1RaceControl,
   OpenF1SessionData,
   OpenF1Stint,
+  OpenF1Weather,
 } from "./OpenF1Types";
 
 const SNAPSHOT_SCHEMA_VERSION = 1;
@@ -93,6 +95,7 @@ export type OpenF1Index = {
   pitsByDriver: Map<number, OpenF1Pit[]>;
   stintsByDriver: Map<number, OpenF1Stint[]>;
   raceControlSorted: OpenF1RaceControl[];
+  weatherSorted: OpenF1Weather[];
 };
 
 export const buildOpenF1Index = (data: OpenF1SessionData): OpenF1Index => {
@@ -110,6 +113,9 @@ export const buildOpenF1Index = (data: OpenF1SessionData): OpenF1Index => {
     pitsByDriver: groupByDriver(data.pits, (p) => parseMs(p.date)),
     stintsByDriver: groupByDriver(data.stints, (s) => s.lap_start),
     raceControlSorted: data.raceControl
+      .slice()
+      .sort((a, b) => parseMs(a.date) - parseMs(b.date)),
+    weatherSorted: (data.weather ?? [])
       .slice()
       .sort((a, b) => parseMs(a.date) - parseMs(b.date)),
   };
@@ -250,11 +256,37 @@ export const normalizeOpenF1SnapshotAt = (
     const startingPosition = positions?.[0]?.position ?? null;
     const position = positionRow?.position ?? null;
 
+    const lapObjs = index.lapsByDriver.get(number) ?? [];
+    const completedLapObjs = lapObjs.filter(
+      (lap) => lap.lap_number <= currentLap && lap.lap_duration !== null,
+    );
+    const lastLapObj = completedLapObjs.at(-1);
+    const lastSectorsSeconds = lastLapObj
+      ? [
+          lastLapObj.duration_sector_1 ?? null,
+          lastLapObj.duration_sector_2 ?? null,
+          lastLapObj.duration_sector_3 ?? null,
+        ]
+      : undefined;
+    const topSpeedKph = completedLapObjs.reduce<number | null>((max, lap) => {
+      const speed = lap.st_speed ?? null;
+
+      if (speed === null) {
+        return max;
+      }
+
+      return max === null ? speed : Math.max(max, speed);
+    }, null);
+
     return {
       driverNumber: number,
       code: driver.name_acronym,
       fullName: driver.full_name,
       teamName: driver.team_name,
+      teamColour: driver.team_colour ?? null,
+      headshotUrl: driver.headshot_url ?? null,
+      lastSectorsSeconds,
+      topSpeedKph,
       position,
       startingPosition,
       positionChange:
@@ -316,6 +348,22 @@ export const normalizeOpenF1SnapshotAt = (
   //        현재 랩 근처로만 채워져 신뢰할 수 없다("LAP 17 of 17"처럼 종료로 오해).
   //        스틴트가 현재 랩보다 앞을 내다보거나(완주 후 캡처된 데이터) 세션이 종료된
   //        경우에만 신뢰하고, 그 외에는 null(모름) 로 둔다.
+  const weatherRow = latestBefore(
+    index.weatherSorted,
+    atMs,
+    (w) => parseMs(w.date),
+  );
+  const weather: WeatherState | undefined =
+    weatherRow == null
+      ? undefined
+      : {
+          airTemperatureCelsius: weatherRow.air_temperature,
+          trackTemperatureCelsius: weatherRow.track_temperature,
+          humidityPercent: weatherRow.humidity,
+          rainfall: (weatherRow.rainfall ?? 0) > 0,
+          windSpeedKph: weatherRow.wind_speed,
+        };
+
   const scheduled = scheduledRaceLaps(data.meta.circuitName, data.meta.sessionType);
   const totalLaps =
     scheduled !== null
@@ -338,6 +386,7 @@ export const normalizeOpenF1SnapshotAt = (
     currentLap,
     totalLaps,
     drivers: ordered,
+    weather,
     generatedAt: iso,
     sourceUpdatedAt: iso,
     version,

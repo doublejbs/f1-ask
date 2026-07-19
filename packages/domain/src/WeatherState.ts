@@ -5,4 +5,5 @@ export type WeatherState = {
   trackTemperatureCelsius: number | null;
   humidityPercent: number | null;
   rainfall: boolean;
+  windSpeedKph?: number | null;
 };

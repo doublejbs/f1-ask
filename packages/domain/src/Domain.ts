@@ -72,6 +72,8 @@ export type {
   OpenF1Lap,
   OpenF1Pit,
   OpenF1RaceControl,
+  OpenF1Weather,
+  OpenF1Overtake,
   OpenF1SessionMeta,
   OpenF1SessionData,
 } from "./openf1/OpenF1Types";
