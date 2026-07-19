@@ -361,7 +361,7 @@ export const normalizeOpenF1SnapshotAt = (
           trackTemperatureCelsius: weatherRow.track_temperature,
           humidityPercent: weatherRow.humidity,
           rainfall: (weatherRow.rainfall ?? 0) > 0,
-          windSpeedKph: weatherRow.wind_speed,
+          windSpeedMps: weatherRow.wind_speed,
         };
 
   const scheduled = scheduledRaceLaps(data.meta.circuitName, data.meta.sessionType);
@@ -373,6 +373,11 @@ export const normalizeOpenF1SnapshotAt = (
         ? index.totalLaps
         : null;
 
+  // 완주 데이터는 최종 랩 크로싱 때문에 currentLap 이 예정 랩 수를 1 초과할 수 있다.
+  // 총 랩을 아는 경우 그 값을 넘지 않도록 클램프해 "45 of 44" 표시를 막는다.
+  const displayLap =
+    totalLaps !== null ? Math.min(currentLap, totalLaps) : currentLap;
+
   return {
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     sessionId: data.meta.sessionId,
@@ -383,7 +388,7 @@ export const normalizeOpenF1SnapshotAt = (
     circuitName: data.meta.circuitName,
     countryCode: data.meta.countryCode,
     status,
-    currentLap,
+    currentLap: displayLap,
     totalLaps,
     drivers: ordered,
     weather,

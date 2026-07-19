@@ -5,5 +5,5 @@ export type WeatherState = {
   trackTemperatureCelsius: number | null;
   humidityPercent: number | null;
   rainfall: boolean;
-  windSpeedKph?: number | null;
+  windSpeedMps?: number | null; // 풍속 (m/s, OpenF1 wind_speed)
 };

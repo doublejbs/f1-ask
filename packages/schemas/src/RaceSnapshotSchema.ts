@@ -15,7 +15,7 @@ export const weatherStateSchema = z.object({
   trackTemperatureCelsius: z.number().nullable(),
   humidityPercent: z.number().nullable(),
   rainfall: z.boolean(),
-  windSpeedKph: z.number().nullable().optional(),
+  windSpeedMps: z.number().nullable().optional(),
 }) satisfies z.ZodType<WeatherState>;
 
 export const liveDriverStateSchema = z.object({

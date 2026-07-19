@@ -50,6 +50,9 @@ describe("OpenF1 live poll → Firestore", () => {
         `poll-${Date.now()}`,
       );
       const db = getFirestore(app);
+      // 스냅샷의 optional 필드(weather/lastSectorsSeconds 등)가 undefined 일 수 있어
+      // Firestore 쓰기 시 오류가 나지 않도록 undefined 프로퍼티를 무시한다.
+      db.settings({ ignoreUndefinedProperties: true });
 
       const meta = await fetchLatestOpenF1Meta(clientOptions);
       // 고정 sessionId 로 덮어써 클라이언트가 알려진 경로를 구독하게 한다.
