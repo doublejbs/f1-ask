@@ -1,0 +1,14 @@
+{
+  "name": "@f1/domain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/Domain.ts",
+  "types": "./src/Domain.ts",
+  "exports": {
+    ".": "./src/Domain.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
