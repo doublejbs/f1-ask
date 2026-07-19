@@ -1,6 +1,7 @@
 import { LiveDriverState } from "../LiveDriverState";
 import { LiveRaceSnapshot } from "../LiveRaceSnapshot";
 import { SessionStatus } from "../SessionStatus";
+import { TeamRadioClip } from "../TeamRadioClip";
 import { TireCompound } from "../TireCompound";
 import { WeatherState } from "../WeatherState";
 import { scheduledRaceLaps } from "./RaceLapCounts";
@@ -12,11 +13,14 @@ import {
   OpenF1RaceControl,
   OpenF1SessionData,
   OpenF1Stint,
+  OpenF1TeamRadio,
   OpenF1Weather,
 } from "./OpenF1Types";
 
 const SNAPSHOT_SCHEMA_VERSION = 1;
 const PIT_WINDOW_MS = 30_000;
+// 스냅샷에 담을 최근 팀 라디오 클립 최대 개수.
+const TEAM_RADIO_LIMIT = 12;
 
 const numberOrNull = (value: number | string | null): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -96,6 +100,7 @@ export type OpenF1Index = {
   stintsByDriver: Map<number, OpenF1Stint[]>;
   raceControlSorted: OpenF1RaceControl[];
   weatherSorted: OpenF1Weather[];
+  teamRadioSorted: OpenF1TeamRadio[];
 };
 
 export const buildOpenF1Index = (data: OpenF1SessionData): OpenF1Index => {
@@ -116,6 +121,9 @@ export const buildOpenF1Index = (data: OpenF1SessionData): OpenF1Index => {
       .slice()
       .sort((a, b) => parseMs(a.date) - parseMs(b.date)),
     weatherSorted: (data.weather ?? [])
+      .slice()
+      .sort((a, b) => parseMs(a.date) - parseMs(b.date)),
+    teamRadioSorted: (data.teamRadio ?? [])
       .slice()
       .sort((a, b) => parseMs(a.date) - parseMs(b.date)),
   };
@@ -364,6 +372,21 @@ export const normalizeOpenF1SnapshotAt = (
           windSpeedMps: weatherRow.wind_speed,
         };
 
+  // 팀 라디오: atMs 이전 클립을 최신순으로 최대 TEAM_RADIO_LIMIT 개 담는다.
+  const codeByNumber = new Map(
+    data.drivers.map((driver) => [driver.driver_number, driver.name_acronym]),
+  );
+  const teamRadios: TeamRadioClip[] = index.teamRadioSorted
+    .filter((radio) => parseMs(radio.date) <= atMs)
+    .slice(-TEAM_RADIO_LIMIT)
+    .reverse()
+    .map((radio) => ({
+      driverNumber: radio.driver_number,
+      driverCode: codeByNumber.get(radio.driver_number) ?? String(radio.driver_number),
+      recordingUrl: radio.recording_url,
+      timestamp: radio.date,
+    }));
+
   const scheduled = scheduledRaceLaps(data.meta.circuitName, data.meta.sessionType);
   const totalLaps =
     scheduled !== null
@@ -392,6 +415,7 @@ export const normalizeOpenF1SnapshotAt = (
     totalLaps,
     drivers: ordered,
     weather,
+    teamRadios,
     generatedAt: iso,
     sourceUpdatedAt: iso,
     version,

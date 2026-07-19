@@ -20,6 +20,7 @@ export {
 } from "./SupportedLocale";
 
 export type { WeatherState } from "./WeatherState";
+export type { TeamRadioClip } from "./TeamRadioClip";
 export type { LiveDriverState } from "./LiveDriverState";
 export type { LiveRaceSnapshot } from "./LiveRaceSnapshot";
 export type {
@@ -74,6 +75,7 @@ export type {
   OpenF1RaceControl,
   OpenF1Weather,
   OpenF1Overtake,
+  OpenF1TeamRadio,
   OpenF1SessionMeta,
   OpenF1SessionData,
 } from "./openf1/OpenF1Types";

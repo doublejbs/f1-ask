@@ -27,6 +27,12 @@ export type OpenF1Overtake = {
   overtaken_driver_number: number;
 };
 
+export type OpenF1TeamRadio = {
+  date: string;
+  driver_number: number;
+  recording_url: string;
+};
+
 export type OpenF1Position = {
   date: string;
   driver_number: number;
@@ -98,4 +104,5 @@ export type OpenF1SessionData = {
   // 확장 데이터 (없을 수 있어 optional).
   weather?: OpenF1Weather[];
   overtakes?: OpenF1Overtake[];
+  teamRadio?: OpenF1TeamRadio[];
 };

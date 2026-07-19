@@ -2,6 +2,7 @@ import {
   LiveDriverState,
   LiveRaceSnapshot,
   SessionStatus,
+  TeamRadioClip,
   TireCompound,
   WeatherState,
 } from "@f1/domain";
@@ -43,6 +44,13 @@ export const liveDriverStateSchema = z.object({
   topSpeedKph: z.number().nullable().optional(),
 }) satisfies z.ZodType<LiveDriverState>;
 
+export const teamRadioClipSchema = z.object({
+  driverNumber: z.number().int(),
+  driverCode: z.string().min(1),
+  recordingUrl: z.string().url(),
+  timestamp: z.string(),
+}) satisfies z.ZodType<TeamRadioClip>;
+
 export const liveRaceSnapshotSchema = z.object({
   schemaVersion: z.number().int().positive(),
   sessionId: z.string().min(1),
@@ -57,6 +65,7 @@ export const liveRaceSnapshotSchema = z.object({
   totalLaps: z.number().int().nullable(),
   drivers: z.array(liveDriverStateSchema),
   weather: weatherStateSchema.optional(),
+  teamRadios: z.array(teamRadioClipSchema).optional(),
   generatedAt: z.string().datetime(),
   sourceUpdatedAt: z.string().datetime(),
   version: z.number().int().nonnegative(),

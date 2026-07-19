@@ -9,6 +9,7 @@ import {
   OpenF1SessionData,
   OpenF1SessionMeta,
   OpenF1Stint,
+  OpenF1TeamRadio,
   OpenF1Weather,
 } from "./OpenF1Types";
 
@@ -264,6 +265,8 @@ export const fetchOpenF1SessionData = async (
   const weather = await fetchEndpoint<OpenF1Weather>("weather", "session_key", key, options);
   await sleep(gap);
   const overtakes = await fetchEndpoint<OpenF1Overtake>("overtakes", "session_key", key, options);
+  await sleep(gap);
+  const teamRadio = await fetchEndpoint<OpenF1TeamRadio>("team_radio", "session_key", key, options);
 
   return {
     meta,
@@ -276,5 +279,6 @@ export const fetchOpenF1SessionData = async (
     raceControl,
     weather,
     overtakes,
+    teamRadio,
   };
 };
