@@ -51,6 +51,12 @@ export type Dictionary = {
     title: string;
     empty: string;
   };
+  teamRadio: {
+    title: string;
+    empty: string;
+    play: string;
+    pause: string;
+  };
   favoriteCard: {
     title: string;
     empty: string;
@@ -142,6 +148,12 @@ const en: Dictionary = {
   events: {
     title: "Recent Events",
     empty: "No events yet",
+  },
+  teamRadio: {
+    title: "Team Radio",
+    empty: "No radio messages yet",
+    play: "Play",
+    pause: "Pause",
   },
   favoriteCard: {
     title: "Favorite Drivers",
@@ -272,6 +284,12 @@ const ko: Dictionary = {
     title: "최근 이벤트",
     empty: "아직 이벤트가 없습니다",
   },
+  teamRadio: {
+    title: "팀 라디오",
+    empty: "아직 무전이 없습니다",
+    play: "재생",
+    pause: "정지",
+  },
   favoriteCard: {
     title: "관심 드라이버",
     empty: "드라이버 옆의 별을 눌러 여기에 추가하세요.",
@@ -400,6 +418,12 @@ const ja: Dictionary = {
   events: {
     title: "最近のイベント",
     empty: "まだイベントがありません",
+  },
+  teamRadio: {
+    title: "チームラジオ",
+    empty: "まだ無線がありません",
+    play: "再生",
+    pause: "停止",
   },
   favoriteCard: {
     title: "お気に入りドライバー",

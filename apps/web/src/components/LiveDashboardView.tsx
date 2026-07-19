@@ -7,6 +7,7 @@ import { EventFeedView } from "@/components/EventFeedView";
 import { FavoriteDriversSectionView } from "@/components/FavoriteDriversSectionView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionHeaderView } from "@/components/SessionHeaderView";
+import { TeamRadioView } from "@/components/TeamRadioView";
 import { WeatherView } from "@/components/WeatherView";
 import { useExplanationLevel } from "@/hooks/UseExplanationLevel";
 import { useFavoriteDrivers } from "@/hooks/UseFavoriteDrivers";
@@ -135,6 +136,14 @@ export const LiveDashboardView = ({ locale }: Props) => {
             onRemove={toggleFavorite}
           />
           <AiCommentaryView dictionary={dictionary} commentary={commentary} />
+          {race.snapshot.teamRadios !== undefined &&
+          race.snapshot.teamRadios.length > 0 ? (
+            <TeamRadioView
+              dictionary={dictionary}
+              clips={race.snapshot.teamRadios}
+              drivers={race.snapshot.drivers}
+            />
+          ) : null}
           <EventFeedView
             dictionary={dictionary}
             locale={locale}
