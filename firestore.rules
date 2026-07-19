@@ -1,0 +1,80 @@
+rules_version = '2';
+
+// F1 AI Second Screen — Firestore Security Rules
+// 원칙 (docs/03-firestore-and-auth.md §23):
+// 1. Default deny
+// 2. 공개 경기 데이터는 읽기 허용, 쓰기는 서버(Admin SDK)만
+// 3. 사용자 데이터는 UID 일치 검증
+// 4. server-only 내부 collection은 클라이언트 읽기/쓰기 모두 거부
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Public server-owned: 누구나 읽기, 쓰기는 서버만 (클라이언트 write 거부)
+    match /sessions/{sessionId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /live/{docId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      match /events/{eventId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      match /aiCommentary/{commentaryId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      // 서버 전용 runtime state
+      match /runtime/{docId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Private user-owned: 본인만 접근
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid);
+      allow delete: if false; // 삭제는 서버 워크플로우에서 처리
+
+      match /favoriteDrivers/{favoriteId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /notificationSettings/{settingId} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // Server-only internal: 클라이언트 완전 차단
+    match /workerLeases/{sessionId} {
+      allow read, write: if false;
+    }
+    match /rateLimits/{rateLimitKey} {
+      allow read, write: if false;
+    }
+    match /aiCache/{cacheKey} {
+      allow read, write: if false;
+    }
+    match /adminAuditLogs/{auditId} {
+      allow read, write: if false;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
