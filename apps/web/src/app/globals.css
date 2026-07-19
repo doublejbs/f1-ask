@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* shadcn/ui 테마 토큰. 기본 다크 테마 (Second Screen 은 야간 시청 환경 가정). */
+:root {
+  --background: 222 47% 8%;
+  --foreground: 210 40% 96%;
+  --card: 222 40% 11%;
+  --card-foreground: 210 40% 96%;
+  --primary: 0 72% 51%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 33% 20%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 20%;
+  --accent-foreground: 210 40% 96%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 217 33% 22%;
+  --input: 217 33% 22%;
+  --ring: 0 72% 51%;
+  --radius: 0.5rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
