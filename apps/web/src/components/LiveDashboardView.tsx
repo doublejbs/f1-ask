@@ -1,7 +1,7 @@
 "use client";
 
 import { AiCommentaryView } from "@/components/AiCommentaryView";
-import { AskAiView } from "@/components/AskAiView";
+import { AskAiView, type AskAiPrefill } from "@/components/AskAiView";
 import { DriverTableView } from "@/components/DriverTableView";
 import { EventFeedView } from "@/components/EventFeedView";
 import { FavoriteDriversSectionView } from "@/components/FavoriteDriversSectionView";
@@ -17,10 +17,12 @@ import { getDictionary } from "@/i18n/Messages";
 import { getDataMode } from "@/lib/Env";
 import {
   FavoriteDriverDetail,
+  LiveDriverState,
+  RaceEvent,
   selectFavoriteDriverDetail,
   SupportedLocale,
 } from "@f1/domain";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 type Props = {
   locale: SupportedLocale;
@@ -37,6 +39,26 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const commentary = useRaceCommentary(race, locale, explanationLevel);
   const summary = useRaceSummary(race, locale);
   const { favorites, isFavorite, toggleFavorite } = useFavoriteDrivers();
+  const [askPrefill, setAskPrefill] = useState<AskAiPrefill | undefined>();
+
+  // 탭투애스크: 드라이버 행을 탭하면 해당 드라이버 질문을 Ask AI 로 자동 제출한다.
+  const askAboutCode = (code: string) => {
+    setAskPrefill((prev) => ({
+      text: dictionary.askAi.driverTapQuestion.replace("{code}", code),
+      nonce: (prev?.nonce ?? 0) + 1,
+    }));
+  };
+
+  const askAboutDriver = (driver: LiveDriverState) => askAboutCode(driver.code);
+
+  // 이벤트 탭: 연관 드라이버 코드로 질문을 자동 제출한다.
+  const askAboutEvent = (event: RaceEvent) => {
+    const code = event.params.driverCode;
+
+    if (typeof code === "string" && code.length > 0) {
+      askAboutCode(code);
+    }
+  };
 
   const favoriteDetails = useMemo<FavoriteDriverDetail[]>(() => {
     if (race === null) {
@@ -94,6 +116,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
         snapshot={race.snapshot}
         events={race.events}
         favoriteDriverNumbers={Array.from(favorites)}
+        prefill={askPrefill}
       />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
@@ -102,6 +125,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
           drivers={race.snapshot.drivers}
           isFavorite={isFavorite}
           onToggleFavorite={toggleFavorite}
+          onSelectDriver={askAboutDriver}
         />
         <div className="flex flex-col gap-4">
           <FavoriteDriversSectionView
@@ -115,6 +139,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
             dictionary={dictionary}
             locale={locale}
             events={race.events}
+            onSelectEvent={askAboutEvent}
           />
         </div>
       </div>

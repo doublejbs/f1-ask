@@ -54,7 +54,7 @@ const computeFieldBestSectors = (
 
       const current = best[i];
 
-      if (current === null || value < current) {
+      if (current === null || current === undefined || value < current) {
         best[i] = value;
       }
     }

@@ -71,6 +71,10 @@ export type Dictionary = {
     insufficient: string;
     suggestions: string;
     confidenceLabel: string;
+    reset: string;
+    emptyHint: string;
+    // {code} 를 드라이버 코드로 치환하는 탭투애스크 질문 템플릿.
+    driverTapQuestion: string;
     confidence: Record<AiConfidence, string>;
   };
   commentary: {
@@ -159,6 +163,9 @@ const en: Dictionary = {
     insufficient: "Not enough data to answer confidently.",
     suggestions: "Try asking",
     confidenceLabel: "Confidence",
+    reset: "New chat",
+    emptyHint: "Ask a question, or tap a driver or event below.",
+    driverTapQuestion: "How is {code} doing right now?",
     confidence: {
       [AiConfidence.Low]: "Low",
       [AiConfidence.Medium]: "Medium",
@@ -285,6 +292,9 @@ const ko: Dictionary = {
     insufficient: "확실히 답하기에는 데이터가 부족합니다.",
     suggestions: "이렇게 물어보세요",
     confidenceLabel: "신뢰도",
+    reset: "새 대화",
+    emptyHint: "질문을 입력하거나 아래 드라이버·이벤트를 탭해 보세요.",
+    driverTapQuestion: "{code} 지금 상황 어때?",
     confidence: {
       [AiConfidence.Low]: "낮음",
       [AiConfidence.Medium]: "보통",
@@ -411,6 +421,9 @@ const ja: Dictionary = {
     insufficient: "確実に答えるにはデータが不足しています。",
     suggestions: "質問例",
     confidenceLabel: "信頼度",
+    reset: "新しい会話",
+    emptyHint: "質問を入力するか、下のドライバー・イベントをタップしてください。",
+    driverTapQuestion: "{code} は今どんな状況？",
     confidence: {
       [AiConfidence.Low]: "低",
       [AiConfidence.Medium]: "中",
