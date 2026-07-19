@@ -4,6 +4,13 @@ import { RaceEvent } from "../RaceEvent";
 import { RaceSummaryData } from "../RaceSummary";
 import { SupportedLocale } from "../SupportedLocale";
 import { AiConfidence } from "./AiConfidence";
+import { LlmChatRole } from "./LlmChatRole";
+
+// 멀티턴 대화의 한 발화. content 는 원문 텍스트만 담는다(데이터 JSON 은 제외).
+export type LlmChatMessage = {
+  role: LlmChatRole;
+  content: string;
+};
 
 // AI 질문 요청. 특정 provider(OpenAI 등)에 종속되지 않는 내부 모델이다.
 // (docs/02-architecture.md §2.6 Provider Independence)
@@ -14,6 +21,8 @@ export type LlmQuestionRequest = {
   snapshot: LiveRaceSnapshot;
   recentEvents: RaceEvent[];
   favoriteDriverNumbers: number[];
+  // 이전 대화 턴(원문 Q&A 텍스트만). 현재 데이터는 이번 질문에만 첨부된다.
+  conversationHistory?: LlmChatMessage[];
 };
 
 // AI 답변 + metadata (docs/02-architecture.md §42.3 AiQuestionResponse).

@@ -45,6 +45,7 @@ describe("llmAnswerSchema", () => {
     const answer = await new MockLlmProvider().answerQuestion({
       question: "Who is leading now?",
       locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
       snapshot: frame.snapshot,
       recentEvents: frame.events,
       favoriteDriverNumbers: [],

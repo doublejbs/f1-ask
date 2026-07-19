@@ -122,9 +122,11 @@ export {
 } from "./FavoriteDriverDetail";
 
 export { AiConfidence } from "./ai/AiConfidence";
+export { LlmChatRole } from "./ai/LlmChatRole";
 export type {
   RaceLlmProvider,
   LlmQuestionRequest,
+  LlmChatMessage,
   LlmAnswer,
   LlmCommentaryRequest,
   LlmCommentary,

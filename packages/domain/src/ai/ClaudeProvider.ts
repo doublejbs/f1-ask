@@ -5,6 +5,7 @@ import { RaceEvent } from "../RaceEvent";
 import { RaceSummaryData } from "../RaceSummary";
 import { SupportedLocale } from "../SupportedLocale";
 import { AiConfidence } from "./AiConfidence";
+import { LlmChatRole } from "./LlmChatRole";
 import {
   LlmAnswer,
   LlmCommentary,
@@ -14,6 +15,8 @@ import {
   LlmSummaryRequest,
   RaceLlmProvider,
 } from "./RaceLlmProvider";
+
+type ChatMessage = { role: LlmChatRole; content: string };
 
 // 주입 가능한 fetch (네트워크 없이 단위 테스트).
 export type ClaudeFetch = (
@@ -64,12 +67,16 @@ type DriverContext = {
   code: string;
   team: string;
   pos: number | null;
+  startPos: number | null;
+  posChange: number | null;
   gapToLeader: number | null;
   interval: number | null;
   tire: string;
   tireAgeLaps: number | null;
   pits: number;
   lastLap: number | null;
+  sectors: (number | null)[] | null;
+  topSpeedKph: number | null;
   inPit: boolean;
   retired: boolean;
 };
@@ -79,12 +86,16 @@ const toDriverContext = (driver: LiveDriverState): DriverContext => ({
   code: driver.code,
   team: driver.teamName,
   pos: driver.position,
+  startPos: driver.startingPosition,
+  posChange: driver.positionChange,
   gapToLeader: driver.gapToLeaderSeconds,
   interval: driver.intervalToAheadSeconds,
   tire: driver.compound,
   tireAgeLaps: driver.tireAgeLaps,
   pits: driver.pitStopCount,
   lastLap: driver.lastLapSeconds,
+  sectors: driver.lastSectorsSeconds ?? null,
+  topSpeedKph: driver.topSpeedKph ?? null,
   inPit: driver.inPit,
   retired: driver.retired,
 });
@@ -103,6 +114,16 @@ const buildQuestionContext = (
     driverNumber: event.driverNumber ?? null,
     params: event.params,
   }));
+  const weather =
+    snapshot.weather === undefined
+      ? null
+      : {
+          airTempC: snapshot.weather.airTemperatureCelsius,
+          trackTempC: snapshot.weather.trackTemperatureCelsius,
+          humidityPct: snapshot.weather.humidityPercent,
+          rainfall: snapshot.weather.rainfall,
+          windMps: snapshot.weather.windSpeedMps ?? null,
+        };
 
   return JSON.stringify({
     session: {
@@ -112,7 +133,9 @@ const buildQuestionContext = (
       currentLap: snapshot.currentLap,
       totalLaps: snapshot.totalLaps,
     },
+    weather,
     favoriteDriverNumbers,
+    // 드라이버별: 순위/시작순위/순위변동/간격/타이어/최근랩/섹터[S1,S2,S3]/스피드트랩/피트.
     drivers,
     recentEvents: events,
   });
@@ -173,7 +196,17 @@ export class ClaudeProvider implements RaceLlmProvider {
 
     const user = `Question: ${request.question}\n\nCurrent race data (JSON):\n${context}`;
 
-    const content = await this.message(system, user, 300);
+    // 이전 대화 턴(원문 텍스트) + 현재 질문(데이터 첨부)으로 messages 를 구성한다.
+    // 데이터는 매 턴 바뀌므로 현재 질문에만 첨부하고, 히스토리는 Q&A 텍스트만 담는다.
+    const messages = [
+      ...(request.conversationHistory ?? []).map((turn) => ({
+        role: turn.role,
+        content: turn.content,
+      })),
+      { role: LlmChatRole.User, content: user },
+    ];
+
+    const content = await this.message(system, messages, 300);
     const parsed = this.safeJson(content);
 
     const answer =
@@ -209,7 +242,11 @@ export class ClaudeProvider implements RaceLlmProvider {
       params: request.event.params,
     })}\n\nSession status: ${request.snapshot.status}, lap ${request.snapshot.currentLap ?? "?"}/${request.snapshot.totalLaps ?? "?"}.`;
 
-    const text = await this.message(system, user, 120);
+    const text = await this.message(
+      system,
+      [{ role: LlmChatRole.User, content: user }],
+      120,
+    );
 
     return { sourceEventId: request.event.id, text: text.trim() };
   }
@@ -243,22 +280,27 @@ export class ClaudeProvider implements RaceLlmProvider {
       retirements: facts.retiredDriverNumbers.length,
     });
 
-    const text = await this.message(system, user, 200);
+    const text = await this.message(
+      system,
+      [{ role: LlmChatRole.User, content: user }],
+      200,
+    );
 
     return { text: text.trim() };
   }
 
   // Anthropic Messages API 호출. system 은 top-level 파라미터로 전달한다.
+  // messages 는 멀티턴 대화(user/assistant 교대)를 담을 수 있다.
   private async message(
     system: string,
-    user: string,
+    messages: ChatMessage[],
     maxTokens: number,
   ): Promise<string> {
     const body = {
       model: this.model,
       max_tokens: maxTokens,
       system,
-      messages: [{ role: "user", content: user }],
+      messages,
     };
 
     const response = await this.fetchImpl(`${this.baseUrl}/messages`, {
