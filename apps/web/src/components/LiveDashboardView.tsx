@@ -7,6 +7,7 @@ import { EventFeedView } from "@/components/EventFeedView";
 import { FavoriteDriversSectionView } from "@/components/FavoriteDriversSectionView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionHeaderView } from "@/components/SessionHeaderView";
+import { WeatherView } from "@/components/WeatherView";
 import { useExplanationLevel } from "@/hooks/UseExplanationLevel";
 import { useFavoriteDrivers } from "@/hooks/UseFavoriteDrivers";
 import { useLiveRace } from "@/hooks/UseLiveRace";
@@ -73,6 +74,10 @@ export const LiveDashboardView = ({ locale }: Props) => {
         explanationLevel={explanationLevel}
         onChangeExplanationLevel={setExplanationLevel}
       />
+
+      {race.snapshot.weather !== undefined ? (
+        <WeatherView dictionary={dictionary} weather={race.snapshot.weather} />
+      ) : null}
 
       {summary !== null ? (
         <RaceSummaryView

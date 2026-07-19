@@ -29,12 +29,23 @@ export type Dictionary = {
     tire: string;
     tireAge: string;
     lastLap: string;
+    sectors: string;
+    topSpeed: string;
     pit: string;
     favorite: string;
     leader: string;
     inPit: string;
     retired: string;
     lapsUnit: string;
+  };
+  weather: {
+    title: string;
+    air: string;
+    track: string;
+    humidity: string;
+    wind: string;
+    rain: string;
+    dry: string;
   };
   events: {
     title: string;
@@ -106,12 +117,23 @@ const en: Dictionary = {
     tire: "Tire",
     tireAge: "Age",
     lastLap: "Last Lap",
+    sectors: "Sectors",
+    topSpeed: "Top Spd",
     pit: "Pit",
     favorite: "Favorite",
     leader: "Leader",
     inPit: "IN PIT",
     retired: "OUT",
     lapsUnit: "L",
+  },
+  weather: {
+    title: "Track Conditions",
+    air: "Air",
+    track: "Track",
+    humidity: "Humidity",
+    wind: "Wind",
+    rain: "Rain",
+    dry: "Dry",
   },
   events: {
     title: "Recent Events",
@@ -221,12 +243,23 @@ const ko: Dictionary = {
     tire: "타이어",
     tireAge: "사용",
     lastLap: "최근 랩",
+    sectors: "섹터",
+    topSpeed: "최고속",
     pit: "피트",
     favorite: "관심",
     leader: "선두",
     inPit: "피트인",
     retired: "리타이어",
     lapsUnit: "랩",
+  },
+  weather: {
+    title: "트랙 컨디션",
+    air: "기온",
+    track: "노면",
+    humidity: "습도",
+    wind: "바람",
+    rain: "강수",
+    dry: "건조",
   },
   events: {
     title: "최근 이벤트",
@@ -336,12 +369,23 @@ const ja: Dictionary = {
     tire: "タイヤ",
     tireAge: "使用",
     lastLap: "最終ラップ",
+    sectors: "セクター",
+    topSpeed: "最高速",
     pit: "ピット",
     favorite: "お気に入り",
     leader: "首位",
     inPit: "ピットイン",
     retired: "リタイア",
     lapsUnit: "周",
+  },
+  weather: {
+    title: "トラックコンディション",
+    air: "気温",
+    track: "路面",
+    humidity: "湿度",
+    wind: "風",
+    rain: "降水",
+    dry: "ドライ",
   },
   events: {
     title: "最近のイベント",

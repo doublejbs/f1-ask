@@ -30,3 +30,30 @@ export const formatPositionChange = (change: number | null): string => {
 
   return change > 0 ? `▲${change}` : `▼${Math.abs(change)}`;
 };
+
+// 섹터 시간(초) → "23.456". 랩 타임과 달리 분 단위가 없다.
+export const formatSector = (seconds: number | null | undefined): string => {
+  if (seconds === null || seconds === undefined) {
+    return "—";
+  }
+
+  return seconds.toFixed(3);
+};
+
+// OpenF1 team_colour("FF8000") → CSS hex("#FF8000"). 없으면 null.
+export const teamColorHex = (colour: string | null | undefined): string | null => {
+  if (colour === null || colour === undefined || colour.length === 0) {
+    return null;
+  }
+
+  return colour.startsWith("#") ? colour : `#${colour}`;
+};
+
+// 스피드 트랩(km/h) → "342 km/h". 없으면 "—".
+export const formatSpeed = (kph: number | null | undefined): string => {
+  if (kph === null || kph === undefined) {
+    return "—";
+  }
+
+  return `${Math.round(kph)}`;
+};
