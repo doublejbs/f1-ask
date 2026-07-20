@@ -109,10 +109,6 @@ export type Dictionary = {
     chasingDescription: string;
     aheadDescription: string;
   };
-  criticalBanner: {
-    // 배너 닫기 버튼 접근성 라벨.
-    dismiss: string;
-  };
   // 상단 활성 세션 상태 스트립 (docs/14-event-placement.md).
   // 칩 라벨 자체는 params 가 필요해 TranslateSessionState 가 담당하고,
   // 여기에는 정적 크롬 문구만 둔다.
@@ -251,9 +247,6 @@ const en: Dictionary = {
     overtakeTitle: "Overtake mode available",
     chasingDescription: "Battling {code} ahead, {gap}s gap",
     aheadDescription: "Battling {code} behind, {gap}s gap",
-  },
-  criticalBanner: {
-    dismiss: "Dismiss",
   },
   sessionStrip: {
     title: "Active race status",
@@ -415,9 +408,6 @@ const ko: Dictionary = {
     chasingDescription: "앞차 {code}와 {gap}초 차 접전",
     aheadDescription: "뒤차 {code}와 {gap}초 차 접전",
   },
-  criticalBanner: {
-    dismiss: "닫기",
-  },
   sessionStrip: {
     title: "현재 경기 상태",
     severity: {
@@ -577,9 +567,6 @@ const ja: Dictionary = {
     overtakeTitle: "オーバーテイクモード使用可能",
     chasingDescription: "前方の{code}と{gap}秒差の接戦",
     aheadDescription: "後方の{code}と{gap}秒差の接戦",
-  },
-  criticalBanner: {
-    dismiss: "閉じる",
   },
   sessionStrip: {
     title: "現在のレース状況",

@@ -157,6 +157,10 @@ export {
   RECENT_DRIVER_EVENT_TYPES,
   DEFAULT_RECENT_DRIVER_EVENT_WINDOW_MS,
 } from "./RecentDriverEventSelector";
+export {
+  selectLatestPriorityEvents,
+  LATEST_PRIORITY_EVENT_LIMIT,
+} from "./LatestPriorityEventSelector";
 
 export type { Battle } from "./Battle";
 export {

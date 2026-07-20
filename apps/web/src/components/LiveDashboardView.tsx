@@ -15,7 +15,7 @@ import { useRaceSummary } from "@/hooks/UseRaceSummary";
 import { getDictionary } from "@/i18n/Messages";
 import { DashboardTab } from "@/lib/DashboardTab";
 import { cn } from "@/lib/Utils";
-import { LiveDriverState, RaceEvent, SupportedLocale } from "@f1/domain";
+import { LiveDriverState, SupportedLocale } from "@f1/domain";
 import { useState } from "react";
 
 type Props = {
@@ -47,14 +47,6 @@ export const LiveDashboardView = ({ locale }: Props) => {
   };
 
   const handleAskDriver = (driver: LiveDriverState) => handleAskCode(driver.code);
-
-  const handleAskEvent = (event: RaceEvent) => {
-    const code = event.params.driverCode;
-
-    if (typeof code === "string" && code.length > 0) {
-      handleAskCode(code);
-    }
-  };
 
   if (race === null) {
     return (
@@ -97,7 +89,6 @@ export const LiveDashboardView = ({ locale }: Props) => {
             isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
             onSelectDriver={handleAskDriver}
-            onSelectEvent={handleAskEvent}
           />
         </div>
 
