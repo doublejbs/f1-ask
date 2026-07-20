@@ -133,6 +133,13 @@ export {
   DEFAULT_FAVORITE_EVENT_LIMIT,
 } from "./FavoriteDriverDetail";
 
+export type { Battle } from "./Battle";
+export {
+  selectBattles,
+  BATTLE_GAP_THRESHOLD_SECONDS,
+  DRS_RANGE_THRESHOLD_SECONDS,
+} from "./BattleSelector";
+
 export { AiConfidence } from "./ai/AiConfidence";
 export { LlmChatRole } from "./ai/LlmChatRole";
 export type {

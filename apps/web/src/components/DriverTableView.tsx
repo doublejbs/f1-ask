@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dictionary } from "@/i18n/Messages";
 import { cn } from "@/lib/Utils";
 import {
+  computeFieldBestSectors,
   formatGap,
   formatLapTime,
   formatPositionChange,
@@ -30,37 +31,6 @@ const positionChangeColor = (change: number | null): string => {
   }
 
   return change > 0 ? "text-emerald-400" : "text-red-400";
-};
-
-// 필드 전체 최근 랩 기준 각 섹터의 최속 시간을 구한다(퍼플 판정용).
-const computeFieldBestSectors = (
-  drivers: LiveDriverState[],
-): (number | null)[] => {
-  const best: (number | null)[] = [null, null, null];
-
-  for (const driver of drivers) {
-    const sectors = driver.lastSectorsSeconds;
-
-    if (sectors === undefined) {
-      continue;
-    }
-
-    for (let i = 0; i < 3; i += 1) {
-      const value = sectors[i] ?? null;
-
-      if (value === null) {
-        continue;
-      }
-
-      const current = best[i];
-
-      if (current === null || current === undefined || value < current) {
-        best[i] = value;
-      }
-    }
-  }
-
-  return best;
 };
 
 // 20명 드라이버 순위표. 팀 컬러 액센트 · 헤드샷 · 섹터(퍼플) · 스피드 트랩을 포함한다.

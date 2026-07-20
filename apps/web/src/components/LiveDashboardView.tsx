@@ -1,80 +1,66 @@
 "use client";
 
-import { AiCommentaryView } from "@/components/AiCommentaryView";
-import { AskAiView, type AskAiPrefill } from "@/components/AskAiView";
-import { DriverTableView } from "@/components/DriverTableView";
-import { EventFeedView } from "@/components/EventFeedView";
-import { FavoriteDriversSectionView } from "@/components/FavoriteDriversSectionView";
-import { RaceSummaryView } from "@/components/RaceSummaryView";
-import { SessionHeaderView } from "@/components/SessionHeaderView";
-import { TeamRadioView } from "@/components/TeamRadioView";
-import { WeatherView } from "@/components/WeatherView";
+import { AskAiTabView } from "@/components/AskAiTabView";
+import { NowTabView } from "@/components/NowTabView";
+import { SettingsSheetView } from "@/components/SettingsSheetView";
+import { StandingsTabView } from "@/components/StandingsTabView";
+import { StatusBarView } from "@/components/StatusBarView";
+import { TabBarView } from "@/components/TabBarView";
+import { useDashboardTabState } from "@/hooks/UseDashboardTabState";
 import { useExplanationLevel } from "@/hooks/UseExplanationLevel";
 import { useFavoriteDrivers } from "@/hooks/UseFavoriteDrivers";
 import { useLiveRace } from "@/hooks/UseLiveRace";
 import { useRaceCommentary } from "@/hooks/UseRaceCommentary";
 import { useRaceSummary } from "@/hooks/UseRaceSummary";
 import { getDictionary } from "@/i18n/Messages";
-import { getDataMode } from "@/lib/Env";
-import {
-  FavoriteDriverDetail,
-  LiveDriverState,
-  RaceEvent,
-  selectFavoriteDriverDetail,
-  SupportedLocale,
-} from "@f1/domain";
-import { useMemo, useState } from "react";
+import { DashboardTab } from "@/lib/DashboardTab";
+import { cn } from "@/lib/Utils";
+import { LiveDriverState, RaceEvent, SupportedLocale } from "@f1/domain";
+import { useState } from "react";
 
 type Props = {
   locale: SupportedLocale;
 };
 
 // 라이브 경기 대시보드 조립 컴포넌트.
-// 데이터 소스(Mock)와 표시(View)를 연결한다. 상태 계산은 하지 않는다.
+// 모바일: 상태바 + 활성 탭 + 하단 탭바. 데스크톱(lg): 탭바 없이 3컬럼[순위|지금|AI].
+// 비활성 탭은 언마운트하지 않고 display 로만 숨겨 AskAiView 대화 상태를 보존한다.
 export const LiveDashboardView = ({ locale }: Props) => {
   const dictionary = getDictionary(locale);
-  const dataMode = getDataMode();
   const race = useLiveRace();
   const { level: explanationLevel, setLevel: setExplanationLevel } =
     useExplanationLevel();
   const commentary = useRaceCommentary(race, locale, explanationLevel);
   const summary = useRaceSummary(race, locale);
   const { favorites, isFavorite, toggleFavorite } = useFavoriteDrivers();
-  const [askPrefill, setAskPrefill] = useState<AskAiPrefill | undefined>();
+  const { activeTab, handleChangeTab, askPrefill, switchToAskWithQuestion } =
+    useDashboardTabState();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // 탭투애스크: 드라이버 행을 탭하면 해당 드라이버 질문을 Ask AI 로 자동 제출한다.
-  const askAboutCode = (code: string) => {
-    setAskPrefill((prev) => ({
-      text: dictionary.askAi.driverTapQuestion.replace("{code}", code),
-      nonce: (prev?.nonce ?? 0) + 1,
-    }));
+  // 탭투애스크: 드라이버/이벤트를 탭하면 AI 탭으로 전환하며 질문을 자동 제출한다.
+  const handleAskCode = (code: string) => {
+    switchToAskWithQuestion(
+      dictionary.askAi.driverTapQuestion.replace("{code}", code),
+    );
   };
 
-  const askAboutDriver = (driver: LiveDriverState) => askAboutCode(driver.code);
+  const handleAskDriver = (driver: LiveDriverState) => handleAskCode(driver.code);
 
-  // 이벤트 탭: 연관 드라이버 코드로 질문을 자동 제출한다.
-  const askAboutEvent = (event: RaceEvent) => {
+  const handleAskEvent = (event: RaceEvent) => {
     const code = event.params.driverCode;
 
     if (typeof code === "string" && code.length > 0) {
-      askAboutCode(code);
+      handleAskCode(code);
     }
   };
 
-  const favoriteDetails = useMemo<FavoriteDriverDetail[]>(() => {
-    if (race === null) {
-      return [];
-    }
-
-    return Array.from(favorites)
-      .map((driverNumber) =>
-        selectFavoriteDriverDetail(race.snapshot, race.allEvents, driverNumber),
-      )
-      .filter((detail): detail is FavoriteDriverDetail => detail !== null)
-      .sort(
-        (a, b) => (a.currentPosition ?? Infinity) - (b.currentPosition ?? Infinity),
-      );
-  }, [race, favorites]);
+  const handleAskBattle = (aheadCode: string, chasingCode: string) => {
+    switchToAskWithQuestion(
+      dictionary.battles.tapQuestion
+        .replace("{ahead}", aheadCode)
+        .replace("{chasing}", chasingCode),
+    );
+  };
 
   if (race === null) {
     return (
@@ -86,74 +72,75 @@ export const LiveDashboardView = ({ locale }: Props) => {
     );
   }
 
+  const handleOpenSettings = () => setIsSettingsOpen(true);
+  const handleCloseSettings = () => setIsSettingsOpen(false);
+
+  // 각 탭 래퍼 클래스. 모바일에서는 활성 탭만, 데스크톱(lg)에서는 항상 표시한다.
+  const getTabPanelClass = (tab: DashboardTab): string =>
+    cn(activeTab === tab ? "block" : "hidden", "lg:block");
+
   return (
-    <main className="container flex flex-col gap-4 pb-safe pt-safe md:gap-5 md:py-8">
-      <SessionHeaderView
+    <main className="container flex flex-col gap-4 pb-[6rem] lg:gap-5 lg:pb-8">
+      <StatusBarView
         dictionary={dictionary}
-        locale={locale}
         snapshot={race.snapshot}
-        dataMode={dataMode}
         freshness={race.freshness}
-        explanationLevel={explanationLevel}
-        onChangeExplanationLevel={setExplanationLevel}
+        onOpenSettings={handleOpenSettings}
       />
 
-      {race.snapshot.weather !== undefined ? (
-        <WeatherView dictionary={dictionary} weather={race.snapshot.weather} />
-      ) : null}
-
-      {summary !== null ? (
-        <RaceSummaryView
-          dictionary={dictionary}
-          summary={summary}
-          drivers={race.snapshot.drivers}
-        />
-      ) : null}
-
-      <AskAiView
-        dictionary={dictionary}
-        locale={locale}
-        explanationLevel={explanationLevel}
-        snapshot={race.snapshot}
-        // AI 컨텍스트는 우선순위로 거르지 않고 전부 받는다 (docs/10-race-events.md).
-        events={race.allEvents}
-        favoriteDriverNumbers={Array.from(favorites)}
-        prefill={askPrefill}
-      />
-
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <DriverTableView
-          dictionary={dictionary}
-          drivers={race.snapshot.drivers}
-          isFavorite={isFavorite}
-          onToggleFavorite={toggleFavorite}
-          onSelectDriver={askAboutDriver}
-        />
-        <div className="flex flex-col gap-4">
-          <FavoriteDriversSectionView
+      <div className="lg:grid lg:grid-cols-3 lg:items-start lg:gap-5">
+        <div className={getTabPanelClass(DashboardTab.Standings)}>
+          <StandingsTabView
             dictionary={dictionary}
-            locale={locale}
-            details={favoriteDetails}
-            onRemove={toggleFavorite}
+            snapshot={race.snapshot}
+            isFavorite={isFavorite}
+            onToggleFavorite={toggleFavorite}
+            onSelectDriver={handleAskDriver}
           />
-          <AiCommentaryView dictionary={dictionary} commentary={commentary} />
-          {race.snapshot.teamRadios !== undefined &&
-          race.snapshot.teamRadios.length > 0 ? (
-            <TeamRadioView
-              dictionary={dictionary}
-              clips={race.snapshot.teamRadios}
-              drivers={race.snapshot.drivers}
-            />
-          ) : null}
-          <EventFeedView
+        </div>
+
+        <div className={getTabPanelClass(DashboardTab.Now)}>
+          <NowTabView
             dictionary={dictionary}
             locale={locale}
+            snapshot={race.snapshot}
+            summary={summary}
             primaryEvents={race.primaryEvents}
             allEvents={race.allEvents}
-            onSelectEvent={askAboutEvent}
+            onSelectEvent={handleAskEvent}
+            onSelectBattle={handleAskBattle}
+          />
+        </div>
+
+        <div className={getTabPanelClass(DashboardTab.Ask)}>
+          <AskAiTabView
+            dictionary={dictionary}
+            locale={locale}
+            explanationLevel={explanationLevel}
+            snapshot={race.snapshot}
+            events={race.allEvents}
+            commentary={commentary}
+            favoriteDriverNumbers={Array.from(favorites)}
+            prefill={askPrefill}
           />
         </div>
       </div>
+
+      <TabBarView
+        dictionary={dictionary}
+        activeTab={activeTab}
+        onChangeTab={handleChangeTab}
+      />
+
+      <SettingsSheetView
+        dictionary={dictionary}
+        locale={locale}
+        snapshot={race.snapshot}
+        explanationLevel={explanationLevel}
+        onChangeExplanationLevel={setExplanationLevel}
+        isOpen={isSettingsOpen}
+        onClose={handleCloseSettings}
+      />
     </main>
   );
 };

@@ -1,7 +1,6 @@
 import {
   AiConfidence,
   DataFreshnessStatus,
-  DataMode,
   ExplanationLevel,
   RaceEventPriority,
   SessionStatus,
@@ -15,10 +14,7 @@ export type Dictionary = {
   tagline: string;
   header: {
     lap: string;
-    lapSeparator: string;
     session: string;
-    connection: string;
-    mode: string;
   };
   table: {
     title: string;
@@ -40,11 +36,6 @@ export type Dictionary = {
     lapsUnit: string;
   };
   weather: {
-    title: string;
-    air: string;
-    track: string;
-    humidity: string;
-    wind: string;
     rain: string;
     dry: string;
   };
@@ -62,17 +53,6 @@ export type Dictionary = {
     empty: string;
     play: string;
     pause: string;
-  };
-  favoriteCard: {
-    title: string;
-    empty: string;
-    start: string;
-    ahead: string;
-    behind: string;
-    recentPace: string;
-    pitStops: string;
-    recentEvents: string;
-    noEvents: string;
   };
   askAi: {
     title: string;
@@ -106,11 +86,47 @@ export type Dictionary = {
     pitStops: string;
     retirements: string;
   };
+  statusBar: {
+    appShort: string;
+    settings: string;
+  };
+  tabs: {
+    now: string;
+    standings: string;
+    ask: string;
+  };
+  settings: {
+    title: string;
+    close: string;
+    circuit: string;
+  };
+  driverSheet: {
+    favorites: string;
+    leadGap: string;
+    ahead: string;
+    lastLap: string;
+    sectors: string;
+    topSpeed: string;
+    pitStops: string;
+    // {code} 를 드라이버 코드로 치환하는 시트 하단 AI 질문 버튼 라벨.
+    ask: string;
+    close: string;
+  };
+  battles: {
+    title: string;
+    // DRS 사정권 소형 라벨.
+    drsLabel: string;
+    // {ahead}/{chasing} 를 드라이버 코드로 치환하는 배틀 탭투애스크 질문 템플릿.
+    tapQuestion: string;
+  };
+  criticalBanner: {
+    // 배너 닫기 버튼 접근성 라벨.
+    dismiss: string;
+  };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
   eventPriority: Record<RaceEventPriority, string>;
   freshness: Record<DataFreshnessStatus, string>;
-  mode: Record<DataMode, string>;
   compound: Record<TireCompound, string>;
   localeName: Record<SupportedLocale, string>;
 };
@@ -120,10 +136,7 @@ const en: Dictionary = {
   tagline: "Understand the race in real time",
   header: {
     lap: "Lap",
-    lapSeparator: "of",
     session: "Session",
-    connection: "Connection",
-    mode: "Mode",
   },
   table: {
     title: "Standings",
@@ -145,11 +158,6 @@ const en: Dictionary = {
     lapsUnit: "L",
   },
   weather: {
-    title: "Track Conditions",
-    air: "Air",
-    track: "Track",
-    humidity: "Humidity",
-    wind: "Wind",
     rain: "Rain",
     dry: "Dry",
   },
@@ -166,17 +174,6 @@ const en: Dictionary = {
     empty: "No radio messages yet",
     play: "Play",
     pause: "Pause",
-  },
-  favoriteCard: {
-    title: "Favorite Drivers",
-    empty: "Tap the star next to a driver to follow them here.",
-    start: "Start",
-    ahead: "Ahead",
-    behind: "Behind",
-    recentPace: "Recent Pace",
-    pitStops: "Pit Stops",
-    recentEvents: "Recent",
-    noEvents: "No recent events",
   },
   askAi: {
     title: "Ask AI",
@@ -217,6 +214,39 @@ const en: Dictionary = {
     pitStops: "Pit Stops",
     retirements: "Retirements",
   },
+  statusBar: {
+    appShort: "F1 AI",
+    settings: "Settings",
+  },
+  tabs: {
+    now: "Now",
+    standings: "Standings",
+    ask: "AI",
+  },
+  settings: {
+    title: "Settings",
+    close: "Close",
+    circuit: "Circuit",
+  },
+  driverSheet: {
+    favorites: "Favorites",
+    leadGap: "Gap to Leader",
+    ahead: "Interval",
+    lastLap: "Last Lap",
+    sectors: "Sectors",
+    topSpeed: "Top Speed",
+    pitStops: "Pit Stops",
+    ask: "Ask AI about {code}",
+    close: "Close",
+  },
+  battles: {
+    title: "Battles",
+    drsLabel: "DRS",
+    tapQuestion: "How is the battle between {ahead} and {chasing}?",
+  },
+  criticalBanner: {
+    dismiss: "Dismiss",
+  },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
     [SessionStatus.Green]: "Green Flag",
@@ -240,11 +270,6 @@ const en: Dictionary = {
     [DataFreshnessStatus.Stale]: "Stale",
     [DataFreshnessStatus.Unknown]: "Unknown",
   },
-  mode: {
-    [DataMode.Mock]: "Mock",
-    [DataMode.Replay]: "Replay",
-    [DataMode.Live]: "Live",
-  },
   compound: {
     [TireCompound.Soft]: "Soft",
     [TireCompound.Medium]: "Medium",
@@ -265,10 +290,7 @@ const ko: Dictionary = {
   tagline: "실시간으로 경기를 이해하세요",
   header: {
     lap: "랩",
-    lapSeparator: "/",
     session: "세션",
-    connection: "연결",
-    mode: "모드",
   },
   table: {
     title: "순위",
@@ -290,11 +312,6 @@ const ko: Dictionary = {
     lapsUnit: "랩",
   },
   weather: {
-    title: "트랙 컨디션",
-    air: "기온",
-    track: "노면",
-    humidity: "습도",
-    wind: "바람",
     rain: "강수",
     dry: "건조",
   },
@@ -311,17 +328,6 @@ const ko: Dictionary = {
     empty: "아직 무전이 없습니다",
     play: "재생",
     pause: "정지",
-  },
-  favoriteCard: {
-    title: "관심 드라이버",
-    empty: "드라이버 옆의 별을 눌러 여기에 추가하세요.",
-    start: "출발",
-    ahead: "앞차",
-    behind: "뒤차",
-    recentPace: "최근 페이스",
-    pitStops: "피트 횟수",
-    recentEvents: "최근 이벤트",
-    noEvents: "최근 이벤트가 없습니다",
   },
   askAi: {
     title: "AI에게 질문",
@@ -362,6 +368,39 @@ const ko: Dictionary = {
     pitStops: "피트스톱",
     retirements: "리타이어",
   },
+  statusBar: {
+    appShort: "F1 AI",
+    settings: "설정",
+  },
+  tabs: {
+    now: "지금",
+    standings: "순위",
+    ask: "AI",
+  },
+  settings: {
+    title: "설정",
+    close: "닫기",
+    circuit: "서킷",
+  },
+  driverSheet: {
+    favorites: "관심 드라이버",
+    leadGap: "선두 갭",
+    ahead: "앞차",
+    lastLap: "최근 랩",
+    sectors: "섹터",
+    topSpeed: "최고속",
+    pitStops: "피트",
+    ask: "{code}에 대해 AI에게 질문",
+    close: "닫기",
+  },
+  battles: {
+    title: "배틀",
+    drsLabel: "DRS",
+    tapQuestion: "{ahead}와 {chasing} 배틀 상황 어때?",
+  },
+  criticalBanner: {
+    dismiss: "닫기",
+  },
   status: {
     [SessionStatus.Scheduled]: "예정",
     [SessionStatus.Green]: "그린 플래그",
@@ -385,11 +424,6 @@ const ko: Dictionary = {
     [DataFreshnessStatus.Stale]: "오래됨",
     [DataFreshnessStatus.Unknown]: "알 수 없음",
   },
-  mode: {
-    [DataMode.Mock]: "목업",
-    [DataMode.Replay]: "리플레이",
-    [DataMode.Live]: "라이브",
-  },
   compound: {
     [TireCompound.Soft]: "소프트",
     [TireCompound.Medium]: "미디엄",
@@ -410,10 +444,7 @@ const ja: Dictionary = {
   tagline: "レースをリアルタイムで理解する",
   header: {
     lap: "ラップ",
-    lapSeparator: "/",
     session: "セッション",
-    connection: "接続",
-    mode: "モード",
   },
   table: {
     title: "順位",
@@ -435,11 +466,6 @@ const ja: Dictionary = {
     lapsUnit: "周",
   },
   weather: {
-    title: "トラックコンディション",
-    air: "気温",
-    track: "路面",
-    humidity: "湿度",
-    wind: "風",
     rain: "降水",
     dry: "ドライ",
   },
@@ -456,17 +482,6 @@ const ja: Dictionary = {
     empty: "まだ無線がありません",
     play: "再生",
     pause: "停止",
-  },
-  favoriteCard: {
-    title: "お気に入りドライバー",
-    empty: "ドライバー横の星をタップしてここに追加できます。",
-    start: "スタート",
-    ahead: "前車",
-    behind: "後車",
-    recentPace: "最近のペース",
-    pitStops: "ピット回数",
-    recentEvents: "最近のイベント",
-    noEvents: "最近のイベントはありません",
   },
   askAi: {
     title: "AIに質問",
@@ -507,6 +522,39 @@ const ja: Dictionary = {
     pitStops: "ピットストップ",
     retirements: "リタイア",
   },
+  statusBar: {
+    appShort: "F1 AI",
+    settings: "設定",
+  },
+  tabs: {
+    now: "現在",
+    standings: "順位",
+    ask: "AI",
+  },
+  settings: {
+    title: "設定",
+    close: "閉じる",
+    circuit: "サーキット",
+  },
+  driverSheet: {
+    favorites: "お気に入り",
+    leadGap: "トップ差",
+    ahead: "前車差",
+    lastLap: "最終ラップ",
+    sectors: "セクター",
+    topSpeed: "最高速",
+    pitStops: "ピット回数",
+    ask: "{code} についてAIに質問",
+    close: "閉じる",
+  },
+  battles: {
+    title: "バトル",
+    drsLabel: "DRS",
+    tapQuestion: "{ahead} と {chasing} のバトルはどんな状況？",
+  },
+  criticalBanner: {
+    dismiss: "閉じる",
+  },
   status: {
     [SessionStatus.Scheduled]: "予定",
     [SessionStatus.Green]: "グリーンフラッグ",
@@ -529,11 +577,6 @@ const ja: Dictionary = {
     [DataFreshnessStatus.Delayed]: "遅延",
     [DataFreshnessStatus.Stale]: "古い",
     [DataFreshnessStatus.Unknown]: "不明",
-  },
-  mode: {
-    [DataMode.Mock]: "モック",
-    [DataMode.Replay]: "リプレイ",
-    [DataMode.Live]: "ライブ",
   },
   compound: {
     [TireCompound.Soft]: "ソフト",

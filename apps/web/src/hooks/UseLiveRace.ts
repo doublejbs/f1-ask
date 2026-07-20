@@ -5,7 +5,6 @@ import {
   DataFreshnessStatus,
   DataMode,
   DEFAULT_MOCK_SCENARIO,
-  getFreshness,
   getFreshnessFromTimestamp,
   isPrimaryRaceEvent,
   LiveRaceSnapshot,
@@ -157,6 +156,9 @@ export const useLiveRace = (): LiveRaceState | null => {
     let intervalId: number | undefined;
     let startEpochMs = Date.now();
     let bundle: SourceBundle | null = null;
+    // 직전에 방출한 상태. 프레임이 그대로면 스냅샷/이벤트 객체 identity 를 유지해
+    // 소비자의 useMemo(예: computeFieldBestSectors)가 무력화되지 않도록 한다.
+    let lastState: LiveRaceState | null = null;
 
     const update = () => {
       if (bundle === null) {
@@ -175,17 +177,47 @@ export const useLiveRace = (): LiveRaceState | null => {
         elapsedSeconds = 0;
       }
 
-      const { snapshot, events } = bundle.source.frameAt(elapsedSeconds);
+      const frame = bundle.source.frameAt(elapsedSeconds);
       const nowIso = new Date(nowMs).toISOString();
 
+      // 소스가 실제로 새 프레임(version 변경)을 줄 때만 스냅샷·이벤트 객체를 교체한다.
+      // tick 마다 새 객체를 만들면 내용이 같아도 3탭 전체가 재조정되므로 이를 피한다.
+      const previous = lastState;
+      const isNewFrame =
+        previous === null || frame.snapshot.version !== previous.snapshot.version;
+
+      // 새 프레임일 때만 sourceUpdatedAt 을 현재 시각으로 재기록한다(freshness 기준선).
       // Mock / Replay 소스는 프레임마다 전체 이벤트를 주므로, Live 구독과 같은
       // 모양을 만들기 위해 주요 이벤트를 메모리에서 걸러낸다.
-      setState({
-        snapshot: { ...snapshot, sourceUpdatedAt: nowIso, generatedAt: nowIso },
-        primaryEvents: events.filter(isPrimaryRaceEvent),
-        allEvents: events,
-        freshness: getFreshness(0),
-      });
+      const snapshot = isNewFrame
+        ? { ...frame.snapshot, sourceUpdatedAt: nowIso, generatedAt: nowIso }
+        : previous.snapshot;
+      const primaryEvents = isNewFrame
+        ? frame.events.filter(isPrimaryRaceEvent)
+        : previous.primaryEvents;
+      const allEvents = isNewFrame ? frame.events : previous.allEvents;
+
+      // freshness 는 매 tick 재계산한다. 소스가 새 프레임을 멈추면 age 가 쌓여
+      // delayed / stale 로 자연히 넘어간다.
+      const freshness = getFreshnessFromTimestamp(
+        snapshot.sourceUpdatedAt,
+        nowMs,
+      );
+
+      // 프레임도 freshness 도 그대로면 재조정을 유발하지 않도록 방출을 건너뛴다.
+      if (!isNewFrame && previous !== null && freshness === previous.freshness) {
+        return;
+      }
+
+      const next: LiveRaceState = {
+        snapshot,
+        primaryEvents,
+        allEvents,
+        freshness,
+      };
+
+      lastState = next;
+      setState(next);
     };
 
     void createSource(mode, startEpochMs).then((created) => {

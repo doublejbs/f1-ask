@@ -20,58 +20,50 @@ const formatWind = (value: number | null | undefined): string =>
 
 type Metric = {
   icon: ReactNode;
-  label: string;
   value: string;
 };
 
-// 트랙 컨디션 위젯. 기온·노면온·습도·바람과 강수 여부를 한눈에 보여준다.
-export const WeatherView = ({ dictionary, weather }: Props) => {
+// 「지금」 탭용 날씨 컴팩트 칩. 기존 WeatherView 를 한 줄로 축약한다(라벨 생략, 아이콘+값).
+export const WeatherChipView = ({ dictionary, weather }: Props) => {
   const metrics: Metric[] = [
     {
-      icon: <Thermometer className="h-4 w-4 text-amber-400" />,
-      label: dictionary.weather.air,
+      icon: <Thermometer className="h-3.5 w-3.5 text-amber-400" />,
       value: formatCelsius(weather.airTemperatureCelsius),
     },
     {
-      icon: <Thermometer className="h-4 w-4 text-red-400" />,
-      label: dictionary.weather.track,
+      icon: <Thermometer className="h-3.5 w-3.5 text-red-400" />,
       value: formatCelsius(weather.trackTemperatureCelsius),
     },
     {
-      icon: <Droplets className="h-4 w-4 text-sky-400" />,
-      label: dictionary.weather.humidity,
+      icon: <Droplets className="h-3.5 w-3.5 text-sky-400" />,
       value: formatPercent(weather.humidityPercent),
     },
     {
-      icon: <Wind className="h-4 w-4 text-muted-foreground" />,
-      label: dictionary.weather.wind,
+      icon: <Wind className="h-3.5 w-3.5 text-muted-foreground" />,
       value: formatWind(weather.windSpeedMps),
     },
   ];
 
   return (
     <Card>
-      <CardContent className="flex flex-wrap items-center gap-x-5 gap-y-3 p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold">
+      <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
+        <div className="flex items-center gap-1.5 text-[13px] font-semibold">
           {weather.rainfall ? (
             <>
-              <CloudRain className="h-4 w-4 text-sky-400" />
+              <CloudRain className="h-3.5 w-3.5 text-sky-400" />
               <span>{dictionary.weather.rain}</span>
             </>
           ) : (
             <>
-              <Sun className="h-4 w-4 text-amber-400" />
+              <Sun className="h-3.5 w-3.5 text-amber-400" />
               <span>{dictionary.weather.dry}</span>
             </>
           )}
         </div>
-        {metrics.map((metric) => (
-          <div key={metric.label} className="flex items-center gap-1.5">
+        {metrics.map((metric, index) => (
+          <div key={index} className="flex items-center gap-1">
             {metric.icon}
-            <span className="text-xs text-muted-foreground">
-              {metric.label}
-            </span>
-            <span className="text-sm font-medium tabular-nums">
+            <span className="text-[13px] font-medium tabular-nums text-muted-foreground">
               {metric.value}
             </span>
           </div>
