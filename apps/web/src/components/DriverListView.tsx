@@ -306,7 +306,11 @@ const DriverRow = ({
         // 하이라이트로 보여 "선택/호버된 행"과 구분되지 않았고, 연쇄 배틀이면
         // 여러 행이 한 덩어리로 선택된 것처럼 읽혔다. 배틀은 좌측 앰버 액센트 바 ·
         // 앞차 간격 수치 · OT 칩 · sr-only 설명만으로 표시한다.
-        "press group relative flex h-14 w-max cursor-pointer items-stretch outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+        // press(scale 눌림)를 쓰지 않는다. 탭하면 상세 시트가 손가락 아래에
+        // 오버레이를 깔아 이 행이 pointerup 을 받지 못하고 :active 가 해제되지
+        // 않는다. 축소된 채로 굳어 "눌린 상태가 남는" 것처럼 보인다.
+        // 시트가 열리는 것 자체가 충분한 피드백이다.
+        "group relative flex h-14 w-max cursor-pointer items-stretch outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
         divided && "hairline",
         driver.retired && "opacity-45",
       )}

@@ -172,7 +172,9 @@ export const LatestEventStackView = ({
             )}
             className={cn(
               rowClass,
-              "press outline-none transition-colors hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+              // press(scale 눌림) 미사용 — 탭하면 상세 시트 오버레이가 손가락
+              // 아래에 깔려 pointerup 을 못 받고 :active 가 굳는다.
+              "outline-none transition-colors hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
             )}
           >
             {body}

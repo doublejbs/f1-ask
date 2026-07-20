@@ -138,7 +138,9 @@ export const StatusBarView = ({
             type="button"
             onClick={onOpenSettings}
             aria-label={dictionary.statusBar.settings}
-            className="press flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+            // press(scale 눌림) 미사용 — 설정 시트 오버레이가 손가락 아래에
+            // 깔려 pointerup 을 못 받고 :active 가 굳는다.
+            className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
           >
             <Settings className="h-4 w-4" />
           </button>
