@@ -4,7 +4,7 @@ import { SectionView } from "@/components/ui/SectionView";
 import { Dictionary } from "@/i18n/Messages";
 import { cn } from "@/lib/Utils";
 import {
-  formatGap,
+  formatGapCompact,
   formatPositionChange,
   getPositionChangeColor,
   teamColorHex,
@@ -177,7 +177,7 @@ const DriverRow = ({
         >
           {leading
             ? dictionary.table.leader
-            : formatGap(driver.gapToLeaderSeconds)}
+            : formatGapCompact(driver.gapToLeaderSeconds)}
         </span>
 
         <span

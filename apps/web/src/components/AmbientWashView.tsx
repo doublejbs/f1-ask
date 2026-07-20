@@ -9,14 +9,14 @@ type Props = {
 };
 
 // 워시 알파. 팀 컬러는 채도가 높아 낮게, 중립색은 거의 무채색이라 높게 잡는다.
-const TEAM_WASH_ALPHA = 0.5;
+const TEAM_WASH_ALPHA = 0.26;
 
 // 세션 경보색. 상태가 팀 컬러를 이긴다(docs/12 §1).
-const RED_FLAG_WASH = "rgba(214, 38, 38, 0.55)";
-const CAUTION_WASH = "rgba(224, 179, 24, 0.45)";
+const RED_FLAG_WASH = "rgba(214, 38, 38, 0.28)";
+const CAUTION_WASH = "rgba(224, 179, 24, 0.22)";
 
 // 팀 컬러도 경보도 없을 때 쓰는 아주 어두운 청회색.
-const NEUTRAL_WASH = "rgba(38, 48, 62, 0.7)";
+const NEUTRAL_WASH = "rgba(38, 48, 62, 0.36)";
 
 // "#RRGGBB" → "rgba(r, g, b, a)". 파싱 불가하면 null.
 const toRgba = (hex: string, alpha: number): string | null => {

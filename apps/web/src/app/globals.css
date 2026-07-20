@@ -56,8 +56,8 @@ body {
     z-index: -1;
     pointer-events: none;
     background-color: var(--ambient-color);
-    -webkit-mask-image: radial-gradient(125% 68% at 50% -6%, hsla(0, 0%, 0%, 1), hsla(0, 0%, 0%, 0.45) 45%, transparent 72%);
-    mask-image: radial-gradient(125% 68% at 50% -6%, hsla(0, 0%, 0%, 1), hsla(0, 0%, 0%, 0.45) 45%, transparent 72%);
+    -webkit-mask-image: radial-gradient(110% 42% at 50% -8%, hsla(0, 0%, 0%, 1), hsla(0, 0%, 0%, 0.22) 34%, transparent 58%);
+    mask-image: radial-gradient(110% 42% at 50% -8%, hsla(0, 0%, 0%, 1), hsla(0, 0%, 0%, 0.22) 34%, transparent 58%);
     transition: background-color 1s ease;
   }
 

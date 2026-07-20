@@ -25,6 +25,27 @@ export const formatGap = (seconds: number | null): string => {
   return `+${seconds.toFixed(3)}`;
 };
 
+// 소수 자리를 떼는 갭 크기 기준. 100초 이상은 정수로 적어 행 폭을 지킨다.
+const COMPACT_GAP_INTEGER_THRESHOLD = 100;
+
+// 모바일 순위 목록 전용 축약 갭. 소수 1자리로 폭을 줄여 팀명 자리를 확보한다.
+// 상세 시트·데스크톱 테이블은 3자리를 쓰는 formatGap 을 그대로 쓴다.
+export const formatGapCompact = (seconds: number | null): string => {
+  if (seconds === null) {
+    return "—";
+  }
+
+  if (seconds === 0) {
+    return "—";
+  }
+
+  if (Math.abs(seconds) >= COMPACT_GAP_INTEGER_THRESHOLD) {
+    return `+${seconds.toFixed(0)}`;
+  }
+
+  return `+${seconds.toFixed(1)}`;
+};
+
 export const formatPositionChange = (change: number | null): string => {
   if (change === null || change === 0) {
     return "—";
