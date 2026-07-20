@@ -1,6 +1,8 @@
 "use client";
 
 import { DriverRowMarkerView } from "@/components/DriverRowMarkerView";
+import { TireCompoundSize } from "@/components/TireCompoundSize";
+import { TireCompoundView } from "@/components/TireCompoundView";
 import { SectionView } from "@/components/ui/SectionView";
 import { Dictionary } from "@/i18n/Messages";
 import { cn } from "@/lib/Utils";
@@ -19,7 +21,6 @@ import {
   LiveDriverState,
   RaceEvent,
   TeamRadioClip,
-  TireCompound,
 } from "@f1/domain";
 import { ChevronRight, Pause, Radio, Star } from "lucide-react";
 
@@ -76,41 +77,9 @@ const formatPosition = (position: number | null): string => {
   return String(position).padStart(2, "0");
 };
 
-// 컴팩트 행용 타이어 라벨 색. Tailwind 퍼지 때문에 리터럴 클래스만 사용한다.
-const getCompoundTextColor = (compound: TireCompound): string => {
-  switch (compound) {
-    case TireCompound.Soft:
-      return "text-red-300";
-    case TireCompound.Medium:
-      return "text-amber-200";
-    case TireCompound.Hard:
-      return "text-slate-100";
-    case TireCompound.Intermediate:
-      return "text-emerald-300";
-    case TireCompound.Wet:
-      return "text-sky-300";
-    default:
-      return "text-slate-400";
-  }
-};
-
-// 타이어 요약 문자열: "S·3L". 컴파운드 미상이면 "?".
-const formatTireSummary = (
-  dictionary: Dictionary,
-  compound: TireCompound,
-  tireAgeLaps: number | null,
-): string => {
-  const letter =
-    compound === TireCompound.Unknown ? "?" : compound.charAt(0).toUpperCase();
-  const age =
-    tireAgeLaps === null ? "—" : `${tireAgeLaps}${dictionary.table.lapsUnit}`;
-
-  return `${letter}·${age}`;
-};
-
 // 레퍼런스 순위 행.
-//   01  ▌ANT              선두  ›
-//         Mercedes  S·3L
+//   ▲3 01 ▌ANT            선두  ›
+//            Mercedes ⬤3랩
 const DriverRow = ({
   dictionary,
   driver,
@@ -174,7 +143,11 @@ const DriverRow = ({
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
       className={cn(
-        "press relative flex min-h-[56px] cursor-pointer items-center gap-2.5 px-1 py-2 outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+        // 높이는 h-14 로 **고정**한다. min-h 였을 때는 우측 갭 수치(text-lg)와
+        // 배틀 둘째 줄이 내용 높이를 밀어 올려 마커·라디오·배틀 유무에 따라
+        // 56.5~63px 로 들쭉날쭉했다. 고정 높이면 내용이 바뀌어도 행이 흔들리지 않는다.
+        // 가장 높은 내용(배틀 우측 컬럼 45px)도 56px 안에 여유롭게 들어간다.
+        "press relative flex h-14 cursor-pointer items-center gap-2 px-1 outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
         divided && "hairline",
         driver.retired && "opacity-45",
         // 배틀 쌍은 아주 옅은 앰버 틴트로 하나의 덩어리처럼 읽히게 한다.
@@ -219,15 +192,33 @@ const DriverRow = ({
         onClick={handleToggleFavorite}
         aria-label={dictionary.table.favorite}
         aria-pressed={favorite}
-        className="press -my-1 -ml-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-amber-400"
+        // 44×44 터치 타깃은 유지하되 좌우 음수 마진으로 **레이아웃 발자국만** 28px 로
+        // 줄인다. 별 글리프는 16px 뿐이라 시각적으로는 달라지지 않고, 여기서 확보한
+        // 10px 이 좌측에 새로 생긴 등락 슬롯 폭으로 들어간다(이름 컬럼 폭 보존).
+        // -mr-2 는 행 gap(8px)만큼만 먹어서 터치 영역이 등락 슬롯까지 침범하지 않는다.
+        className="press -my-1 -ml-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-amber-400"
       >
         <Star
           className={cn("h-4 w-4", favorite && "fill-amber-400 text-amber-400")}
         />
       </button>
 
-      <span className="w-6 shrink-0 text-right text-base font-semibold tabular-nums text-muted-foreground">
-        {formatPosition(driver.position)}
+      {/* 등락 + 순위 번호. 등락은 순위 번호 왼쪽에 오되, 없을 때(`—`)도 폭이
+          흔들리지 않도록 고정 폭 슬롯으로 항상 렌더한다. 둘을 한 컬럼으로 묶어
+          행 gap 을 한 번만 소비한다. */}
+      <span className="flex shrink-0 items-center gap-0.5">
+        <span
+          className={cn(
+            "w-6 text-right text-[10px] font-bold leading-none tabular-nums",
+            getPositionChangeColor(driver.positionChange),
+          )}
+        >
+          {formatPositionChange(driver.positionChange)}
+        </span>
+
+        <span className="w-5 text-right text-base font-semibold leading-none tabular-nums text-muted-foreground">
+          {formatPosition(driver.position)}
+        </span>
       </span>
 
       <span
@@ -280,6 +271,8 @@ const DriverRow = ({
           </span>
         </span>
 
+        {/* 비드가 컴파운드를 색·글자로 이미 구분해 주므로 예전의 `·` 구분자는 뺐다.
+            구분자와 그 양쪽 gap 이 먹던 폭이 비드 자리로 들어간다. */}
         <span className="flex min-w-0 items-center gap-1.5 text-xs leading-tight">
           <span
             className="truncate font-semibold"
@@ -291,23 +284,12 @@ const DriverRow = ({
             {getTeamShortName(driver.teamName)}
           </span>
 
-          <span className="text-muted-foreground/40" aria-hidden>
-            ·
-          </span>
-
-          <span
-            title={dictionary.compound[driver.compound]}
-            className={cn(
-              "shrink-0 font-semibold tabular-nums",
-              getCompoundTextColor(driver.compound),
-            )}
-          >
-            {formatTireSummary(
-              dictionary,
-              driver.compound,
-              driver.tireAgeLaps,
-            )}
-          </span>
+          <TireCompoundView
+            dictionary={dictionary}
+            compound={driver.compound}
+            tireAgeLaps={driver.tireAgeLaps}
+            size={TireCompoundSize.Compact}
+          />
         </span>
       </div>
 
@@ -342,46 +324,26 @@ const DriverRow = ({
               </span>
             </span>
 
-            <span className="flex items-center gap-1.5 leading-tight">
-              <span
-                title={dictionary.driverSheet.leadGap}
-                className="text-xs font-semibold tabular-nums text-muted-foreground"
-              >
-                {formatGapCompact(driver.gapToLeaderSeconds)}
-              </span>
-
-              <span
-                className={cn(
-                  "text-xs font-semibold tabular-nums",
-                  getPositionChangeColor(driver.positionChange),
-                )}
-              >
-                {formatPositionChange(driver.positionChange)}
-              </span>
+            {/* 등락이 좌측으로 빠져서 이 작은 줄에는 선두 갭만 남는다. */}
+            <span
+              title={dictionary.driverSheet.leadGap}
+              className="text-xs font-semibold leading-tight tabular-nums text-muted-foreground"
+            >
+              {formatGapCompact(driver.gapToLeaderSeconds)}
             </span>
           </>
         ) : (
-          <>
-            <span
-              className={cn(
-                "font-bold leading-tight tabular-nums",
-                leading ? "text-sm text-muted-foreground" : "text-lg",
-              )}
-            >
-              {leading
-                ? dictionary.table.leader
-                : formatGapCompact(driver.gapToLeaderSeconds)}
-            </span>
-
-            <span
-              className={cn(
-                "text-xs font-semibold leading-tight tabular-nums",
-                getPositionChangeColor(driver.positionChange),
-              )}
-            >
-              {formatPositionChange(driver.positionChange)}
-            </span>
-          </>
+          // 배틀이 아니면 선두 갭 한 줄뿐이다(등락은 좌측 슬롯으로 이동했다).
+          <span
+            className={cn(
+              "font-bold leading-tight tabular-nums",
+              leading ? "text-sm text-muted-foreground" : "text-lg",
+            )}
+          >
+            {leading
+              ? dictionary.table.leader
+              : formatGapCompact(driver.gapToLeaderSeconds)}
+          </span>
         )}
       </div>
 
