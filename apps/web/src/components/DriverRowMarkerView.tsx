@@ -130,7 +130,10 @@ export const DriverRowMarkerView = ({
         <span
           title={chip.description}
           aria-label={chip.description}
-          className="rounded-full border border-red-500/40 bg-red-500/20 px-1 text-[10px] font-bold leading-4 tabular-nums text-red-200"
+          // px-1 → px-0.5. 슬롯이 36px 인데 "+15s" 는 px-1 에서 36.3px 이라 0.3px
+          // 넘쳤다(칩에 truncate 가 없어 조용히 삐져나온다). 패딩만 줄이면 "+15s" 32.3,
+          // 방어적으로 처리하는 소수 페널티 "+2.5s" 도 35.9 라 슬롯 안에 들어온다.
+          className="rounded-full border border-red-500/40 bg-red-500/20 px-0.5 text-[10px] font-bold leading-4 tabular-nums text-red-200"
         >
           {chip.text}
         </span>

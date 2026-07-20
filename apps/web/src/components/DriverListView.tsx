@@ -31,13 +31,22 @@ import { ChevronRight, Pause, Radio, Star } from "lucide-react";
 // 목록 전체가 스크롤 컨테이너 하나를 공유하고, 식별 열만 sticky 로 얼려 둔다
 // (freeze pane). 행마다 스크롤을 JS 로 동기화하지 않으므로 어긋날 여지가 없다.
 
-// 갭 열 76px. 실측 최댓값은 OT 칩 + "0.8s" 조합의 71.7px 이라 여유를 조금 둔다.
-const GAP_COLUMN_CLASS = "w-[4.75rem]";
-// 타이어 열 52px. 실측 최댓값은 비드 20 + gap 4 + 랩 수 23.5(ko "12랩" / ja "12周" —
-// en "12L" 은 20.3 이라 더 좁다) = 47.5px. 헤더 라벨("타이어"/"タイヤ" 31.2px)도 들어간다.
+// 갭 열 68px. 배틀 행이 최악 케이스다 — OT 칩(px-1 로 좁힌 뒤 25.0) + gap-0.5 2 +
+// "0.9s" text-lg 38.7 = 65.7px. 비배틀 최댓값은 "+99.9" 52.2px 이라 훨씬 여유롭다
+// (formatGapCompact 는 100초 이상이면 소수를 떼므로 5글자를 넘지 않는다).
+// 갭은 핵심 수치라 수치 자체의 text-lg 는 그대로 두고, 칩 패딩과 칩·수치 사이
+// 간격에서만 폭을 회수했다.
+const GAP_COLUMN_CLASS = "w-[4.25rem]";
+// 열 폭 = 내용 최댓값 + 좌측 여백. 데이터 셀은 모두 justify-end 라 남는 폭이 전부
+// 셀 왼쪽에 몰리고, 그 여백이 곧 **앞 열과의 시각적 간격**이 된다. 내용에 딱 맞게
+// 자르면 앞 열 값과 글자가 맞붙어 읽을 수 없다(실측으로 확인한 실패 사례다).
+// 타이어 열 52px = 내용 47.5(비드 20 + gap 4 + 랩 수 23.5 — ko "12랩" / ja "12周",
+// en "12L" 은 20.3 이라 더 좁다) + 좌측 여백 4.5. 헤더 라벨("타이어"/"タイヤ" 31.2)도 들어간다.
 const TIRE_COLUMN_CLASS = "w-[3.25rem]";
-// "1:23.456" 을 text-sm tabular-nums 로 담는 데 필요한 폭.
-const LAST_LAP_COLUMN_CLASS = "w-[4.75rem]";
+// 최근 랩 열 68px = 내용 63.3("1:23.456" text-sm tabular-nums) + 좌측 여백 4.7.
+// tabular-nums 라 자릿수만 같으면 폭이 고정이고, F1 랩 타임은 세이프티카 상황에서도
+// M:SS.mmm 8글자를 넘지 않아 63.3 이 곧 상한이다.
+const LAST_LAP_COLUMN_CLASS = "w-[4.25rem]";
 // 3자리 km/h + "SPEED" 헤더 라벨을 담는 폭.
 const TOP_SPEED_COLUMN_CLASS = "w-[3.25rem]";
 const PIT_COLUMN_CLASS = "w-[2.5rem]";
@@ -45,20 +54,37 @@ const PIT_COLUMN_CLASS = "w-[2.5rem]";
 const SECTOR_COLUMN_CLASS = "w-[3.75rem]";
 const SECTOR_INDEXES = [0, 1, 2];
 // 시크론은 우측 가장자리에 sticky 로 얼린다. 행 탭 어포던스가 스크롤로 사라지면 안 된다.
-const CHEVRON_COLUMN_CLASS = "w-6";
+// 20px = 아이콘 16px + 좌우 2px. 이 열은 스크롤 창에서 통째로 빠지는 폭이라
+// 아이콘이 들어가는 최소치까지 줄인다(목록 바깥에 페이지 여백 16px 이 따로 있어
+// 시크론이 화면 가장자리에 붙어 보이지 않는다).
+const CHEVRON_COLUMN_CLASS = "w-5";
 
-// 고정 식별 열 폭. 컨테이너 폭에서 "스크롤 0 에서 보여야 할 우측 열"(갭 76 + 타이어 52
-// + 시크론 24 = 9.5rem)을 뺀 만큼을 차지한다. 예전에는 갭 + 시크론(6.25rem)만 비워 둬서
-// 375px 에서 스크롤 창이 갭 열 하나(76px)뿐이었다 — 다음 값을 보려면 반드시 스와이프해야
-// 했다. 타이어를 스크롤 열로 내보내 고정 열 둘째 줄을 팀명만 남기고, 그렇게 회수한 폭으로
-// 스크롤 창을 넓혀 **스크롤 0 에서 갭 + 타이어 두 열**이 보이게 한다.
-// 폭이 넉넉해지면 13rem 에서 멈춘다 → 남는 폭이 데이터 열 노출로 돌아가므로
-// 태블릿·데스크톱에서는 최근 랩·최고속·피트가 처음부터 보인다(별도 분기 없이).
-// 상한을 17.5rem 에서 낮춘 것도 같은 이유다 — 타이어가 빠져 둘째 줄이 팀명(실측 최댓값
-// "Mercedes" 58px)뿐이라 예전만큼 넓을 이유가 없다.
-// 100cqw 는 뿌리의 container-type: inline-size 를 기준으로 한다. w-max 안에서는
-// 100% 가 max-content 를 가리켜 순환하므로 컨테이너 쿼리 단위가 유일한 해법이다.
-const FROZEN_COLUMN_CLASS = "w-[min(calc(100cqw-9.5rem),13rem)]";
+// 고정 식별 열 폭 152px. **내용에서 역산한 고정값**이다.
+//
+// 예전에는 min(calc(100cqw-9.5rem), 13rem) 이었지만 375px 이상에서는 항상 13rem
+// 상한이 이겨서 사실상 208px 고정이었고(뷰포트 식은 375px 에서도 205px 이라 상한을
+// 넘지 못한다), 그보다 좁은 폭에서는 반대로 고정 열이 내용 최소치 아래로 줄어 팀명·코드가
+// 잘릴 수 있었다. 상한이 늘 이기는 식이라면 상한 자체가 값이므로, 컨테이너 쿼리를 버리고
+// 내용 최소치를 그대로 폭으로 쓴다 — 어떤 뷰포트에서도 잘리지 않는다.
+//
+// 152 = 고정 요소 69 + 이름 컬럼 83.
+//   고정 요소 69 = pl-0.5 2 + 별 발자국 16 + gap 2 + 등락·순위 42 + gap 2
+//                  + 팀 액센트 바 3 + gap 2
+//   이름 컬럼 83 은 두 줄의 실측 최댓값을 모두 덮는다.
+//     코드 줄  = 코드 + 마커 슬롯 36 → 코드 몫 47px.
+//               3글자 대문자의 **이론적** 최댓값 "WWW" 가 text-base 에서 46.3px 이라
+//               어떤 코드가 와도 넘치지 않는다(실제 그리드 최장은 "HAM" 36.6px).
+//               VER(30.5)만 보고 폭을 잡았다가 HAM(36.6)이 넘친 적이 있어 이론 최댓값으로 잡는다.
+//     팀명 줄  = 팀명 + gap 2 + 라디오 발자국 16 → 팀명 몫 65px.
+//               최장 표기 "Mercedes" 58.1px → 6.9px 여유
+//   이 아래로 더 좁히면 코드가 이론 최댓값을 못 담는다. 여기가 하한이다.
+//
+// 마커 슬롯(36px)을 스크롤 열로 내보내는 안은 실측 후 버렸다. 슬롯이 빠지면 코드 줄이
+// 48.5 로 줄어 이름 컬럼 하한이 팀명 58.1 로 내려가므로 고정 열은 26px 만 좁아지는데,
+// 스크롤 영역에서는 36px 를 새로 먹는다 — **스크롤 창이 오히려 10px 줄어드는** 손해다.
+// 게다가 페널티·조사는 항상 보여야 할 상태 정보라 가로로 밀리면 사라지는 스크롤 열보다
+// 절대 사라지지 않는 고정 열이 맞다. 지금 배치(코드 줄 여백에 얹기)가 최적 패킹이다.
+const FROZEN_COLUMN_CLASS = "w-[9.5rem]";
 
 // 얼린 열이 스크롤 콘텐츠를 가리려면 불투명해야 한다. 배경은 목록 전체가
 // bg-background 로 통일돼 있어 이음매가 보이지 않는다.
@@ -70,9 +96,9 @@ const FROZEN_SURFACE_CLASS = "sticky z-10 shrink-0 bg-background";
 // 모바일에서는 아무 배경도 생기지 않는다.
 const FROZEN_HOVER_CLASS = "group-hover:bg-white/[0.03]";
 
-// 방향키 한 번에 밀리는 폭. 가장 넓은 데이터 열(갭·최근 랩)과 맞춰 한 번 누르면
+// 방향키 한 번에 밀리는 폭. 가장 넓은 데이터 열(갭 68px)과 맞춰 한 번 누르면
 // 한 열이 넘어가게 한다.
-const COLUMN_SCROLL_STEP_PX = 76;
+const COLUMN_SCROLL_STEP_PX = 68;
 
 type Props = {
   dictionary: Dictionary;
@@ -318,11 +344,11 @@ const DriverRow = ({
       {/* ── 고정 식별 열 ── 별·등락·순위·팀 액센트·코드·팀명. 스크롤해도 남는다. */}
       <div className={cn(FROZEN_SURFACE_CLASS, "left-0", FROZEN_COLUMN_CLASS)}>
         <div
-          // gap-2 → gap-1. 고정 열이 좁아진 만큼 컬럼 사이 여백에서도 6px(3군데)을
-          // 회수한다. 별·등락·액센트 바는 모두 폭이 작은 글리프라 4px 이면 서로 붙어
-          // 보이지 않는다.
+          // gap-1 → gap-0.5, pl-1 → pl-0.5. 고정 열을 208 → 152px 로 좁히면서 컬럼
+          // 사이 여백에서 8px(gap 3군데 + 좌측 패딩)을 회수한다. 별·등락·액센트 바는
+          // 모두 폭이 작은 글리프라 2px 이면 서로 붙어 보이지 않는다.
           className={cn(
-            "relative flex h-full items-center gap-1 pl-1",
+            "relative flex h-full items-center gap-0.5 pl-0.5",
             FROZEN_HOVER_CLASS,
           )}
         >
@@ -369,11 +395,12 @@ const DriverRow = ({
             onClick={handleToggleFavorite}
             aria-label={dictionary.table.favorite}
             aria-pressed={favorite}
-            // 44×44 터치 타깃은 유지하되 좌우 음수 마진으로 **레이아웃 발자국만** 20px 로
-            // 줄인다. 별 글리프는 16px 뿐이라 시각적으로는 달라지지 않는다.
+            // 44×44 터치 타깃은 유지하되 좌우 음수 마진으로 **레이아웃 발자국만** 16px 로
+            // 줄인다(-mx-3 → -mx-3.5). 별 글리프가 정확히 16px 이라 발자국을 여기까지
+            // 줄여도 글리프는 온전히 보인다.
             // 터치 영역은 좌측으로 페이지 여백까지, 우측으로 등락 슬롯까지 넘치지만 둘 다
             // 탭 대상이 아니라(등락은 텍스트) 충돌하지 않는다 — 오히려 엄지 도달 범위가 는다.
-            className="press -mx-3 -my-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-amber-400"
+            className="press -mx-3.5 -my-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-amber-400"
           >
             <Star
               className={cn(
@@ -385,18 +412,21 @@ const DriverRow = ({
 
           {/* 등락 + 순위 번호. 등락은 순위 번호 왼쪽에 오되, 없을 때(`—`)도 폭이
               흔들리지 않도록 고정 폭 슬롯으로 항상 렌더한다. 둘을 한 컬럼으로 묶어
-              행 gap 을 한 번만 소비한다. */}
-          <span className="flex shrink-0 items-center gap-0.5">
+              행 gap 을 한 번만 소비한다.
+              슬롯 폭은 실측 최댓값에 맞춘다. 등락은 "▲12"(text-[10px]) 21.6px 이라
+              22px, 순위는 "20"(text-sm) 18.1px 이라 20px. 둘 사이 gap 은 없앤다 —
+              글자 크기와 색이 확연히 달라 붙어 있어도 구분된다. 46 → 42px. */}
+          <span className="flex shrink-0 items-center">
             <span
               className={cn(
-                "w-6 text-right text-[10px] font-bold leading-none tabular-nums",
+                "w-[22px] text-right text-[10px] font-bold leading-none tabular-nums",
                 getPositionChangeColor(driver.positionChange),
               )}
             >
               {formatPositionChange(driver.positionChange)}
             </span>
 
-            <span className="w-5 text-right text-base font-semibold leading-none tabular-nums text-muted-foreground">
+            <span className="w-5 text-right text-sm font-semibold leading-none tabular-nums text-muted-foreground">
               {formatPosition(driver.position)}
             </span>
           </span>
@@ -408,9 +438,44 @@ const DriverRow = ({
           />
 
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            {/* 코드 줄에는 여백이 남는다. 라디오 버튼을 여기 두어 팀명 폭을 잠식하지 않는다. */}
-            <span className="flex min-w-0 items-center gap-1 text-lg font-bold leading-tight tracking-tight">
+            {/* 코드 줄 = 코드 + 마커 슬롯. 라디오 버튼은 아래 팀명 줄로 내려보냈다.
+                코드 · 라디오 · 마커 세 개를 한 줄에 몰면 이름 컬럼 하한이 코드 47 +
+                gap 2 + 라디오 16 + 마커 36 = 101px 까지 올라가 고정 열을 좁힐 수 없다.
+                두 줄로 나누면 하한이 83px(아래 계산)로 떨어지고, 라디오는 "팀 라디오"라
+                팀명 옆이 오히려 의미상 맞다.
+                text-lg → text-base: 코드 줄이 이름 컬럼 폭을 결정하는 병목이라
+                여기서 줄인 폭이 그대로 고정 열 폭으로 돌아온다. 순위 번호를 text-sm 으로
+                함께 낮췄으므로 코드는 여전히 고정 열에서 가장 큰 글자이자 유일한 bold 다.
+                폭 검증: 이름 컬럼 83 - 마커 36 = 47px 이 코드 몫이다. 3글자 대문자
+                조합의 이론적 최댓값 "WWW" 가 text-base 에서 46.3px 이므로 **어떤 코드가
+                와도** 잘리지 않는다(실제 그리드 최장은 "HAM" 36.6px). */}
+            <span className="flex min-w-0 items-center text-base font-bold leading-tight tracking-tight">
               {driver.code}
+
+              {/* 마커 슬롯. ml-auto 로 이름 컬럼 오른쪽 끝에 붙여 행마다 같은 x 위치에 온다. */}
+              <span className="ml-auto flex items-center">
+                <DriverRowMarkerView
+                  dictionary={dictionary}
+                  marker={marker}
+                  recentEvent={recentEvent}
+                />
+              </span>
+            </span>
+
+            {/* 팀명 줄 = 팀명 + 라디오. 라디오는 팀명 바로 뒤에 붙는다("팀 라디오"라
+                팀명 옆이 의미상 맞다).
+                폭 검증: 이름 컬럼 83 - gap 2 - 라디오 발자국 16 = 65px 이 팀명 몫이고,
+                최장 표기 "Mercedes" 가 58.1px 이라 6.9px 이 남는다. truncate 는
+                그래도 남겨 둔다 — 새 팀이 들어와도 레이아웃이 깨지지 않는 안전망이다. */}
+            <span className="flex min-w-0 items-center gap-0.5">
+              <span
+                className="truncate text-xs font-semibold leading-tight"
+                style={{ color: accent ?? undefined }}
+              >
+                {/* 순위 행은 폭이 좁아 원본 팀명이 잘린다. 여기서는 짧은 표기를 쓴다.
+                    (상세 시트는 공간이 충분해 원본 전체 이름을 유지한다) */}
+                {getTeamShortName(driver.teamName)}
+              </span>
 
               {latestRadio !== null ? (
                 <button
@@ -423,9 +488,15 @@ const DriverRow = ({
                   title={radioRecent ? dictionary.teamRadio.recent : undefined}
                   className={cn(
                     // 별과 같은 방식으로 44×44 터치 타깃은 유지하고 레이아웃 발자국만
-                    // 20px 로 줄인다. 코드 줄에서 가장 넓은 조합(코드 40.8 + 라디오 +
-                    // 마커 36)이 좁아진 이름 컬럼(실측 106px)에 들어가려면 필수다.
-                    "press -mx-3 -my-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/5",
+                    // 16px 로 줄인다(-mx-3 → -mx-3.5). 아이콘이 정확히 16px 이라
+                    // 글리프는 온전히 보인다. shrink-0 이라 팀명이 아무리 길어도
+                    // 라디오가 밀려나지 않고 팀명 쪽이 먼저 truncate 된다.
+                    //
+                    // **ml-auto 를 쓰면 안 된다.** 위 마커 슬롯처럼 오른쪽 끝으로 밀어
+                    // 인디케이터를 세로로 정렬하고 싶지만, ml-auto 는 -ml-3.5 를 덮어써서
+                    // 발자국이 16 → 30px 으로 늘고 그만큼 팀명 몫이 65 → 51px 로 줄어
+                    // "Mercedes"(58.1)가 잘린다(실측으로 재발을 확인했다).
+                    "press -mx-3.5 -my-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/5",
                     radioPlaying
                       ? "text-primary"
                       : radioRecent
@@ -440,31 +511,6 @@ const DriverRow = ({
                   )}
                 </button>
               ) : null}
-
-              {/* 마커 슬롯. 코드 줄에 두는 이유: 이 줄에는 여백이 남지만 아래 팀명 줄은
-                  이미 빠듯하다. 슬롯을 행의 독립 컬럼으로 만들면 팀명 폭을 그만큼
-                  잠식해 잘림이 재발한다(네 번 재발한 지점이다).
-                  ml-auto 로 이름 컬럼 오른쪽 끝에 붙여 행마다 같은 x 위치에 온다. */}
-              <span className="ml-auto flex items-center">
-                <DriverRowMarkerView
-                  dictionary={dictionary}
-                  marker={marker}
-                  recentEvent={recentEvent}
-                />
-              </span>
-            </span>
-
-            {/* 타이어가 스크롤 열로 빠져서 이 줄에는 팀명만 남는다. 고정 열을 좁히면서
-                가장 먼저 잘릴 자리라 남은 폭을 전부 팀명에 준다(실측 최댓값 58px
-                "Mercedes" vs 이름 컬럼 106px). */}
-            <span
-              className="truncate text-xs font-semibold leading-tight"
-              style={{ color: accent ?? undefined }}
-            >
-              {/* 순위 행은 폭이 좁고 라디오 인디케이터가 동적으로 붙어서
-                  원본 팀명이 잘린다. 여기서는 짧은 표기를 쓴다.
-                  (상세 시트는 공간이 충분해 원본 전체 이름을 유지한다) */}
-              {getTeamShortName(driver.teamName)}
             </span>
           </div>
 
@@ -492,13 +538,17 @@ const DriverRow = ({
           <>
             <span
               title={dictionary.driverSheet.ahead}
-              className="flex items-center gap-1 leading-tight"
+              // gap-1 → gap-0.5. 갭 열 폭을 결정하는 유일한 조합이라 여기서 2px 을 줄이면
+              // 열 폭이 그대로 2px 줄어든다.
+              className="flex items-center gap-0.5 leading-tight"
             >
               <span className="sr-only">{dictionary.driverSheet.ahead}</span>
 
               {battleWithAhead.isOverrideRange ? (
                 <span
-                  className="glass-chip rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-amber-300"
+                  // px-1.5 → px-1. 칩 글자(text-[10px])는 그대로 두고 좌우 패딩만
+                  // 줄여 29 → 25px. 갭 열이 가장 넓어지는 배틀 행의 병목이다.
+                  className="glass-chip rounded-full px-1 py-px text-[10px] font-bold uppercase tracking-wide text-amber-300"
                   title={dictionary.battles.overtakeTitle}
                   aria-label={dictionary.battles.overtakeTitle}
                 >
@@ -702,9 +752,9 @@ export const DriverListView = ({
   };
 
   return (
-    // container-type: inline-size 를 여기 걸어야 고정 열이 100cqw 로 "보이는 폭"을
-    // 읽을 수 있다. 스크롤 컨테이너 안쪽은 max-content 라 100% 가 쓸모없다.
-    <div className="animate-fade-up [container-type:inline-size]">
+    // 고정 열이 내용 기반 고정 폭(FROZEN_COLUMN_CLASS)으로 바뀌면서 컨테이너 쿼리가
+    // 필요 없어졌다 — container-type: inline-size 도 함께 걷어냈다.
+    <div className="animate-fade-up">
       <div
         role="region"
         aria-label={dictionary.table.extraColumns}
@@ -715,9 +765,10 @@ export const DriverListView = ({
         // bg-background: 얼린 열의 불투명 배경과 목록 배경을 같은 색으로 맞춰 이음매를 없앤다.
         // snap-x proximity + scroll-padding-left(고정 열 폭 — FROZEN_COLUMN_CLASS 와
         // 반드시 같은 값이어야 한다): 손을 떼면 열이 고정 열 바로 오른쪽에 딱 맞게 선다.
-        // 모바일 스크롤 창은 갭 + 타이어 두 열뿐이라 열이 반쯤 걸치면 읽을 수 없다.
+        // 393px 기준 스크롤 창은 189px 이라 갭 68 + 타이어 52 + 최근 랩 68 = 188 이
+        // 딱 들어오고, 열이 반쯤 걸치면 읽을 수 없으므로 스냅이 필요하다.
         // proximity 라 자유롭게 훑는 것도 방해하지 않는다.
-        className="scrollbar-hidden snap-x scroll-pl-[min(calc(100cqw-9.5rem),13rem)] overflow-x-auto overscroll-x-contain bg-background outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
+        className="scrollbar-hidden snap-x scroll-pl-[9.5rem] overflow-x-auto overscroll-x-contain bg-background outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
       >
         <div className="flex w-max flex-col gap-5">
           {favorites.length > 0 ? (
