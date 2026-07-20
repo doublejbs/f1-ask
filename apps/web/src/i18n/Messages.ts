@@ -82,8 +82,7 @@ export type Dictionary = {
     settings: string;
   };
   tabs: {
-    now: string;
-    standings: string;
+    race: string;
     ask: string;
   };
   eventSheet: {
@@ -207,8 +206,7 @@ const en: Dictionary = {
     settings: "Settings",
   },
   tabs: {
-    now: "Now",
-    standings: "Standings",
+    race: "Race",
     ask: "AI",
   },
   eventSheet: {
@@ -354,8 +352,7 @@ const ko: Dictionary = {
     settings: "설정",
   },
   tabs: {
-    now: "지금",
-    standings: "순위",
+    race: "경기",
     ask: "AI",
   },
   eventSheet: {
@@ -501,8 +498,7 @@ const ja: Dictionary = {
     settings: "設定",
   },
   tabs: {
-    now: "現在",
-    standings: "順位",
+    race: "レース",
     ask: "AI",
   },
   eventSheet: {

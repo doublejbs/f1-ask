@@ -4,6 +4,9 @@ import { EventFeedFilterMode } from "@/lib/EventFeedFilterMode";
 import { isPrimaryRaceEvent, RaceEvent } from "@f1/domain";
 import { useCallback, useMemo, useState } from "react";
 
+// 피드에 그리는 최대 이벤트 수. 데스크톱 피드와 모바일 이벤트 시트가 같은 창을 쓴다.
+export const MAX_FEED_EVENTS = 12;
+
 export type EventFeedState = {
   mode: EventFeedFilterMode;
   // 최신순으로 정렬된, 화면에 실제로 그릴 이벤트.

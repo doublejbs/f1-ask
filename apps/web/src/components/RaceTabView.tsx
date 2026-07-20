@@ -1,46 +1,66 @@
 "use client";
 
+import { CriticalBannerView } from "@/components/CriticalBannerView";
 import { DriverDetailSheetView } from "@/components/DriverDetailSheetView";
 import { DriverListView } from "@/components/DriverListView";
+import { EventSheetView } from "@/components/EventSheetView";
+import { RaceSummaryView } from "@/components/RaceSummaryView";
+import { WeatherChipView } from "@/components/WeatherChipView";
 import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
 import { Dictionary } from "@/i18n/Messages";
 import { computeFieldBestSectors } from "@/lib/Format";
 import { groupTeamRadiosByDriver, parseTimestampMs } from "@/lib/TeamRadio";
 import {
+  AiCommentary,
   Battle,
   LiveDriverState,
   LiveRaceSnapshot,
+  RaceEvent,
   SessionStatus,
+  SupportedLocale,
   TeamRadioClip,
   selectBattles,
 } from "@f1/domain";
+import { RaceSummaryResponse } from "@f1/schemas";
 import { useMemo, useState } from "react";
 
 type Props = {
   dictionary: Dictionary;
+  locale: SupportedLocale;
   snapshot: LiveRaceSnapshot;
+  summary: RaceSummaryResponse | null;
+  primaryEvents: RaceEvent[];
+  allEvents: RaceEvent[];
+  commentary: AiCommentary[];
   isFavorite: (driverNumber: number) => boolean;
   onToggleFavorite: (driverNumber: number) => void;
   // 탭투애스크: AI 탭으로 전환하며 이 드라이버에 대한 질문을 제출한다.
   onSelectDriver: (driver: LiveDriverState) => void;
+  // 탭투애스크: 이벤트에 연관된 드라이버로 질문을 제출한다.
+  onSelectEvent: (event: RaceEvent) => void;
 };
 
 const EMPTY_RADIO_CLIPS: TeamRadioClip[] = [];
 
 const EMPTY_BATTLES: Battle[] = [];
 
-// 「순위」 탭.
-// 모든 폭에서 컴팩트 행 목록(DriverListView, 관심 드라이버 고정)을 쓴다. 행 탭 → 상세 시트.
-//   팀 라디오는 별도 패널 대신 순위 행 인디케이터 + 상세 시트 섹션으로 통합했다.
-// 데스크톱 3컬럼 레이아웃의 순위 컬럼은 1280px 뷰포트에서 실측 376px 이라
-//   넓은 순위표(구 DriverTableView, min-width 860px)가 들어가지 않았다.
-//   375px 기준으로 만든 이 목록이 그대로 맞으므로 폭별 분기 없이 하나만 렌더한다.
-export const StandingsTabView = ({
+// 「경기」 탭 — 구 「지금」 + 「순위」를 합친 레이스 콘솔 (docs/13-race-console.md).
+// 경기 요약(종료 시) → Critical 배너(sticky) → 날씨 칩 → 순위 목록.
+// 이벤트 피드는 모바일에서 논모달 바텀 시트(EventSheetView)로 순위 위에 겹쳐
+// 순위와 이벤트를 동시에 보게 한다. 데스크톱(lg)은 3컬럼이라 시트가 필요 없어
+// LiveDashboardView 가 가운데 컬럼에 EventFeedView 를 직접 그린다.
+export const RaceTabView = ({
   dictionary,
+  locale,
   snapshot,
+  summary,
+  primaryEvents,
+  allEvents,
+  commentary,
   isFavorite,
   onToggleFavorite,
   onSelectDriver,
+  onSelectEvent,
 }: Props) => {
   // 상세 시트는 모든 폭에서 목록 행 탭으로 열린다. 로컬 state 로 충분하다.
   const [selectedDriver, setSelectedDriver] = useState<LiveDriverState | null>(
@@ -95,9 +115,36 @@ export const StandingsTabView = ({
     onSelectDriver(driver);
   };
 
+  const isFinished = snapshot.status === SessionStatus.Finished;
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* 컴팩트 행 목록. 행 탭 → 상세 시트 → "AI에게 질문" */}
+    // 모바일에서는 이벤트 시트가 하단을 덮으므로 마지막 순위 행까지 스크롤로 닿게
+    // 기본 스냅(45dvh) 만큼 아래를 비워 둔다. 데스크톱에는 시트가 없어 필요 없다.
+    <div className="flex flex-col gap-4 pb-[45dvh] lg:pb-0">
+      {/* 경기 요약은 종료된 세션에서만, 최상단에 둔다. */}
+      {isFinished && summary !== null ? (
+        <RaceSummaryView
+          dictionary={dictionary}
+          summary={summary}
+          drivers={snapshot.drivers}
+        />
+      ) : null}
+
+      {/* Critical 배너는 순위 영역 상단에 sticky 로 붙어 스크롤해도 남는다. */}
+      <div className="sticky top-2 z-20 empty:hidden">
+        <CriticalBannerView
+          dictionary={dictionary}
+          locale={locale}
+          allEvents={allEvents}
+          onSelectEvent={onSelectEvent}
+        />
+      </div>
+
+      {snapshot.weather !== undefined ? (
+        <WeatherChipView dictionary={dictionary} weather={snapshot.weather} />
+      ) : null}
+
+      {/* 컴팩트 행 목록(관심 드라이버 고정). 행 탭 → 상세 시트 → "AI에게 질문" */}
       <DriverListView
         dictionary={dictionary}
         drivers={snapshot.drivers}
@@ -120,6 +167,16 @@ export const StandingsTabView = ({
         onToggleRadio={togglePlay}
         onClose={handleCloseSheet}
         onAskAi={handleAskAi}
+      />
+
+      {/* 이벤트 + 해설. 모바일 전용 논모달 시트. */}
+      <EventSheetView
+        dictionary={dictionary}
+        locale={locale}
+        primaryEvents={primaryEvents}
+        allEvents={allEvents}
+        commentary={commentary}
+        onSelectEvent={onSelectEvent}
       />
     </div>
   );

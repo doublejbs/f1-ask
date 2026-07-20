@@ -15,7 +15,7 @@ export type DashboardTabController = {
 // 하단 탭 상태 + 탭투애스크 전환. 탭 전환은 CSS(display) 로만 처리하므로
 // 여기서는 활성 탭 값과 프리필 신호만 관리한다(컴포넌트 언마운트 없음).
 export const useDashboardTabState = (): DashboardTabController => {
-  const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.Now);
+  const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.Race);
   const [askPrefill, setAskPrefill] = useState<AskAiPrefill | undefined>();
 
   const handleChangeTab = useCallback((tab: DashboardTab) => {

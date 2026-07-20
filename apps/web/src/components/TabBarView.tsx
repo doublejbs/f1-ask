@@ -3,7 +3,7 @@
 import { Dictionary } from "@/i18n/Messages";
 import { DashboardTab } from "@/lib/DashboardTab";
 import { cn } from "@/lib/Utils";
-import { ListOrdered, type LucideIcon, Radio, Sparkles } from "lucide-react";
+import { Flag, type LucideIcon, Sparkles } from "lucide-react";
 
 type Props = {
   dictionary: Dictionary;
@@ -18,12 +18,11 @@ type TabConfig = {
 };
 
 const TAB_CONFIGS: TabConfig[] = [
-  { tab: DashboardTab.Now, labelKey: "now", Icon: Radio },
-  { tab: DashboardTab.Standings, labelKey: "standings", Icon: ListOrdered },
+  { tab: DashboardTab.Race, labelKey: "race", Icon: Flag },
   { tab: DashboardTab.Ask, labelKey: "ask", Icon: Sparkles },
 ];
 
-// 하단 탭바(모바일 전용). 지금 / 순위 / AI 3버튼.
+// 하단 탭바(모바일 전용). 경기 / AI 2버튼.
 // 바닥에 붙지 않고 좌우 여백을 둔 떠 있는 알약이다 — 콘텐츠가 그 아래로 흘러 비친다.
 // 활성 탭은 더 밝은 알약 칩으로 구분한다. 44pt 이상 터치 타깃 + pb-safe.
 export const TabBarView = ({ dictionary, activeTab, onChangeTab }: Props) => (
