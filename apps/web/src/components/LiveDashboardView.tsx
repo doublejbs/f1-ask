@@ -2,13 +2,11 @@
 
 import { AmbientWashView } from "@/components/AmbientWashView";
 import { AskAiTabView } from "@/components/AskAiTabView";
-import { EventFeedView } from "@/components/EventFeedView";
 import { RaceTabView } from "@/components/RaceTabView";
 import { SettingsSheetView } from "@/components/SettingsSheetView";
 import { StatusBarView } from "@/components/StatusBarView";
 import { TabBarView } from "@/components/TabBarView";
 import { useDashboardTabState } from "@/hooks/UseDashboardTabState";
-import { useDriverEventFilter } from "@/hooks/UseDriverEventFilter";
 import { useExplanationLevel } from "@/hooks/UseExplanationLevel";
 import { useFavoriteDrivers } from "@/hooks/UseFavoriteDrivers";
 import { useLiveRace } from "@/hooks/UseLiveRace";
@@ -25,8 +23,9 @@ type Props = {
 };
 
 // 라이브 경기 대시보드 조립 컴포넌트.
-// 모바일: 상태바 + 활성 탭(경기 / AI) + 하단 탭바. 경기 탭은 순위 위에 이벤트 시트를 겹친다.
-// 데스크톱(lg): 탭바 없이 3컬럼[순위|이벤트+해설|AI] — 시트 대신 가운데 컬럼에 피드를 그린다.
+// 모바일: 상태바 + 활성 탭(경기 / AI) + 하단 탭바.
+// 데스크톱(lg): 탭바 없이 2컬럼[순위|AI]. 가운데 이벤트 피드 컬럼은 피드를 분해하며
+// 사라졌다 (docs/14-event-placement.md).
 // 비활성 탭은 언마운트하지 않고 display 로만 숨겨 AskAiView 대화 상태를 보존한다.
 export const LiveDashboardView = ({ locale }: Props) => {
   const dictionary = getDictionary(locale);
@@ -39,9 +38,6 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const { activeTab, handleChangeTab, askPrefill, switchToAskWithQuestion } =
     useDashboardTabState();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // 드라이버 이벤트 필터는 모바일 시트와 데스크톱 피드가 함께 쓰므로 여기서 소유한다.
-  const { driverFilter, handleFilterByDriver, handleClearDriverFilter } =
-    useDriverEventFilter();
 
   // 탭투애스크: 드라이버/이벤트를 탭하면 AI 탭으로 전환하며 질문을 자동 제출한다.
   const handleAskCode = (code: string) => {
@@ -89,36 +85,18 @@ export const LiveDashboardView = ({ locale }: Props) => {
         onOpenSettings={handleOpenSettings}
       />
 
-      <div className="lg:grid lg:grid-cols-3 lg:items-start lg:gap-5">
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
         <div className={getTabPanelClass(DashboardTab.Race)}>
           <RaceTabView
             dictionary={dictionary}
             locale={locale}
             snapshot={race.snapshot}
             summary={summary}
-            primaryEvents={race.primaryEvents}
             allEvents={race.allEvents}
             commentary={commentary}
-            driverFilter={driverFilter}
-            onFilterEventsByDriver={handleFilterByDriver}
-            onClearDriverFilter={handleClearDriverFilter}
             isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
             onSelectDriver={handleAskDriver}
-            onSelectEvent={handleAskEvent}
-          />
-        </div>
-
-        {/* 데스크톱 가운데 컬럼: 이벤트 + 해설. 모바일에서는 RaceTabView 의 시트가 맡는다. */}
-        <div className="hidden lg:block">
-          <EventFeedView
-            dictionary={dictionary}
-            locale={locale}
-            primaryEvents={race.primaryEvents}
-            allEvents={race.allEvents}
-            commentary={commentary}
-            driverFilter={driverFilter}
-            onClearDriverFilter={handleClearDriverFilter}
             onSelectEvent={handleAskEvent}
           />
         </div>

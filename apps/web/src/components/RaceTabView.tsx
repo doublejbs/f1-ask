@@ -3,12 +3,10 @@
 import { CriticalBannerView } from "@/components/CriticalBannerView";
 import { DriverDetailSheetView } from "@/components/DriverDetailSheetView";
 import { DriverListView } from "@/components/DriverListView";
-import { EventSheetView } from "@/components/EventSheetView";
 import { LatestEventCardView } from "@/components/LatestEventCardView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionStatusStripView } from "@/components/SessionStatusStripView";
 import { WeatherChipView } from "@/components/WeatherChipView";
-import { DriverEventFilterTarget } from "@/hooks/UseDriverEventFilter";
 import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
 import { Dictionary } from "@/i18n/Messages";
 import { expandMultiCarEvents } from "@/lib/ExpandMultiCarEvents";
@@ -35,14 +33,8 @@ type Props = {
   locale: SupportedLocale;
   snapshot: LiveRaceSnapshot;
   summary: RaceSummaryResponse | null;
-  primaryEvents: RaceEvent[];
   allEvents: RaceEvent[];
   commentary: AiCommentary[];
-  // 적용 중인 드라이버 이벤트 필터. 상태는 LiveDashboardView 가 소유한다
-  // (데스크톱 EventFeedView 도 같은 필터를 써야 하기 때문).
-  driverFilter: DriverEventFilterTarget | null;
-  onFilterEventsByDriver: (driver: LiveDriverState) => void;
-  onClearDriverFilter: () => void;
   isFavorite: (driverNumber: number) => boolean;
   onToggleFavorite: (driverNumber: number) => void;
   // 탭투애스크: AI 탭으로 전환하며 이 드라이버에 대한 질문을 제출한다.
@@ -56,21 +48,18 @@ const EMPTY_RADIO_CLIPS: TeamRadioClip[] = [];
 const EMPTY_BATTLES: Battle[] = [];
 
 // 「경기」 탭 — 구 「지금」 + 「순위」를 합친 레이스 콘솔 (docs/13-race-console.md).
-// 경기 요약(종료 시) → Critical 배너(sticky) → 날씨 칩 → 순위 목록.
-// 이벤트 피드는 모바일에서 논모달 바텀 시트(EventSheetView)로 순위 위에 겹쳐
-// 순위와 이벤트를 동시에 보게 한다. 데스크톱(lg)은 3컬럼이라 시트가 필요 없어
-// LiveDashboardView 가 가운데 컬럼에 EventFeedView 를 직접 그린다.
+// 경기 요약(종료 시) → 세션 상태 스트립 → 최신 이벤트 카드 → Critical 배너(sticky)
+// → 날씨 칩 → 순위 목록.
+// 시간순 이벤트 피드는 없다 (docs/14-event-placement.md) — 세션 상태는 스트립으로,
+// 드라이버 이벤트는 순위 행 마커로, 해설과 이력은 최신 이벤트 카드와
+// 드라이버 상세 시트로 분해됐다. 순위가 화면 전체를 쓴다.
 export const RaceTabView = ({
   dictionary,
   locale,
   snapshot,
   summary,
-  primaryEvents,
   allEvents,
   commentary,
-  driverFilter,
-  onFilterEventsByDriver,
-  onClearDriverFilter,
   isFavorite,
   onToggleFavorite,
   onSelectDriver,
@@ -147,18 +136,11 @@ export const RaceTabView = ({
     onSelectDriver(driver);
   };
 
-  // 시트의 "이 드라이버 이벤트만 보기": 시트를 닫고 이벤트 피드를 좁힌다.
-  const handleFilterEvents = (driver: LiveDriverState) => {
-    setSelectedDriver(null);
-    onFilterEventsByDriver(driver);
-  };
-
   const isFinished = snapshot.status === SessionStatus.Finished;
 
   return (
-    // 모바일에서는 이벤트 시트가 하단을 덮으므로 마지막 순위 행까지 스크롤로 닿게
-    // 기본 스냅(45dvh) 만큼 아래를 비워 둔다. 데스크톱에는 시트가 없어 필요 없다.
-    <div className="flex flex-col gap-4 pb-[45dvh] lg:pb-0">
+    // 하단 여백은 떠 있는 탭바만 피하면 된다(LiveDashboardView 가 담당).
+    <div className="flex flex-col gap-4">
       {/* 경기 요약은 종료된 세션에서만, 최상단에 둔다. */}
       {isFinished && summary !== null ? (
         <RaceSummaryView
@@ -220,26 +202,16 @@ export const RaceTabView = ({
 
       <DriverDetailSheetView
         dictionary={dictionary}
+        locale={locale}
         driver={selectedDriver}
         fieldBestSectors={fieldBestSectors}
         radioClips={selectedRadioClips}
         playingRadioUrl={playingUrl}
+        allEvents={allEvents}
+        commentary={commentary}
         onToggleRadio={togglePlay}
         onClose={handleCloseSheet}
         onAskAi={handleAskAi}
-        onFilterEvents={handleFilterEvents}
-      />
-
-      {/* 이벤트 + 해설. 모바일 전용 논모달 시트. */}
-      <EventSheetView
-        dictionary={dictionary}
-        locale={locale}
-        primaryEvents={primaryEvents}
-        allEvents={allEvents}
-        commentary={commentary}
-        driverFilter={driverFilter}
-        onClearDriverFilter={onClearDriverFilter}
-        onSelectEvent={onSelectEvent}
       />
     </div>
   );

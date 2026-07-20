@@ -30,21 +30,11 @@ export type Dictionary = {
     rain: string;
     dry: string;
   };
+  // 이벤트에 붙는 AI 해설 줄의 접기/펼치기 토글.
+  // 시간순 피드가 사라지며(docs/14-event-placement.md) 나머지 키는 소비자가 없어졌다.
   events: {
-    title: string;
-    empty: string;
-    filterLabel: string;
-    filterPrimary: string;
-    filterAll: string;
-    // {count} 를 숨겨진 이벤트 수로 치환한다.
-    hiddenCount: string;
-    // 이벤트에 붙는 AI 해설 줄.
     commentaryExpand: string;
     commentaryCollapse: string;
-    // 드라이버 필터가 걸렸는데 해당 이벤트가 없을 때.
-    emptyForDriver: string;
-    // 필터 칩의 해제 버튼 접근성 라벨. {code} 를 드라이버 코드로 치환한다.
-    driverFilterClear: string;
   };
   teamRadio: {
     title: string;
@@ -90,12 +80,6 @@ export type Dictionary = {
     race: string;
     ask: string;
   };
-  eventSheet: {
-    // 논모달 이벤트 시트의 aria-label.
-    label: string;
-    // 그랩 핸들 버튼의 접근성 라벨(탭하면 다음 단계로 순환).
-    handle: string;
-  };
   settings: {
     title: string;
     close: string;
@@ -112,8 +96,8 @@ export type Dictionary = {
     // {code} 를 드라이버 코드로 치환하는 시트 하단 AI 질문 버튼 라벨.
     ask: string;
     close: string;
-    // {code} 의 이벤트만 보도록 이벤트 피드를 좁히는 액션.
-    filterEvents: string;
+    // 이벤트 이력 섹션 제목 (docs/14-event-placement.md).
+    eventHistory: string;
   };
   battles: {
     // 매뉴얼 오버라이드 사정권 소형 라벨. 칩 폭이 좁아 축약어를 쓴다.
@@ -193,16 +177,8 @@ const en: Dictionary = {
     dry: "Dry",
   },
   events: {
-    title: "Recent Events",
-    empty: "No events yet",
-    filterLabel: "Priority filter",
-    filterPrimary: "Key",
-    filterAll: "All",
-    hiddenCount: "{count} more hidden",
     commentaryExpand: "More",
     commentaryCollapse: "Less",
-    emptyForDriver: "No events for this driver yet",
-    driverFilterClear: "Clear {code} event filter",
   },
   teamRadio: {
     title: "Team Radio",
@@ -253,10 +229,6 @@ const en: Dictionary = {
     race: "Race",
     ask: "AI",
   },
-  eventSheet: {
-    label: "Recent events",
-    handle: "Resize the events sheet",
-  },
   settings: {
     title: "Settings",
     close: "Close",
@@ -272,7 +244,7 @@ const en: Dictionary = {
     pitStops: "Pit Stops",
     ask: "Ask AI about {code}",
     close: "Close",
-    filterEvents: "Show only {code} events",
+    eventHistory: "Event history",
   },
   battles: {
     overtakeLabel: "OT",
@@ -368,16 +340,8 @@ const ko: Dictionary = {
     dry: "건조",
   },
   events: {
-    title: "최근 이벤트",
-    empty: "아직 이벤트가 없습니다",
-    filterLabel: "우선순위 필터",
-    filterPrimary: "주요",
-    filterAll: "전체",
-    hiddenCount: "그 외 {count}건",
     commentaryExpand: "더 보기",
     commentaryCollapse: "접기",
-    emptyForDriver: "이 드라이버의 이벤트가 없습니다",
-    driverFilterClear: "{code} 이벤트 필터 해제",
   },
   teamRadio: {
     title: "팀 라디오",
@@ -428,10 +392,6 @@ const ko: Dictionary = {
     race: "경기",
     ask: "AI",
   },
-  eventSheet: {
-    label: "최근 이벤트",
-    handle: "이벤트 시트 크기 조절",
-  },
   settings: {
     title: "설정",
     close: "닫기",
@@ -447,7 +407,7 @@ const ko: Dictionary = {
     pitStops: "피트",
     ask: "{code}에 대해 AI에게 질문",
     close: "닫기",
-    filterEvents: "{code} 이벤트만 보기",
+    eventHistory: "이벤트 이력",
   },
   battles: {
     overtakeLabel: "OT",
@@ -543,16 +503,8 @@ const ja: Dictionary = {
     dry: "ドライ",
   },
   events: {
-    title: "最近のイベント",
-    empty: "まだイベントがありません",
-    filterLabel: "優先度フィルター",
-    filterPrimary: "主要",
-    filterAll: "すべて",
-    hiddenCount: "他 {count}件",
     commentaryExpand: "もっと見る",
     commentaryCollapse: "閉じる",
-    emptyForDriver: "このドライバーのイベントはありません",
-    driverFilterClear: "{code} イベントフィルターを解除",
   },
   teamRadio: {
     title: "チームラジオ",
@@ -603,10 +555,6 @@ const ja: Dictionary = {
     race: "レース",
     ask: "AI",
   },
-  eventSheet: {
-    label: "最近のイベント",
-    handle: "イベントシートのサイズ変更",
-  },
   settings: {
     title: "設定",
     close: "閉じる",
@@ -622,7 +570,7 @@ const ja: Dictionary = {
     pitStops: "ピット回数",
     ask: "{code} についてAIに質問",
     close: "閉じる",
-    filterEvents: "{code} のイベントのみ表示",
+    eventHistory: "イベント履歴",
   },
   battles: {
     overtakeLabel: "OT",
