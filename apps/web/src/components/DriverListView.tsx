@@ -33,6 +33,9 @@ import { ChevronRight, Pause, Radio, Star } from "lucide-react";
 
 // 갭 열 76px. 실측 최댓값은 OT 칩 + "0.8s" 조합의 71.7px 이라 여유를 조금 둔다.
 const GAP_COLUMN_CLASS = "w-[4.75rem]";
+// 타이어 열 52px. 실측 최댓값은 비드 20 + gap 4 + 랩 수 23.5(ko "12랩" / ja "12周" —
+// en "12L" 은 20.3 이라 더 좁다) = 47.5px. 헤더 라벨("타이어"/"タイヤ" 31.2px)도 들어간다.
+const TIRE_COLUMN_CLASS = "w-[3.25rem]";
 // "1:23.456" 을 text-sm tabular-nums 로 담는 데 필요한 폭.
 const LAST_LAP_COLUMN_CLASS = "w-[4.75rem]";
 // 3자리 km/h + "SPEED" 헤더 라벨을 담는 폭.
@@ -44,13 +47,18 @@ const SECTOR_INDEXES = [0, 1, 2];
 // 시크론은 우측 가장자리에 sticky 로 얼린다. 행 탭 어포던스가 스크롤로 사라지면 안 된다.
 const CHEVRON_COLUMN_CLASS = "w-6";
 
-// 고정 식별 열 폭. 컨테이너 폭에서 "스크롤 0 에서 보여야 할 우측 열"(갭 76 + 시크론 24
-// = 6.25rem)을 뺀 만큼을 차지해, 스크롤 0 이면 지금 화면과 픽셀 단위로 같아진다.
-// 폭이 넉넉해지면 17.5rem 에서 멈춘다 → 남는 폭이 데이터 열 노출로 돌아가므로
+// 고정 식별 열 폭. 컨테이너 폭에서 "스크롤 0 에서 보여야 할 우측 열"(갭 76 + 타이어 52
+// + 시크론 24 = 9.5rem)을 뺀 만큼을 차지한다. 예전에는 갭 + 시크론(6.25rem)만 비워 둬서
+// 375px 에서 스크롤 창이 갭 열 하나(76px)뿐이었다 — 다음 값을 보려면 반드시 스와이프해야
+// 했다. 타이어를 스크롤 열로 내보내 고정 열 둘째 줄을 팀명만 남기고, 그렇게 회수한 폭으로
+// 스크롤 창을 넓혀 **스크롤 0 에서 갭 + 타이어 두 열**이 보이게 한다.
+// 폭이 넉넉해지면 13rem 에서 멈춘다 → 남는 폭이 데이터 열 노출로 돌아가므로
 // 태블릿·데스크톱에서는 최근 랩·최고속·피트가 처음부터 보인다(별도 분기 없이).
+// 상한을 17.5rem 에서 낮춘 것도 같은 이유다 — 타이어가 빠져 둘째 줄이 팀명(실측 최댓값
+// "Mercedes" 58px)뿐이라 예전만큼 넓을 이유가 없다.
 // 100cqw 는 뿌리의 container-type: inline-size 를 기준으로 한다. w-max 안에서는
 // 100% 가 max-content 를 가리켜 순환하므로 컨테이너 쿼리 단위가 유일한 해법이다.
-const FROZEN_COLUMN_CLASS = "w-[min(calc(100cqw-6.25rem),17.5rem)]";
+const FROZEN_COLUMN_CLASS = "w-[min(calc(100cqw-9.5rem),13rem)]";
 
 // 얼린 열이 스크롤 콘텐츠를 가리려면 불투명해야 한다. 배경은 목록 전체가
 // bg-background 로 통일돼 있어 이음매가 보이지 않는다.
@@ -176,6 +184,13 @@ const HeaderRow = ({ dictionary, title }: HeaderRowProps) => {
         {dictionary.table.columns.gap}
       </div>
 
+      {/* 타이어는 갭 바로 다음이다. 컴파운드·스틴트 나이는 순위표에서 갭 다음으로 자주
+          보는 값이고, 원래 고정 열에 있어 항상 보이던 값이라 스크롤 열로 옮긴 뒤에도
+          스크롤 0 에서 그대로 보이는 자리에 둬야 체감 회귀가 없다. */}
+      <div aria-hidden className={cn(labelClass, TIRE_COLUMN_CLASS)}>
+        {dictionary.table.tire}
+      </div>
+
       <div aria-hidden className={cn(labelClass, LAST_LAP_COLUMN_CLASS)}>
         {dictionary.table.columns.lastLap}
       </div>
@@ -299,7 +314,10 @@ const DriverRow = ({
       {/* ── 고정 식별 열 ── 별·등락·순위·팀 액센트·코드·팀명. 스크롤해도 남는다. */}
       <div className={cn(FROZEN_SURFACE_CLASS, "left-0", FROZEN_COLUMN_CLASS)}>
         <div
-          className={cn("relative flex h-full items-center gap-2 pl-1", tintClass)}
+          // gap-2 → gap-1. 고정 열이 좁아진 만큼 컬럼 사이 여백에서도 6px(3군데)을
+          // 회수한다. 별·등락·액센트 바는 모두 폭이 작은 글리프라 4px 이면 서로 붙어
+          // 보이지 않는다.
+          className={cn("relative flex h-full items-center gap-1 pl-1", tintClass)}
         >
           {/* 배틀 액센트 바는 행 좌측 가장자리에 붙는다. 고정 열 안에 두어야
               가로로 밀어도 제자리에 남는다. */}
@@ -344,11 +362,11 @@ const DriverRow = ({
             onClick={handleToggleFavorite}
             aria-label={dictionary.table.favorite}
             aria-pressed={favorite}
-            // 44×44 터치 타깃은 유지하되 좌우 음수 마진으로 **레이아웃 발자국만** 28px 로
-            // 줄인다. 별 글리프는 16px 뿐이라 시각적으로는 달라지지 않고, 여기서 확보한
-            // 10px 이 좌측에 새로 생긴 등락 슬롯 폭으로 들어간다(이름 컬럼 폭 보존).
-            // -mr-2 는 행 gap(8px)만큼만 먹어서 터치 영역이 등락 슬롯까지 침범하지 않는다.
-            className="press -my-1 -ml-2 -mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-amber-400"
+            // 44×44 터치 타깃은 유지하되 좌우 음수 마진으로 **레이아웃 발자국만** 20px 로
+            // 줄인다. 별 글리프는 16px 뿐이라 시각적으로는 달라지지 않는다.
+            // 터치 영역은 좌측으로 페이지 여백까지, 우측으로 등락 슬롯까지 넘치지만 둘 다
+            // 탭 대상이 아니라(등락은 텍스트) 충돌하지 않는다 — 오히려 엄지 도달 범위가 는다.
+            className="press -mx-3 -my-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/5 hover:text-amber-400"
           >
             <Star
               className={cn(
@@ -397,7 +415,10 @@ const DriverRow = ({
                   ).replace("{code}", driver.code)}
                   title={radioRecent ? dictionary.teamRadio.recent : undefined}
                   className={cn(
-                    "press -my-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/5",
+                    // 별과 같은 방식으로 44×44 터치 타깃은 유지하고 레이아웃 발자국만
+                    // 20px 로 줄인다. 코드 줄에서 가장 넓은 조합(코드 40.8 + 라디오 +
+                    // 마커 36)이 좁아진 이름 컬럼(실측 106px)에 들어가려면 필수다.
+                    "press -mx-3 -my-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/5",
                     radioPlaying
                       ? "text-primary"
                       : radioRecent
@@ -426,25 +447,17 @@ const DriverRow = ({
               </span>
             </span>
 
-            {/* 비드가 컴파운드를 색·글자로 이미 구분해 주므로 예전의 `·` 구분자는 뺐다.
-                구분자와 그 양쪽 gap 이 먹던 폭이 비드 자리로 들어간다. */}
-            <span className="flex min-w-0 items-center gap-1.5 text-xs leading-tight">
-              <span
-                className="truncate font-semibold"
-                style={{ color: accent ?? undefined }}
-              >
-                {/* 순위 행은 폭이 좁고 라디오 인디케이터가 동적으로 붙어서
-                    원본 팀명이 잘린다. 여기서는 짧은 표기를 쓴다.
-                    (상세 시트는 공간이 충분해 원본 전체 이름을 유지한다) */}
-                {getTeamShortName(driver.teamName)}
-              </span>
-
-              <TireCompoundView
-                dictionary={dictionary}
-                compound={driver.compound}
-                tireAgeLaps={driver.tireAgeLaps}
-                size={TireCompoundSize.Compact}
-              />
+            {/* 타이어가 스크롤 열로 빠져서 이 줄에는 팀명만 남는다. 고정 열을 좁히면서
+                가장 먼저 잘릴 자리라 남은 폭을 전부 팀명에 준다(실측 최댓값 58px
+                "Mercedes" vs 이름 컬럼 106px). */}
+            <span
+              className="truncate text-xs font-semibold leading-tight"
+              style={{ color: accent ?? undefined }}
+            >
+              {/* 순위 행은 폭이 좁고 라디오 인디케이터가 동적으로 붙어서
+                  원본 팀명이 잘린다. 여기서는 짧은 표기를 쓴다.
+                  (상세 시트는 공간이 충분해 원본 전체 이름을 유지한다) */}
+              {getTeamShortName(driver.teamName)}
             </span>
           </div>
 
@@ -525,6 +538,20 @@ const DriverRow = ({
           </span>
         )}
       </div>
+
+      {/* 타이어. 고정 열 둘째 줄에 있던 비드 + 랩 수를 그대로 옮겨 왔다(상세 시트의
+          기본 크기 비드는 손대지 않는다). 갭 다음 자리라 스크롤 0 에서 바로 보인다. */}
+      <DataCell
+        widthClass={TIRE_COLUMN_CLASS}
+        label={dictionary.table.tire}
+      >
+        <TireCompoundView
+          dictionary={dictionary}
+          compound={driver.compound}
+          tireAgeLaps={driver.tireAgeLaps}
+          size={TireCompoundSize.Compact}
+        />
+      </DataCell>
 
       <DataCell
         widthClass={LAST_LAP_COLUMN_CLASS}
@@ -679,10 +706,11 @@ export const DriverListView = ({
         onKeyDown={handleScrollKeyDown}
         // overscroll-x-contain: 좌측 끝에서 더 밀어도 브라우저 뒤로가기 제스처로 새지 않는다.
         // bg-background: 얼린 열의 불투명 배경과 목록 배경을 같은 색으로 맞춰 이음매를 없앤다.
-        // snap-x proximity + scroll-padding-left(고정 열 폭): 손을 떼면 열이 고정 열
-        // 바로 오른쪽에 딱 맞게 선다. 모바일에서는 스크롤 창이 갭 열 폭만큼(≈76px)뿐이라
-        // 열이 반쯤 걸치면 읽을 수 없다. proximity 라 자유롭게 훑는 것도 방해하지 않는다.
-        className="scrollbar-hidden snap-x scroll-pl-[min(calc(100cqw-6.25rem),17.5rem)] overflow-x-auto overscroll-x-contain bg-background outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
+        // snap-x proximity + scroll-padding-left(고정 열 폭 — FROZEN_COLUMN_CLASS 와
+        // 반드시 같은 값이어야 한다): 손을 떼면 열이 고정 열 바로 오른쪽에 딱 맞게 선다.
+        // 모바일 스크롤 창은 갭 + 타이어 두 열뿐이라 열이 반쯤 걸치면 읽을 수 없다.
+        // proximity 라 자유롭게 훑는 것도 방해하지 않는다.
+        className="scrollbar-hidden snap-x scroll-pl-[min(calc(100cqw-9.5rem),13rem)] overflow-x-auto overscroll-x-contain bg-background outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
       >
         <div className="flex w-max flex-col gap-5">
           {favorites.length > 0 ? (
