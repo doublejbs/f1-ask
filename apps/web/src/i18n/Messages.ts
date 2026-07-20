@@ -156,6 +156,12 @@ export type Dictionary = {
     title: string;
     // 탭 가능한 카드의 힌트. {code} 를 드라이버 코드로 치환한다.
     openDriver: string;
+    // 위 버튼 — 더 최신 이벤트로.
+    previousEvent: string;
+    // 아래 버튼 — 더 과거 이벤트로.
+    nextEvent: string;
+    // 스크린리더용 현재 위치. {current}/{total} 을 치환한다(화면에는 "2/8" 로 압축).
+    position: string;
   };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
@@ -294,6 +300,9 @@ const en: Dictionary = {
   latestEvent: {
     title: "Latest key event",
     openDriver: "Open {code} details",
+    previousEvent: "Newer event",
+    nextEvent: "Older event",
+    position: "Event {current} of {total}",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -462,6 +471,9 @@ const ko: Dictionary = {
   latestEvent: {
     title: "최신 주요 이벤트",
     openDriver: "{code} 상세 열기",
+    previousEvent: "이전(더 최신) 이벤트",
+    nextEvent: "다음(더 이전) 이벤트",
+    position: "{total}건 중 {current}번째 이벤트",
   },
   status: {
     [SessionStatus.Scheduled]: "예정",
@@ -630,6 +642,9 @@ const ja: Dictionary = {
   latestEvent: {
     title: "最新の重要イベント",
     openDriver: "{code} の詳細を開く",
+    previousEvent: "前(より新しい)のイベント",
+    nextEvent: "次(より古い)のイベント",
+    position: "{total}件中{current}件目のイベント",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",

@@ -61,15 +61,27 @@ describe("selectLatestPriorityEvents", () => {
     ]);
   });
 
-  it("기본 상한은 3건이다", () => {
-    const events = Array.from({ length: 10 }, (_, index) =>
+  it("기본 상한은 10건이다", () => {
+    const events = Array.from({ length: 16 }, (_, index) =>
       makeEvent(`e-${index}`, -index, RaceEventPriority.High),
     );
 
     const selected = selectLatestPriorityEvents(events, BASE_MS);
 
+    expect(LATEST_PRIORITY_EVENT_LIMIT).toBe(10);
     expect(selected).toHaveLength(LATEST_PRIORITY_EVENT_LIMIT);
-    expect(readIds(selected)).toEqual(["e-0", "e-1", "e-2"]);
+    expect(readIds(selected)).toEqual([
+      "e-0",
+      "e-1",
+      "e-2",
+      "e-3",
+      "e-4",
+      "e-5",
+      "e-6",
+      "e-7",
+      "e-8",
+      "e-9",
+    ]);
   });
 
   it("limit 으로 건수를 줄일 수 있고 0 이하면 빈 배열이다", () => {

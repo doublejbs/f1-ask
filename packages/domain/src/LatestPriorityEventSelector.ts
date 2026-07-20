@@ -8,9 +8,14 @@ const STACK_PRIORITIES: readonly RaceEventPriority[] = [
   RaceEventPriority.High,
 ];
 
-// 스택에 쌓는 최대 건수. 스택은 상단에 고정(sticky)되므로 건수가 늘면 그만큼
-// 순위가 잠식된다. 고정 영역 높이 예산(뷰포트의 35%) 때문에 상한이 필요하다.
-export const LATEST_PRIORITY_EVENT_LIMIT = 3;
+// 고정 영역이 넘겨보는 최대 건수. 한 번에 1건만 그리므로 건수는 더 이상 높이를
+// 잠식하지 않고, 사용자가 위/아래로 되짚어볼 수 있는 이력의 깊이만 정한다.
+//
+// 10건인 이유: 스냅샷은 6초마다 갱신되고 Critical/High 는 통상 분당 1~3건 수준이라
+// 10건이면 대략 최근 몇 분을 덮는다. 이보다 얕으면 사용자가 보던 이벤트가 금세
+// 창 밖으로 밀려 커서가 최신으로 되돌아가고, 더 깊으면 이미 순위 행 마커와
+// 드라이버 상세 시트가 담당하는 "이력" 영역과 역할이 겹친다.
+export const LATEST_PRIORITY_EVENT_LIMIT = 10;
 
 // 정렬용 후보. 타임스탬프가 같을 때 입력 순서로 안정적으로 가르기 위해 index 를 든다.
 type EventCandidate = {

@@ -2,7 +2,7 @@
 
 import { DriverDetailSheetView } from "@/components/DriverDetailSheetView";
 import { DriverListView } from "@/components/DriverListView";
-import { LatestEventStackView } from "@/components/LatestEventStackView";
+import { LatestEventPagerView } from "@/components/LatestEventPagerView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionStatusStripView } from "@/components/SessionStatusStripView";
 import { WeatherChipView } from "@/components/WeatherChipView";
@@ -152,8 +152,8 @@ export const RaceTabView = ({
           배경을 채워(+블러) 뒤로 흐르는 순위 행이 비쳐 글자가 겹치지 않게 한다.
           두 자식 모두 렌더를 생략하면 :empty 가 되어 통째로 숨는다.
           높이 예산: 이 그룹 + 상태바가 뷰포트의 35% 를 넘지 않아야 한다. 그래서
-          AI 해설은 여기 두지 않고(드라이버 상세 시트 전용), 스택 3번째 항목은
-          세로가 짧은 기기에서 숨는다. */}
+          AI 해설은 여기 두지 않고(드라이버 상세 시트 전용), 이벤트는 여러 건을
+          쌓지 않고 1건씩 넘겨 본다. */}
       {/* -mt-4 로 부모의 gap-4 를 상쇄한다. 고정됐을 때는 어차피 상태바에 붙으므로
           평소에도 붙여 두는 편이 일관되고, 높이 예산에서 16px 을 아낀다. */}
       <div className="sticky top-[var(--status-bar-height)] z-30 -mx-4 -mt-4 flex flex-col gap-1.5 bg-[hsl(var(--background)/0.82)] px-4 py-2 backdrop-blur-xl empty:hidden lg:mx-0 lg:px-0">
@@ -165,10 +165,11 @@ export const RaceTabView = ({
           atMs={raceClockMs}
         />
 
-        {/* 최근 주요 이벤트 최대 3건. 탭하면 해당 드라이버 상세 시트를 연다.
-            Critical 배너는 이 스택에 흡수됐다 — 같은 이벤트를 두 번 보여주지 않고
-            고정 영역 높이도 아낀다(Critical 항목은 붉은 틴트로 구분한다). */}
-        <LatestEventStackView
+        {/* 최근 주요 이벤트를 한 번에 1건씩. 위/아래 버튼으로 되짚어 본다.
+            탭하면 해당 드라이버 상세 시트를 연다.
+            Critical 배너는 여기에 흡수됐다 — 같은 이벤트를 두 번 보여주지 않고
+            고정 영역 높이도 아낀다(Critical 은 붉은 틴트로 구분한다). */}
+        <LatestEventPagerView
           dictionary={dictionary}
           locale={locale}
           allEvents={allEvents}

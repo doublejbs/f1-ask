@@ -161,6 +161,11 @@ export {
   selectLatestPriorityEvents,
   LATEST_PRIORITY_EVENT_LIMIT,
 } from "./LatestPriorityEventSelector";
+export {
+  resolveLatestEventIndex,
+  resolveLatestEventCursorId,
+  LATEST_EVENT_INDEX,
+} from "./LatestEventCursor";
 
 export type { Battle } from "./Battle";
 export {
