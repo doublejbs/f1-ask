@@ -46,6 +46,10 @@ export const formatGapCompact = (seconds: number | null): string => {
   return `+${seconds.toFixed(1)}`;
 };
 
+// 배틀 간격(초) → "0.6". 순위 행의 앞차 간격 강조 수치와 접근성 문구가 같은 표기를 쓴다.
+export const formatBattleGapSeconds = (seconds: number): string =>
+  seconds.toFixed(1);
+
 export const formatPositionChange = (change: number | null): string => {
   if (change === null || change === 0) {
     return "—";

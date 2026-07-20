@@ -6,7 +6,14 @@ import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
 import { Dictionary } from "@/i18n/Messages";
 import { computeFieldBestSectors } from "@/lib/Format";
 import { groupTeamRadiosByDriver, parseTimestampMs } from "@/lib/TeamRadio";
-import { LiveDriverState, LiveRaceSnapshot, TeamRadioClip } from "@f1/domain";
+import {
+  Battle,
+  LiveDriverState,
+  LiveRaceSnapshot,
+  SessionStatus,
+  TeamRadioClip,
+  selectBattles,
+} from "@f1/domain";
 import { useMemo, useState } from "react";
 
 type Props = {
@@ -19,6 +26,8 @@ type Props = {
 };
 
 const EMPTY_RADIO_CLIPS: TeamRadioClip[] = [];
+
+const EMPTY_BATTLES: Battle[] = [];
 
 // 「순위」 탭.
 // 모든 폭에서 컴팩트 행 목록(DriverListView, 관심 드라이버 고정)을 쓴다. 행 탭 → 상세 시트.
@@ -42,6 +51,17 @@ export const StandingsTabView = ({
     () => computeFieldBestSectors(snapshot.drivers),
     [snapshot.drivers],
   );
+
+  // 인라인 배틀 판정은 도메인 셀렉터를 그대로 재사용한다(인접·리타이어·피트·임계 규칙 일원화).
+  // 목록은 상위 N쌍이 아니라 모든 쌍이 필요하므로 limit 을 드라이버 수로 넉넉히 준다.
+  // 종료된 경기의 "접전"은 의미가 없어 표시하지 않는다.
+  const battles = useMemo(() => {
+    if (snapshot.status === SessionStatus.Finished) {
+      return EMPTY_BATTLES;
+    }
+
+    return selectBattles(snapshot, snapshot.drivers.length);
+  }, [snapshot]);
 
   const radioClips = snapshot.teamRadios ?? EMPTY_RADIO_CLIPS;
 
@@ -81,6 +101,7 @@ export const StandingsTabView = ({
       <DriverListView
         dictionary={dictionary}
         drivers={snapshot.drivers}
+        battles={battles}
         radiosByDriver={radiosByDriver}
         radioReferenceMs={radioReferenceMs}
         playingRadioUrl={playingUrl}

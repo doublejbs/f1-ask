@@ -55,14 +55,6 @@ export const LiveDashboardView = ({ locale }: Props) => {
     }
   };
 
-  const handleAskBattle = (aheadCode: string, chasingCode: string) => {
-    switchToAskWithQuestion(
-      dictionary.battles.tapQuestion
-        .replace("{ahead}", aheadCode)
-        .replace("{chasing}", chasingCode),
-    );
-  };
-
   if (race === null) {
     return (
       <main className="container flex min-h-[100dvh] items-center justify-center py-8">
@@ -112,7 +104,6 @@ export const LiveDashboardView = ({ locale }: Props) => {
             primaryEvents={race.primaryEvents}
             allEvents={race.allEvents}
             onSelectEvent={handleAskEvent}
-            onSelectBattle={handleAskBattle}
           />
         </div>
 

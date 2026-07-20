@@ -1,6 +1,5 @@
 "use client";
 
-import { BattlesView } from "@/components/BattlesView";
 import { CriticalBannerView } from "@/components/CriticalBannerView";
 import { EventFeedView } from "@/components/EventFeedView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
@@ -17,11 +16,11 @@ type Props = {
   primaryEvents: RaceEvent[];
   allEvents: RaceEvent[];
   onSelectEvent: (event: RaceEvent) => void;
-  onSelectBattle: (aheadCode: string, chasingCode: string) => void;
 };
 
 // 「지금」 탭: 기본 진입.
-// Critical 배너 → (종료 시 요약) → 배틀 위젯 → 이벤트 피드 → 날씨 칩.
+// Critical 배너 → (종료 시 요약) → 이벤트 피드 → 날씨 칩.
+// 배틀은 인접 순위의 관계라 별도 위젯 대신 「순위」 탭 목록 인라인으로 표시한다.
 export const NowTabView = ({
   dictionary,
   locale,
@@ -30,7 +29,6 @@ export const NowTabView = ({
   primaryEvents,
   allEvents,
   onSelectEvent,
-  onSelectBattle,
 }: Props) => (
   <div className="flex flex-col gap-6">
     <CriticalBannerView
@@ -47,12 +45,6 @@ export const NowTabView = ({
         drivers={snapshot.drivers}
       />
     ) : null}
-
-    <BattlesView
-      dictionary={dictionary}
-      snapshot={snapshot}
-      onSelectBattle={onSelectBattle}
-    />
 
     <EventFeedView
       dictionary={dictionary}

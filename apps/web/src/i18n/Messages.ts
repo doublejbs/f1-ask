@@ -105,13 +105,14 @@ export type Dictionary = {
     close: string;
   };
   battles: {
-    title: string;
     // 매뉴얼 오버라이드 사정권 소형 라벨. 칩 폭이 좁아 축약어를 쓴다.
     overtakeLabel: string;
     // 위 축약 라벨의 풀네임. title / aria-label 로 의미를 전달한다.
     overtakeTitle: string;
-    // {ahead}/{chasing} 를 드라이버 코드로 치환하는 배틀 탭투애스크 질문 템플릿.
-    tapQuestion: string;
+    // 순위 행 인라인 배틀의 스크린리더 문구. 색 강조만으로 전달되지 않게 보완한다.
+    // {code} 는 상대 드라이버 코드, {gap} 은 소수 1자리 간격(초).
+    chasingDescription: string;
+    aheadDescription: string;
   };
   criticalBanner: {
     // 배너 닫기 버튼 접근성 라벨.
@@ -224,10 +225,10 @@ const en: Dictionary = {
     close: "Close",
   },
   battles: {
-    title: "Battles",
     overtakeLabel: "OT",
     overtakeTitle: "Overtake mode available",
-    tapQuestion: "How is the battle between {ahead} and {chasing}?",
+    chasingDescription: "Battling {code} ahead, {gap}s gap",
+    aheadDescription: "Battling {code} behind, {gap}s gap",
   },
   criticalBanner: {
     dismiss: "Dismiss",
@@ -369,10 +370,10 @@ const ko: Dictionary = {
     close: "닫기",
   },
   battles: {
-    title: "배틀",
     overtakeLabel: "OT",
     overtakeTitle: "오버테이크 모드 사용 가능",
-    tapQuestion: "{ahead}와 {chasing} 배틀 상황 어때?",
+    chasingDescription: "앞차 {code}와 {gap}초 차 접전",
+    aheadDescription: "뒤차 {code}와 {gap}초 차 접전",
   },
   criticalBanner: {
     dismiss: "닫기",
@@ -514,10 +515,10 @@ const ja: Dictionary = {
     close: "閉じる",
   },
   battles: {
-    title: "バトル",
     overtakeLabel: "OT",
     overtakeTitle: "オーバーテイクモード使用可能",
-    tapQuestion: "{ahead} と {chasing} のバトルはどんな状況？",
+    chasingDescription: "前方の{code}と{gap}秒差の接戦",
+    aheadDescription: "後方の{code}と{gap}秒差の接戦",
   },
   criticalBanner: {
     dismiss: "閉じる",

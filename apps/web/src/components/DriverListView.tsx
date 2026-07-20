@@ -4,6 +4,7 @@ import { SectionView } from "@/components/ui/SectionView";
 import { Dictionary } from "@/i18n/Messages";
 import { cn } from "@/lib/Utils";
 import {
+  formatBattleGapSeconds,
   formatGapCompact,
   formatPositionChange,
   getPositionChangeColor,
@@ -11,12 +12,14 @@ import {
 } from "@/lib/Format";
 import { isRecentTeamRadio } from "@/lib/TeamRadio";
 import { getTeamShortName } from "@/lib/TeamShortName";
-import { LiveDriverState, TeamRadioClip, TireCompound } from "@f1/domain";
+import { Battle, LiveDriverState, TeamRadioClip, TireCompound } from "@f1/domain";
 import { ChevronRight, Pause, Radio, Star } from "lucide-react";
 
 type Props = {
   dictionary: Dictionary;
   drivers: LiveDriverState[];
+  // 도메인 셀렉터(selectBattles)가 고른 접전 쌍 전체. 전체 목록에서만 인라인 표시한다.
+  battles: Battle[];
   // 드라이버 번호 → 팀 라디오 클립(최신순). 클립이 있는 드라이버만 담긴다.
   radiosByDriver: Map<number, TeamRadioClip[]>;
   // 최근 무전 판정 기준 시각(경기 시계). 리플레이에서도 올바르게 동작한다.
@@ -38,6 +41,11 @@ type RowProps = {
   playingRadioUrl: string | null;
   // 목록 마지막 행에는 헤어라인을 붙이지 않는다.
   divided: boolean;
+  // 이 드라이버가 "뒤차"인 배틀(= 앞차와의 접전). 간격 수치와 OT 칩은 이 행에 붙는다.
+  // 간격은 뒤차의 intervalToAheadSeconds 이므로 수치의 주인이 곧 뒤차다.
+  battleWithAhead: Battle | null;
+  // 이 드라이버가 "앞차"인 배틀(= 뒤차와의 접전). 액센트 바를 아래 행까지 잇는 데만 쓴다.
+  battleWithBehind: Battle | null;
   onToggleFavorite: (driverNumber: number) => void;
   onToggleRadio: (url: string) => void;
   onSelectDriver: (driver: LiveDriverState) => void;
@@ -95,12 +103,19 @@ const DriverRow = ({
   radioReferenceMs,
   playingRadioUrl,
   divided,
+  battleWithAhead,
+  battleWithBehind,
   onToggleFavorite,
   onToggleRadio,
   onSelectDriver,
 }: RowProps) => {
   const accent = teamColorHex(driver.teamColour);
   const leading = driver.position === 1;
+  // 연속 배틀(P3↔P4↔P5)에서는 한 행이 앞차이자 뒤차다. 두 배틀을 모두 반영한다.
+  const inBattle = battleWithAhead !== null || battleWithBehind !== null;
+  const overrideRange =
+    (battleWithAhead?.isOverrideRange ?? false) ||
+    (battleWithBehind?.isOverrideRange ?? false);
   const radioPlaying =
     latestRadio !== null && playingRadioUrl === latestRadio.recordingUrl;
   const radioRecent =
@@ -141,11 +156,46 @@ const DriverRow = ({
       onClick={handleSelect}
       onKeyDown={handleKeyDown}
       className={cn(
-        "press flex min-h-[56px] cursor-pointer items-center gap-2.5 px-1 py-2 outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+        "press relative flex min-h-[56px] cursor-pointer items-center gap-2.5 px-1 py-2 outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
         divided && "hairline",
         driver.retired && "opacity-45",
+        // 배틀 쌍은 아주 옅은 앰버 틴트로 하나의 덩어리처럼 읽히게 한다.
+        inBattle && (overrideRange ? "bg-amber-400/[0.06]" : "bg-amber-400/[0.03]"),
       )}
     >
+      {inBattle ? (
+        <span
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute left-0 w-[2px]",
+            overrideRange ? "bg-amber-400/70" : "bg-amber-400/30",
+            // 쌍(또는 연속 배틀)의 바깥쪽 끝만 둥글게 잘라 두 행을 잇는 한 줄로 보이게 한다.
+            battleWithAhead === null ? "top-1.5 rounded-t-full" : "top-0",
+            battleWithBehind === null ? "bottom-1.5 rounded-b-full" : "bottom-0",
+          )}
+        />
+      ) : null}
+
+      {/* 배틀 강조가 색에만 의존하지 않도록 스크린리더용 문구를 함께 싣는다. */}
+      {battleWithAhead !== null ? (
+        <span className="sr-only">
+          {dictionary.battles.chasingDescription
+            .replace("{code}", battleWithAhead.aheadDriver.code)
+            .replace("{gap}", formatBattleGapSeconds(battleWithAhead.gapSeconds))}
+        </span>
+      ) : null}
+
+      {battleWithBehind !== null ? (
+        <span className="sr-only">
+          {dictionary.battles.aheadDescription
+            .replace("{code}", battleWithBehind.chasingDriver.code)
+            .replace(
+              "{gap}",
+              formatBattleGapSeconds(battleWithBehind.gapSeconds),
+            )}
+        </span>
+      ) : null}
+
       <button
         type="button"
         onClick={handleToggleFavorite}
@@ -231,26 +281,78 @@ const DriverRow = ({
         </span>
       </div>
 
+      {/* 배틀 행은 큰 수치 자리를 앞차 간격에 내주고, 선두 갭은 아래 줄로 내려 유지한다.
+          간격은 배틀에서 지금 움직이는 값이고, 선두 갭은 순위표의 기본 정보라 버리지 않는다. */}
       <div className="flex shrink-0 flex-col items-end gap-0.5">
-        <span
-          className={cn(
-            "font-bold leading-tight tabular-nums",
-            leading ? "text-sm text-muted-foreground" : "text-lg",
-          )}
-        >
-          {leading
-            ? dictionary.table.leader
-            : formatGapCompact(driver.gapToLeaderSeconds)}
-        </span>
+        {battleWithAhead !== null ? (
+          <>
+            <span
+              title={dictionary.driverSheet.ahead}
+              className="flex items-center gap-1 leading-tight"
+            >
+              {battleWithAhead.isOverrideRange ? (
+                <span
+                  className="glass-chip rounded-full px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-amber-300"
+                  title={dictionary.battles.overtakeTitle}
+                  aria-label={dictionary.battles.overtakeTitle}
+                >
+                  {dictionary.battles.overtakeLabel}
+                </span>
+              ) : null}
 
-        <span
-          className={cn(
-            "text-xs font-semibold leading-tight tabular-nums",
-            getPositionChangeColor(driver.positionChange),
-          )}
-        >
-          {formatPositionChange(driver.positionChange)}
-        </span>
+              <span
+                className={cn(
+                  "text-lg font-bold tabular-nums",
+                  battleWithAhead.isOverrideRange
+                    ? "text-amber-300"
+                    : "text-foreground",
+                )}
+              >
+                {formatBattleGapSeconds(battleWithAhead.gapSeconds)}s
+              </span>
+            </span>
+
+            <span className="flex items-center gap-1.5 leading-tight">
+              <span
+                title={dictionary.driverSheet.leadGap}
+                className="text-xs font-semibold tabular-nums text-muted-foreground"
+              >
+                {formatGapCompact(driver.gapToLeaderSeconds)}
+              </span>
+
+              <span
+                className={cn(
+                  "text-xs font-semibold tabular-nums",
+                  getPositionChangeColor(driver.positionChange),
+                )}
+              >
+                {formatPositionChange(driver.positionChange)}
+              </span>
+            </span>
+          </>
+        ) : (
+          <>
+            <span
+              className={cn(
+                "font-bold leading-tight tabular-nums",
+                leading ? "text-sm text-muted-foreground" : "text-lg",
+              )}
+            >
+              {leading
+                ? dictionary.table.leader
+                : formatGapCompact(driver.gapToLeaderSeconds)}
+            </span>
+
+            <span
+              className={cn(
+                "text-xs font-semibold leading-tight tabular-nums",
+                getPositionChangeColor(driver.positionChange),
+              )}
+            >
+              {formatPositionChange(driver.positionChange)}
+            </span>
+          </>
+        )}
       </div>
 
       <ChevronRight
@@ -267,6 +369,7 @@ const DriverRow = ({
 export const DriverListView = ({
   dictionary,
   drivers,
+  battles,
   radiosByDriver,
   radioReferenceMs,
   playingRadioUrl,
@@ -278,6 +381,15 @@ export const DriverListView = ({
   const favorites = drivers.filter((driver) => isFavorite(driver.driverNumber));
   const findLatestRadio = (driverNumber: number): TeamRadioClip | null =>
     radiosByDriver.get(driverNumber)?.[0] ?? null;
+
+  // 배틀 쌍을 드라이버 번호로 인덱싱한다. 한 드라이버가 앞차이자 뒤차일 수 있으므로 맵을 나눈다.
+  const battlesByChasing = new Map<number, Battle>();
+  const battlesByAhead = new Map<number, Battle>();
+
+  for (const battle of battles) {
+    battlesByChasing.set(battle.chasingDriver.driverNumber, battle);
+    battlesByAhead.set(battle.aheadDriver.driverNumber, battle);
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -294,6 +406,9 @@ export const DriverListView = ({
                 radioReferenceMs={radioReferenceMs}
                 playingRadioUrl={playingRadioUrl}
                 divided={index < favorites.length - 1}
+                // 고정 섹션은 순위가 연속이 아니라 인접 관계가 성립하지 않는다. 배틀 표시를 하지 않는다.
+                battleWithAhead={null}
+                battleWithBehind={null}
                 onToggleFavorite={onToggleFavorite}
                 onToggleRadio={onToggleRadio}
                 onSelectDriver={onSelectDriver}
@@ -315,6 +430,8 @@ export const DriverListView = ({
               radioReferenceMs={radioReferenceMs}
               playingRadioUrl={playingRadioUrl}
               divided={index < drivers.length - 1}
+              battleWithAhead={battlesByChasing.get(driver.driverNumber) ?? null}
+              battleWithBehind={battlesByAhead.get(driver.driverNumber) ?? null}
               onToggleFavorite={onToggleFavorite}
               onToggleRadio={onToggleRadio}
               onSelectDriver={onSelectDriver}
