@@ -1,5 +1,6 @@
 "use client";
 
+import { DriverRowMarkerView } from "@/components/DriverRowMarkerView";
 import { SectionView } from "@/components/ui/SectionView";
 import { Dictionary } from "@/i18n/Messages";
 import { cn } from "@/lib/Utils";
@@ -12,7 +13,14 @@ import {
 } from "@/lib/Format";
 import { isRecentTeamRadio } from "@/lib/TeamRadio";
 import { getTeamShortName } from "@/lib/TeamShortName";
-import { Battle, LiveDriverState, TeamRadioClip, TireCompound } from "@f1/domain";
+import {
+  Battle,
+  DriverStateMarker,
+  LiveDriverState,
+  RaceEvent,
+  TeamRadioClip,
+  TireCompound,
+} from "@f1/domain";
 import { ChevronRight, Pause, Radio, Star } from "lucide-react";
 
 type Props = {
@@ -25,6 +33,10 @@ type Props = {
   // 최근 무전 판정 기준 시각(경기 시계). 리플레이에서도 올바르게 동작한다.
   radioReferenceMs: number;
   playingRadioUrl: string | null;
+  // 드라이버 번호 → 지속 마커(페널티·조사). 도메인이 페널티를 먼저 담아 준다.
+  markersByDriver: Map<number, DriverStateMarker[]>;
+  // 드라이버 번호 → 경기 시계 창 안의 최신 순간 이벤트.
+  recentEventsByDriver: Map<number, RaceEvent>;
   isFavorite: (driverNumber: number) => boolean;
   onToggleFavorite: (driverNumber: number) => void;
   onToggleRadio: (url: string) => void;
@@ -39,6 +51,10 @@ type RowProps = {
   latestRadio: TeamRadioClip | null;
   radioReferenceMs: number;
   playingRadioUrl: string | null;
+  // 슬롯을 차지하는 지속 마커(우선순위가 높은 1건). 없으면 null.
+  marker: DriverStateMarker | null;
+  // 지속 마커가 없을 때만 슬롯에 뜨는 순간 이벤트. 없으면 null.
+  recentEvent: RaceEvent | null;
   // 목록 마지막 행에는 헤어라인을 붙이지 않는다.
   divided: boolean;
   // 이 드라이버가 "뒤차"인 배틀(= 앞차와의 접전). 간격 수치와 OT 칩은 이 행에 붙는다.
@@ -102,6 +118,8 @@ const DriverRow = ({
   latestRadio,
   radioReferenceMs,
   playingRadioUrl,
+  marker,
+  recentEvent,
   divided,
   battleWithAhead,
   battleWithBehind,
@@ -248,6 +266,18 @@ const DriverRow = ({
               )}
             </button>
           ) : null}
+
+          {/* 마커 슬롯. 코드 줄에 두는 이유: 이 줄에는 여백이 남지만 아래 팀명 줄은
+              이미 빠듯하다. 슬롯을 행의 독립 컬럼으로 만들면 팀명 폭을 그만큼
+              잠식해 잘림이 재발한다(네 번 재발한 지점이다).
+              ml-auto 로 이름 컬럼 오른쪽 끝에 붙여 행마다 같은 x 위치에 온다. */}
+          <span className="ml-auto flex items-center">
+            <DriverRowMarkerView
+              dictionary={dictionary}
+              marker={marker}
+              recentEvent={recentEvent}
+            />
+          </span>
         </span>
 
         <span className="flex min-w-0 items-center gap-1.5 text-xs leading-tight">
@@ -373,6 +403,8 @@ export const DriverListView = ({
   radiosByDriver,
   radioReferenceMs,
   playingRadioUrl,
+  markersByDriver,
+  recentEventsByDriver,
   isFavorite,
   onToggleFavorite,
   onToggleRadio,
@@ -381,6 +413,13 @@ export const DriverListView = ({
   const favorites = drivers.filter((driver) => isFavorite(driver.driverNumber));
   const findLatestRadio = (driverNumber: number): TeamRadioClip | null =>
     radiosByDriver.get(driverNumber)?.[0] ?? null;
+
+  // 슬롯은 하나뿐이므로 지속 마커 중 앞의 것(도메인이 페널티를 먼저 담는다)만 쓴다.
+  const findMarker = (driverNumber: number): DriverStateMarker | null =>
+    markersByDriver.get(driverNumber)?.[0] ?? null;
+
+  const findRecentEvent = (driverNumber: number): RaceEvent | null =>
+    recentEventsByDriver.get(driverNumber) ?? null;
 
   // 배틀 쌍을 드라이버 번호로 인덱싱한다. 한 드라이버가 앞차이자 뒤차일 수 있으므로 맵을 나눈다.
   const battlesByChasing = new Map<number, Battle>();
@@ -405,6 +444,8 @@ export const DriverListView = ({
                 latestRadio={findLatestRadio(driver.driverNumber)}
                 radioReferenceMs={radioReferenceMs}
                 playingRadioUrl={playingRadioUrl}
+                marker={findMarker(driver.driverNumber)}
+                recentEvent={findRecentEvent(driver.driverNumber)}
                 divided={index < favorites.length - 1}
                 // 고정 섹션은 순위가 연속이 아니라 인접 관계가 성립하지 않는다. 배틀 표시를 하지 않는다.
                 battleWithAhead={null}
@@ -429,6 +470,8 @@ export const DriverListView = ({
               latestRadio={findLatestRadio(driver.driverNumber)}
               radioReferenceMs={radioReferenceMs}
               playingRadioUrl={playingRadioUrl}
+              marker={findMarker(driver.driverNumber)}
+              recentEvent={findRecentEvent(driver.driverNumber)}
               divided={index < drivers.length - 1}
               battleWithAhead={battlesByChasing.get(driver.driverNumber) ?? null}
               battleWithBehind={battlesByAhead.get(driver.driverNumber) ?? null}

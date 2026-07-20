@@ -4,11 +4,14 @@ import { CriticalBannerView } from "@/components/CriticalBannerView";
 import { DriverDetailSheetView } from "@/components/DriverDetailSheetView";
 import { DriverListView } from "@/components/DriverListView";
 import { EventSheetView } from "@/components/EventSheetView";
+import { LatestEventCardView } from "@/components/LatestEventCardView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
+import { SessionStatusStripView } from "@/components/SessionStatusStripView";
 import { WeatherChipView } from "@/components/WeatherChipView";
 import { DriverEventFilterTarget } from "@/hooks/UseDriverEventFilter";
 import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
 import { Dictionary } from "@/i18n/Messages";
+import { expandMultiCarEvents } from "@/lib/ExpandMultiCarEvents";
 import { computeFieldBestSectors } from "@/lib/Format";
 import { groupTeamRadiosByDriver, parseTimestampMs } from "@/lib/TeamRadio";
 import {
@@ -21,6 +24,8 @@ import {
   SupportedLocale,
   TeamRadioClip,
   selectBattles,
+  selectDriverStateMarkers,
+  selectRecentDriverEvents,
 } from "@f1/domain";
 import { RaceSummaryResponse } from "@f1/schemas";
 import { useMemo, useState } from "react";
@@ -102,11 +107,29 @@ export const RaceTabView = ({
     [radioClips],
   );
 
-  // 최근 무전 판정 기준은 경기 시계(sourceUpdatedAt)다. 리플레이는 과거 타임스탬프를
-  // 쓰므로 벽시계로 판정하면 항상 "오래된 무전"이 된다.
-  const radioReferenceMs = useMemo(
+  // "최근"을 판정하는 기준 시각은 벽시계가 아니라 경기 시계(sourceUpdatedAt)다.
+  // 리플레이는 과거 타임스탬프를 쓰므로 벽시계로 판정하면 무전·순간 이벤트가
+  // 항상 창 밖으로 밀려 아무것도 뜨지 않는다.
+  const raceClockMs = useMemo(
     () => parseTimestampMs(snapshot.sourceUpdatedAt) ?? Date.now(),
     [snapshot.sourceUpdatedAt],
+  );
+
+  // 다중 차량 인시던트 보정: 도메인 셀렉터는 코드→번호 매핑이 없어 첫 차량에만
+  // 마커를 붙인다. UI 에는 로스터가 있으므로 셀렉터에 넣기 전에 차량 수만큼
+  // 이벤트를 복제해 나머지 차량에도 마커가 붙게 한다.
+  const markersByDriver = useMemo(
+    () =>
+      selectDriverStateMarkers(
+        expandMultiCarEvents(allEvents, snapshot.drivers),
+        raceClockMs,
+      ),
+    [allEvents, snapshot.drivers, raceClockMs],
+  );
+
+  const recentEventsByDriver = useMemo(
+    () => selectRecentDriverEvents(allEvents, raceClockMs),
+    [allEvents, raceClockMs],
   );
 
   const selectedRadioClips =
@@ -145,7 +168,27 @@ export const RaceTabView = ({
         />
       ) : null}
 
-      {/* Critical 배너는 순위 영역 상단에 sticky 로 붙어 스크롤해도 남는다. */}
+      {/* 활성 세션 상태 스트립. 활성 상태가 없으면 스스로 렌더하지 않는다. */}
+      <SessionStatusStripView
+        dictionary={dictionary}
+        locale={locale}
+        allEvents={allEvents}
+        atMs={raceClockMs}
+      />
+
+      {/* 최신 주요 이벤트 1건 + AI 해설. 탭하면 해당 드라이버 상세 시트를 연다. */}
+      <LatestEventCardView
+        dictionary={dictionary}
+        locale={locale}
+        allEvents={allEvents}
+        commentary={commentary}
+        drivers={snapshot.drivers}
+        atMs={raceClockMs}
+        onSelectDriver={setSelectedDriver}
+      />
+
+      {/* Critical 배너는 순간 경보 전용이다(지속 상태는 위 스트립이 담당한다).
+          순위 영역 상단에 sticky 로 붙어 스크롤해도 남는다. */}
       <div className="sticky top-2 z-20 empty:hidden">
         <CriticalBannerView
           dictionary={dictionary}
@@ -165,8 +208,10 @@ export const RaceTabView = ({
         drivers={snapshot.drivers}
         battles={battles}
         radiosByDriver={radiosByDriver}
-        radioReferenceMs={radioReferenceMs}
+        radioReferenceMs={raceClockMs}
         playingRadioUrl={playingUrl}
+        markersByDriver={markersByDriver}
+        recentEventsByDriver={recentEventsByDriver}
         isFavorite={isFavorite}
         onToggleFavorite={onToggleFavorite}
         onToggleRadio={togglePlay}

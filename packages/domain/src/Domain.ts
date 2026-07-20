@@ -138,6 +138,26 @@ export {
   matchesDriverEvent,
 } from "./DriverEventFilter";
 
+export { RaceEventScope } from "./RaceEventScope";
+export {
+  RACE_EVENT_SCOPES,
+  getRaceEventScope,
+} from "./RaceEventScopeMap";
+export { SessionStateSeverity } from "./SessionStateSeverity";
+export type { ActiveSessionState } from "./SessionStateSelector";
+export {
+  selectActiveSessionStates,
+  getSessionStateSeverity,
+} from "./SessionStateSelector";
+export { DriverStateMarkerKind } from "./DriverStateMarkerKind";
+export type { DriverStateMarker } from "./DriverStateMarkerSelector";
+export { selectDriverStateMarkers } from "./DriverStateMarkerSelector";
+export {
+  selectRecentDriverEvents,
+  RECENT_DRIVER_EVENT_TYPES,
+  DEFAULT_RECENT_DRIVER_EVENT_WINDOW_MS,
+} from "./RecentDriverEventSelector";
+
 export type { Battle } from "./Battle";
 export {
   selectBattles,

@@ -1,9 +1,30 @@
-import { RaceEvent, RaceEventPriority } from "@f1/domain";
+import { RaceEvent, RaceEventPriority, RaceEventType } from "@f1/domain";
 
 // Critical 배너 노출 시간 창(밀리초). 클라이언트 시계 기준 최근 5분.
 export const CRITICAL_BANNER_WINDOW_MS = 5 * 60 * 1000;
 
+// 배너에서 제외하는 **지속 세션 상태** 타입 (docs/14-event-placement.md).
+//
+// 배너는 "방금 이런 일이 났다"는 순간 경보이고, 상단 스트립은 "지금 이런 상태다"라는
+// 지속 상태를 담당한다. SC 전개 같은 이벤트를 양쪽에 동시에 띄우면 같은 사실이
+// 두 번 보이고, 배너 쪽은 이미 해제된 상태를 계속 붙들고 있게 된다.
+// 여기 목록은 selectActiveSessionStates 가 여는 타입 + 종료 타입과 일치한다.
+const SESSION_STATE_TYPES: readonly RaceEventType[] = [
+  RaceEventType.SafetyCar,
+  RaceEventType.VirtualSafetyCar,
+  RaceEventType.RedFlag,
+  RaceEventType.YellowFlag,
+  RaceEventType.SectorYellow,
+  RaceEventType.TrackHazard,
+  RaceEventType.PitLaneClosed,
+  RaceEventType.OvertakeModeDisabled,
+  RaceEventType.RainRisk,
+  RaceEventType.SessionFinished,
+  RaceEventType.ChequeredFlag,
+];
+
 // allEvents 중 Critical 우선순위이면서 nowMs 기준 windowMs 이내인 최신 1건을 고른다.
+// 지속 세션 상태 타입은 상단 스트립이 담당하므로 제외한다.
 // 클라이언트 시계 판정이므로 리플레이(과거 타임스탬프)에서는 null 일 수 있다(의도된 동작).
 // 순수 함수 — 시간 소스는 인자로 주입받고 예외를 던지지 않는다.
 export const selectRecentCriticalEvent = (
@@ -16,6 +37,10 @@ export const selectRecentCriticalEvent = (
 
   for (const event of events) {
     if (event.priority !== RaceEventPriority.Critical) {
+      continue;
+    }
+
+    if (SESSION_STATE_TYPES.includes(event.type)) {
       continue;
     }
 

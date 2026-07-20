@@ -3,6 +3,7 @@ import {
   DataFreshnessStatus,
   ExplanationLevel,
   RaceEventPriority,
+  SessionStateSeverity,
   SessionStatus,
   SupportedLocale,
   TireCompound,
@@ -128,6 +129,41 @@ export type Dictionary = {
     // 배너 닫기 버튼 접근성 라벨.
     dismiss: string;
   };
+  // 상단 활성 세션 상태 스트립 (docs/14-event-placement.md).
+  // 칩 라벨 자체는 params 가 필요해 TranslateSessionState 가 담당하고,
+  // 여기에는 정적 크롬 문구만 둔다.
+  sessionStrip: {
+    // 스트립 전체의 접근성 라벨.
+    title: string;
+    // 칩이 색에만 의존하지 않도록 title/aria-label 에 덧붙이는 심각도 문구.
+    severity: Record<SessionStateSeverity, string>;
+  };
+  // 순위 행의 지속 마커·순간 아이콘 접근성 문구 (docs/14-event-placement.md).
+  // 칩에 보이는 글자(`+5s` / `PEN` / `?`)는 기호라 로케일과 무관하고,
+  // 의미는 여기 문구가 title/aria-label 로 전달한다.
+  rowMarker: {
+    // 페널티 1건. {seconds} 를 초로 치환한다.
+    penalty: string;
+    // 페널티 누적. {count} 건수, {seconds} 합산 초.
+    penaltyMultiple: string;
+    // 초를 알 수 없는 페널티.
+    penaltyUnknown: string;
+    investigation: string;
+    pitStop: string;
+    fastestLap: string;
+    personalBestLap: string;
+    overtake: string;
+    trackLimits: string;
+    strategyNote: string;
+    blueFlag: string;
+  };
+  // 최신 이벤트 카드 (docs/14-event-placement.md).
+  latestEvent: {
+    // 카드 전체의 접근성 라벨.
+    title: string;
+    // 탭 가능한 카드의 힌트. {code} 를 드라이버 코드로 치환한다.
+    openDriver: string;
+  };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
   eventPriority: Record<RaceEventPriority, string>;
@@ -246,6 +282,32 @@ const en: Dictionary = {
   },
   criticalBanner: {
     dismiss: "Dismiss",
+  },
+  sessionStrip: {
+    title: "Active race status",
+    severity: {
+      [SessionStateSeverity.Critical]: "Session stopped",
+      [SessionStateSeverity.High]: "Race neutralised",
+      [SessionStateSeverity.Caution]: "Caution",
+      [SessionStateSeverity.Info]: "Information",
+    },
+  },
+  rowMarker: {
+    penalty: "{seconds}s time penalty",
+    penaltyMultiple: "{count} penalties, {seconds}s total",
+    penaltyUnknown: "Time penalty",
+    investigation: "Under investigation",
+    pitStop: "Just pitted",
+    fastestLap: "Fastest lap",
+    personalBestLap: "Personal best lap",
+    overtake: "Just overtook",
+    trackLimits: "Track limits",
+    strategyNote: "Strategy note",
+    blueFlag: "Blue flag",
+  },
+  latestEvent: {
+    title: "Latest key event",
+    openDriver: "Open {code} details",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -396,6 +458,32 @@ const ko: Dictionary = {
   criticalBanner: {
     dismiss: "닫기",
   },
+  sessionStrip: {
+    title: "현재 경기 상태",
+    severity: {
+      [SessionStateSeverity.Critical]: "세션 중단",
+      [SessionStateSeverity.High]: "경기 중립화",
+      [SessionStateSeverity.Caution]: "주의",
+      [SessionStateSeverity.Info]: "정보",
+    },
+  },
+  rowMarker: {
+    penalty: "{seconds}초 페널티",
+    penaltyMultiple: "페널티 {count}건, 합계 {seconds}초",
+    penaltyUnknown: "시간 페널티",
+    investigation: "조사 중",
+    pitStop: "방금 피트인",
+    fastestLap: "패스티스트 랩",
+    personalBestLap: "개인 최고 랩",
+    overtake: "방금 추월",
+    trackLimits: "트랙 리밋 위반",
+    strategyNote: "전략 노트",
+    blueFlag: "블루 플래그",
+  },
+  latestEvent: {
+    title: "최신 주요 이벤트",
+    openDriver: "{code} 상세 열기",
+  },
   status: {
     [SessionStatus.Scheduled]: "예정",
     [SessionStatus.Green]: "그린 플래그",
@@ -544,6 +632,32 @@ const ja: Dictionary = {
   },
   criticalBanner: {
     dismiss: "閉じる",
+  },
+  sessionStrip: {
+    title: "現在のレース状況",
+    severity: {
+      [SessionStateSeverity.Critical]: "セッション中断",
+      [SessionStateSeverity.High]: "レース中立化",
+      [SessionStateSeverity.Caution]: "注意",
+      [SessionStateSeverity.Info]: "情報",
+    },
+  },
+  rowMarker: {
+    penalty: "{seconds}秒ペナルティ",
+    penaltyMultiple: "ペナルティ{count}件、合計{seconds}秒",
+    penaltyUnknown: "タイムペナルティ",
+    investigation: "調査中",
+    pitStop: "ピットイン直後",
+    fastestLap: "ファステストラップ",
+    personalBestLap: "自己ベストラップ",
+    overtake: "オーバーテイク直後",
+    trackLimits: "トラックリミット違反",
+    strategyNote: "戦略メモ",
+    blueFlag: "ブルーフラッグ",
+  },
+  latestEvent: {
+    title: "最新の重要イベント",
+    openDriver: "{code} の詳細を開く",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",
