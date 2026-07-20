@@ -18,17 +18,7 @@ export type Dictionary = {
   };
   table: {
     title: string;
-    position: string;
-    driver: string;
-    team: string;
-    gap: string;
-    interval: string;
     tire: string;
-    tireAge: string;
-    lastLap: string;
-    sectors: string;
-    topSpeed: string;
-    pit: string;
     favorite: string;
     leader: string;
     inPit: string;
@@ -50,9 +40,11 @@ export type Dictionary = {
   };
   teamRadio: {
     title: string;
-    empty: string;
+    // {code} 를 드라이버 코드로 치환하는 재생/일시정지 접근성 라벨.
     play: string;
     pause: string;
+    // 최근(2분 이내) 무전 강조 아이콘의 툴팁.
+    recent: string;
   };
   askAi: {
     title: string;
@@ -142,17 +134,7 @@ const en: Dictionary = {
   },
   table: {
     title: "Standings",
-    position: "Pos",
-    driver: "Driver",
-    team: "Team",
-    gap: "Gap",
-    interval: "Interval",
     tire: "Tire",
-    tireAge: "Age",
-    lastLap: "Last Lap",
-    sectors: "Sectors",
-    topSpeed: "Top Spd",
-    pit: "Pit",
     favorite: "Favorite",
     leader: "Leader",
     inPit: "IN PIT",
@@ -173,9 +155,9 @@ const en: Dictionary = {
   },
   teamRadio: {
     title: "Team Radio",
-    empty: "No radio messages yet",
-    play: "Play",
-    pause: "Pause",
+    play: "Play {code} team radio",
+    pause: "Pause {code} team radio",
+    recent: "New radio",
   },
   askAi: {
     title: "Ask AI",
@@ -297,17 +279,7 @@ const ko: Dictionary = {
   },
   table: {
     title: "순위",
-    position: "순위",
-    driver: "드라이버",
-    team: "팀",
-    gap: "선두차",
-    interval: "앞차",
     tire: "타이어",
-    tireAge: "사용",
-    lastLap: "최근 랩",
-    sectors: "섹터",
-    topSpeed: "최고속",
-    pit: "피트",
     favorite: "관심",
     leader: "선두",
     inPit: "피트인",
@@ -328,9 +300,9 @@ const ko: Dictionary = {
   },
   teamRadio: {
     title: "팀 라디오",
-    empty: "아직 무전이 없습니다",
-    play: "재생",
-    pause: "정지",
+    play: "{code} 팀 라디오 재생",
+    pause: "{code} 팀 라디오 일시정지",
+    recent: "새 무전",
   },
   askAi: {
     title: "AI에게 질문",
@@ -452,17 +424,7 @@ const ja: Dictionary = {
   },
   table: {
     title: "順位",
-    position: "位",
-    driver: "ドライバー",
-    team: "チーム",
-    gap: "トップ差",
-    interval: "前車差",
     tire: "タイヤ",
-    tireAge: "使用",
-    lastLap: "最終ラップ",
-    sectors: "セクター",
-    topSpeed: "最高速",
-    pit: "ピット",
     favorite: "お気に入り",
     leader: "首位",
     inPit: "ピットイン",
@@ -483,9 +445,9 @@ const ja: Dictionary = {
   },
   teamRadio: {
     title: "チームラジオ",
-    empty: "まだ無線がありません",
-    play: "再生",
-    pause: "停止",
+    play: "{code} チームラジオを再生",
+    pause: "{code} チームラジオを一時停止",
+    recent: "新着無線",
   },
   askAi: {
     title: "AIに質問",

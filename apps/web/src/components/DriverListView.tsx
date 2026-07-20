@@ -9,14 +9,22 @@ import {
   getPositionChangeColor,
   teamColorHex,
 } from "@/lib/Format";
-import { LiveDriverState, TireCompound } from "@f1/domain";
-import { ChevronRight, Star } from "lucide-react";
+import { isRecentTeamRadio } from "@/lib/TeamRadio";
+import { getTeamShortName } from "@/lib/TeamShortName";
+import { LiveDriverState, TeamRadioClip, TireCompound } from "@f1/domain";
+import { ChevronRight, Pause, Radio, Star } from "lucide-react";
 
 type Props = {
   dictionary: Dictionary;
   drivers: LiveDriverState[];
+  // 드라이버 번호 → 팀 라디오 클립(최신순). 클립이 있는 드라이버만 담긴다.
+  radiosByDriver: Map<number, TeamRadioClip[]>;
+  // 최근 무전 판정 기준 시각(경기 시계). 리플레이에서도 올바르게 동작한다.
+  radioReferenceMs: number;
+  playingRadioUrl: string | null;
   isFavorite: (driverNumber: number) => boolean;
   onToggleFavorite: (driverNumber: number) => void;
+  onToggleRadio: (url: string) => void;
   onSelectDriver: (driver: LiveDriverState) => void;
 };
 
@@ -24,9 +32,14 @@ type RowProps = {
   dictionary: Dictionary;
   driver: LiveDriverState;
   favorite: boolean;
+  // 이 드라이버의 최신 클립. 없으면 null.
+  latestRadio: TeamRadioClip | null;
+  radioReferenceMs: number;
+  playingRadioUrl: string | null;
   // 목록 마지막 행에는 헤어라인을 붙이지 않는다.
   divided: boolean;
   onToggleFavorite: (driverNumber: number) => void;
+  onToggleRadio: (url: string) => void;
   onSelectDriver: (driver: LiveDriverState) => void;
 };
 
@@ -78,12 +91,21 @@ const DriverRow = ({
   dictionary,
   driver,
   favorite,
+  latestRadio,
+  radioReferenceMs,
+  playingRadioUrl,
   divided,
   onToggleFavorite,
+  onToggleRadio,
   onSelectDriver,
 }: RowProps) => {
   const accent = teamColorHex(driver.teamColour);
   const leading = driver.position === 1;
+  const radioPlaying =
+    latestRadio !== null && playingRadioUrl === latestRadio.recordingUrl;
+  const radioRecent =
+    latestRadio !== null &&
+    isRecentTeamRadio(latestRadio.timestamp, radioReferenceMs);
 
   const handleSelect = () => {
     onSelectDriver(driver);
@@ -99,6 +121,17 @@ const DriverRow = ({
   const handleToggleFavorite = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     onToggleFavorite(driver.driverNumber);
+  };
+
+  // 시트를 열지 않고 최신 클립을 바로 재생한다. 행 탭과 충돌하지 않게 전파를 막는다.
+  const handleToggleRadio = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (latestRadio === null) {
+      return;
+    }
+
+    onToggleRadio(latestRadio.recordingUrl);
   };
 
   return (
@@ -136,8 +169,35 @@ const DriverRow = ({
       />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-lg font-bold leading-tight tracking-tight">
+        {/* 코드 줄에는 여백이 남는다. 라디오 버튼을 여기 두어 팀명 폭을 잠식하지 않는다. */}
+        <span className="flex min-w-0 items-center gap-1 text-lg font-bold leading-tight tracking-tight">
           {driver.code}
+
+          {latestRadio !== null ? (
+            <button
+              type="button"
+              onClick={handleToggleRadio}
+              aria-label={(radioPlaying
+                ? dictionary.teamRadio.pause
+                : dictionary.teamRadio.play
+              ).replace("{code}", driver.code)}
+              title={radioRecent ? dictionary.teamRadio.recent : undefined}
+              className={cn(
+                "press -my-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/5",
+                radioPlaying
+                  ? "text-primary"
+                  : radioRecent
+                    ? "animate-pulse text-primary"
+                    : "text-muted-foreground/70",
+              )}
+            >
+              {radioPlaying ? (
+                <Pause className="h-4 w-4" />
+              ) : (
+                <Radio className="h-4 w-4" />
+              )}
+            </button>
+          ) : null}
         </span>
 
         <span className="flex min-w-0 items-center gap-1.5 text-xs leading-tight">
@@ -145,7 +205,10 @@ const DriverRow = ({
             className="truncate font-semibold"
             style={{ color: accent ?? undefined }}
           >
-            {driver.teamName}
+            {/* 순위 행은 폭이 좁고 라디오 인디케이터가 동적으로 붙어서
+                원본 팀명이 잘린다. 여기서는 짧은 표기를 쓴다.
+                (상세 시트는 공간이 충분해 원본 전체 이름을 유지한다) */}
+            {getTeamShortName(driver.teamName)}
           </span>
 
           <span className="text-muted-foreground/40" aria-hidden>
@@ -204,11 +267,17 @@ const DriverRow = ({
 export const DriverListView = ({
   dictionary,
   drivers,
+  radiosByDriver,
+  radioReferenceMs,
+  playingRadioUrl,
   isFavorite,
   onToggleFavorite,
+  onToggleRadio,
   onSelectDriver,
 }: Props) => {
   const favorites = drivers.filter((driver) => isFavorite(driver.driverNumber));
+  const findLatestRadio = (driverNumber: number): TeamRadioClip | null =>
+    radiosByDriver.get(driverNumber)?.[0] ?? null;
 
   return (
     <div className="flex flex-col gap-5">
@@ -221,8 +290,12 @@ export const DriverListView = ({
                 dictionary={dictionary}
                 driver={driver}
                 favorite
+                latestRadio={findLatestRadio(driver.driverNumber)}
+                radioReferenceMs={radioReferenceMs}
+                playingRadioUrl={playingRadioUrl}
                 divided={index < favorites.length - 1}
                 onToggleFavorite={onToggleFavorite}
+                onToggleRadio={onToggleRadio}
                 onSelectDriver={onSelectDriver}
               />
             ))}
@@ -238,8 +311,12 @@ export const DriverListView = ({
               dictionary={dictionary}
               driver={driver}
               favorite={isFavorite(driver.driverNumber)}
+              latestRadio={findLatestRadio(driver.driverNumber)}
+              radioReferenceMs={radioReferenceMs}
+              playingRadioUrl={playingRadioUrl}
               divided={index < drivers.length - 1}
               onToggleFavorite={onToggleFavorite}
+              onToggleRadio={onToggleRadio}
               onSelectDriver={onSelectDriver}
             />
           ))}

@@ -2,11 +2,11 @@
 
 import { DriverDetailSheetView } from "@/components/DriverDetailSheetView";
 import { DriverListView } from "@/components/DriverListView";
-import { DriverTableView } from "@/components/DriverTableView";
-import { TeamRadioView } from "@/components/TeamRadioView";
+import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
 import { Dictionary } from "@/i18n/Messages";
 import { computeFieldBestSectors } from "@/lib/Format";
-import { LiveDriverState, LiveRaceSnapshot } from "@f1/domain";
+import { groupTeamRadiosByDriver, parseTimestampMs } from "@/lib/TeamRadio";
+import { LiveDriverState, LiveRaceSnapshot, TeamRadioClip } from "@f1/domain";
 import { useMemo, useState } from "react";
 
 type Props = {
@@ -18,9 +18,14 @@ type Props = {
   onSelectDriver: (driver: LiveDriverState) => void;
 };
 
+const EMPTY_RADIO_CLIPS: TeamRadioClip[] = [];
+
 // 「순위」 탭.
-// 모바일: 컴팩트 행 목록(DriverListView, 관심 드라이버 고정) → 팀 라디오. 행 탭 → 상세 시트.
-// 데스크톱(lg): 기존 순위표(DriverTableView) 유지. 행 클릭 → 탭투애스크.
+// 모든 폭에서 컴팩트 행 목록(DriverListView, 관심 드라이버 고정)을 쓴다. 행 탭 → 상세 시트.
+//   팀 라디오는 별도 패널 대신 순위 행 인디케이터 + 상세 시트 섹션으로 통합했다.
+// 데스크톱 3컬럼 레이아웃의 순위 컬럼은 1280px 뷰포트에서 실측 376px 이라
+//   넓은 순위표(구 DriverTableView, min-width 860px)가 들어가지 않았다.
+//   375px 기준으로 만든 이 목록이 그대로 맞으므로 폭별 분기 없이 하나만 렌더한다.
 export const StandingsTabView = ({
   dictionary,
   snapshot,
@@ -28,7 +33,7 @@ export const StandingsTabView = ({
   onToggleFavorite,
   onSelectDriver,
 }: Props) => {
-  // 상세 시트는 모바일 목록에서만 열린다. 로컬 state 로 충분하다.
+  // 상세 시트는 모든 폭에서 목록 행 탭으로 열린다. 로컬 state 로 충분하다.
   const [selectedDriver, setSelectedDriver] = useState<LiveDriverState | null>(
     null,
   );
@@ -37,6 +42,28 @@ export const StandingsTabView = ({
     () => computeFieldBestSectors(snapshot.drivers),
     [snapshot.drivers],
   );
+
+  const radioClips = snapshot.teamRadios ?? EMPTY_RADIO_CLIPS;
+
+  // 오디오 소유권은 훅에 있다. 행과 시트 어디서 눌러도 한 번에 하나만 재생된다.
+  const { playingUrl, togglePlay } = useTeamRadioPlayer(radioClips);
+
+  const radiosByDriver = useMemo(
+    () => groupTeamRadiosByDriver(radioClips),
+    [radioClips],
+  );
+
+  // 최근 무전 판정 기준은 경기 시계(sourceUpdatedAt)다. 리플레이는 과거 타임스탬프를
+  // 쓰므로 벽시계로 판정하면 항상 "오래된 무전"이 된다.
+  const radioReferenceMs = useMemo(
+    () => parseTimestampMs(snapshot.sourceUpdatedAt) ?? Date.now(),
+    [snapshot.sourceUpdatedAt],
+  );
+
+  const selectedRadioClips =
+    selectedDriver === null
+      ? EMPTY_RADIO_CLIPS
+      : (radiosByDriver.get(selectedDriver.driverNumber) ?? EMPTY_RADIO_CLIPS);
 
   const handleCloseSheet = () => {
     setSelectedDriver(null);
@@ -50,40 +77,26 @@ export const StandingsTabView = ({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* 모바일: 컴팩트 행 목록. 행 탭 → 상세 시트 */}
-      <div className="lg:hidden">
-        <DriverListView
-          dictionary={dictionary}
-          drivers={snapshot.drivers}
-          isFavorite={isFavorite}
-          onToggleFavorite={onToggleFavorite}
-          onSelectDriver={setSelectedDriver}
-        />
-      </div>
-
-      {/* 데스크톱: 기존 순위표. 행 클릭 → 탭투애스크 */}
-      <div className="hidden lg:block">
-        <DriverTableView
-          dictionary={dictionary}
-          drivers={snapshot.drivers}
-          isFavorite={isFavorite}
-          onToggleFavorite={onToggleFavorite}
-          onSelectDriver={onSelectDriver}
-        />
-      </div>
-
-      {snapshot.teamRadios !== undefined && snapshot.teamRadios.length > 0 ? (
-        <TeamRadioView
-          dictionary={dictionary}
-          clips={snapshot.teamRadios}
-          drivers={snapshot.drivers}
-        />
-      ) : null}
+      {/* 컴팩트 행 목록. 행 탭 → 상세 시트 → "AI에게 질문" */}
+      <DriverListView
+        dictionary={dictionary}
+        drivers={snapshot.drivers}
+        radiosByDriver={radiosByDriver}
+        radioReferenceMs={radioReferenceMs}
+        playingRadioUrl={playingUrl}
+        isFavorite={isFavorite}
+        onToggleFavorite={onToggleFavorite}
+        onToggleRadio={togglePlay}
+        onSelectDriver={setSelectedDriver}
+      />
 
       <DriverDetailSheetView
         dictionary={dictionary}
         driver={selectedDriver}
         fieldBestSectors={fieldBestSectors}
+        radioClips={selectedRadioClips}
+        playingRadioUrl={playingUrl}
+        onToggleRadio={togglePlay}
         onClose={handleCloseSheet}
         onAskAi={handleAskAi}
       />

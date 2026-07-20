@@ -16,12 +16,19 @@ import {
   getPositionChangeColor,
   teamColorHex,
 } from "@/lib/Format";
-import { LiveDriverState } from "@f1/domain";
+import {
+  MAX_TEAM_RADIO_CLIPS_IN_SHEET,
+  formatRadioClock,
+} from "@/lib/TeamRadio";
+import { LiveDriverState, TeamRadioClip } from "@f1/domain";
 import {
   ChevronUp,
   Disc3,
   Flag,
   Gauge,
+  Pause,
+  Play,
+  Radio,
   Split,
   Timer,
   Wrench,
@@ -35,6 +42,10 @@ type Props = {
   driver: LiveDriverState | null;
   // 필드 전체 섹터 최속(퍼플 판정용).
   fieldBestSectors: (number | null)[];
+  // 이 드라이버의 팀 라디오 클립(최신순). 비어 있으면 섹션을 렌더링하지 않는다.
+  radioClips: TeamRadioClip[];
+  playingRadioUrl: string | null;
+  onToggleRadio: (url: string) => void;
   onClose: () => void;
   // "AI에게 질문" — 시트를 닫고 AI 탭으로 전환하며 질문을 제출한다.
   onAskAi: (driver: LiveDriverState) => void;
@@ -44,7 +55,18 @@ type ContentProps = {
   dictionary: Dictionary;
   driver: LiveDriverState;
   fieldBestSectors: (number | null)[];
+  radioClips: TeamRadioClip[];
+  playingRadioUrl: string | null;
+  onToggleRadio: (url: string) => void;
   onAskAi: (driver: LiveDriverState) => void;
+};
+
+type RadioSectionProps = {
+  dictionary: Dictionary;
+  driverCode: string;
+  clips: TeamRadioClip[];
+  playingRadioUrl: string | null;
+  onToggleRadio: (url: string) => void;
 };
 
 type StatRowProps = {
@@ -78,11 +100,81 @@ const StatRow = ({
   </div>
 );
 
+// 팀 라디오 섹션. 기존 스탯 행과 같은 헤어라인 스타일로 최신 클립부터 나열한다.
+const DriverRadioSection = ({
+  dictionary,
+  driverCode,
+  clips,
+  playingRadioUrl,
+  onToggleRadio,
+}: RadioSectionProps) => {
+  const visible = clips.slice(0, MAX_TEAM_RADIO_CLIPS_IN_SHEET);
+
+  return (
+    <div className="mt-5 flex flex-col">
+      <div className="flex items-center gap-2 pb-1">
+        <Radio className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="text-xs text-muted-foreground">
+          {dictionary.teamRadio.title}
+        </span>
+      </div>
+
+      {visible.map((clip, index) => {
+        const playing = playingRadioUrl === clip.recordingUrl;
+
+        const handleToggle = () => {
+          onToggleRadio(clip.recordingUrl);
+        };
+
+        return (
+          <div
+            key={`${clip.driverNumber}-${clip.timestamp}`}
+            className={cn(
+              "flex min-h-[52px] items-center gap-3 py-2.5",
+              index < visible.length - 1 && "hairline",
+            )}
+          >
+            <button
+              type="button"
+              onClick={handleToggle}
+              aria-label={(playing
+                ? dictionary.teamRadio.pause
+                : dictionary.teamRadio.play
+              ).replace("{code}", driverCode)}
+              className={cn(
+                "press flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-colors",
+                playing
+                  ? "border-primary text-primary"
+                  : "border-white/10 text-foreground hover:bg-white/5",
+              )}
+            >
+              {playing ? (
+                <Pause className="h-4 w-4" />
+              ) : (
+                <Play className="h-4 w-4 translate-x-[1px]" />
+              )}
+            </button>
+
+            <div className="flex-1" />
+
+            <span className="shrink-0 text-sm font-semibold tabular-nums text-muted-foreground">
+              {formatRadioClock(clip.timestamp)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // 시트 본문. 드라이버가 확정된 경우에만 렌더링해 null 접근을 피한다.
 const DriverDetailContent = ({
   dictionary,
   driver,
   fieldBestSectors,
+  radioClips,
+  playingRadioUrl,
+  onToggleRadio,
   onAskAi,
 }: ContentProps) => {
   const accent = teamColorHex(driver.teamColour) ?? "hsl(var(--border))";
@@ -123,6 +215,8 @@ const DriverDetailContent = ({
             className="truncate text-sm font-semibold"
             style={{ color: accent }}
           >
+            {/* 상세 시트는 폭이 충분하고 상세 화면이므로 원본 전체 팀명을 유지한다.
+                짧은 표기(getTeamShortName)는 순위 행처럼 좁은 자리에서만 쓴다. */}
             {driver.teamName}
           </span>
 
@@ -197,6 +291,16 @@ const DriverDetailContent = ({
         </StatRow>
       </div>
 
+      {radioClips.length > 0 ? (
+        <DriverRadioSection
+          dictionary={dictionary}
+          driverCode={driver.code}
+          clips={radioClips}
+          playingRadioUrl={playingRadioUrl}
+          onToggleRadio={onToggleRadio}
+        />
+      ) : null}
+
       <Button type="button" onClick={handleAskAi} className="mt-5 w-full">
         {dictionary.driverSheet.ask.replace("{code}", driver.code)}
       </Button>
@@ -210,6 +314,9 @@ export const DriverDetailSheetView = ({
   dictionary,
   driver,
   fieldBestSectors,
+  radioClips,
+  playingRadioUrl,
+  onToggleRadio,
   onClose,
   onAskAi,
 }: Props) => (
@@ -224,6 +331,9 @@ export const DriverDetailSheetView = ({
         dictionary={dictionary}
         driver={driver}
         fieldBestSectors={fieldBestSectors}
+        radioClips={radioClips}
+        playingRadioUrl={playingRadioUrl}
+        onToggleRadio={onToggleRadio}
         onAskAi={onAskAi}
       />
     ) : null}
