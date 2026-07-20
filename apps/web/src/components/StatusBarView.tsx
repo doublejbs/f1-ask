@@ -17,17 +17,18 @@ type Props = {
 };
 
 // 트랙 상태별 상태바 배경 틴트. 색만으로 상황 판단이 끝나도록 은은하게 깔린다.
+// 순수 검정 + 앰비언트 워시 팔레트에서는 틴트가 묻히므로 이전보다 한 단계 진하게 잡는다.
 const getStatusTintClass = (status: SessionStatus): string => {
   switch (status) {
     case SessionStatus.Green:
-      return "bg-emerald-500/[0.10]";
+      return "bg-emerald-500/[0.14]";
     case SessionStatus.Yellow:
     case SessionStatus.SafetyCar:
     case SessionStatus.VirtualSafetyCar:
-      return "bg-amber-500/[0.12]";
+      return "bg-amber-500/[0.16]";
     case SessionStatus.Red:
     case SessionStatus.Suspended:
-      return "bg-red-500/[0.14]";
+      return "bg-red-500/[0.18]";
     default:
       return "bg-transparent";
   }
@@ -67,7 +68,8 @@ const getFreshnessDotClass = (freshness: DataFreshnessStatus): string => {
 };
 
 // 고정 상태바: 대형 히어로(SessionHeaderView)를 대체하는 한 줄 요약.
-// 모든 탭·데스크톱 공통으로 상단 sticky. 랩 · 트랙 상태 틴트 · freshness · 설정.
+// 모든 탭·데스크톱 공통으로 상단 sticky. 좌우 여백을 둔 떠 있는 알약이며
+// 랩 숫자를 히어로 타이포로 키운다. 트랙 상태 틴트 · 컬러 점 + 라벨 · freshness · 설정.
 export const StatusBarView = ({
   dictionary,
   snapshot,
@@ -84,7 +86,7 @@ export const StatusBarView = ({
 
   return (
     <div className="sticky top-0 z-40 -mx-4 px-4 pt-safe">
-      <div className="glass-panel relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2 sm:px-4">
+      <div className="glass-float flex items-center gap-3 overflow-hidden rounded-full py-1.5 pl-4 pr-1.5">
         {/* 상태 틴트 오버레이. 글래스 배경 위에 색만 은은하게 덧입힌다. */}
         <div
           className={cn(
@@ -94,21 +96,18 @@ export const StatusBarView = ({
           aria-hidden
         />
 
-        {/* 좌: 앱 축약명 + 랩 */}
-        <div className="relative flex min-w-0 items-baseline gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary/90">
-            {dictionary.statusBar.appShort}
-          </span>
+        {/* 좌: 랩 히어로 수치 + 작은 라벨 */}
+        <div className="relative flex min-w-0 flex-col leading-none">
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {dictionary.header.lap}
+            {dictionary.statusBar.appShort} · {dictionary.header.lap}
           </span>
-          <span className="text-base font-bold tabular-nums leading-none">
+          <span className="mt-0.5 text-2xl font-bold tabular-nums leading-none tracking-tight">
             {lapText}
           </span>
         </div>
 
-        {/* 중: 트랙 상태 라벨 */}
-        <div className="relative mx-auto flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ring-1 ring-inset ring-white/10">
+        {/* 중: 트랙 상태 — 컬러 점 + 라벨 */}
+        <div className="glass-chip relative mx-auto flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide">
           {isFinished ? (
             <Flag className="h-3 w-3 text-slate-300" aria-hidden />
           ) : (
@@ -126,7 +125,7 @@ export const StatusBarView = ({
         </div>
 
         {/* 우: freshness 점 + 설정 버튼 */}
-        <div className="relative flex items-center gap-2">
+        <div className="relative flex shrink-0 items-center gap-1.5">
           <span
             className={cn(
               "inline-block h-2 w-2 rounded-full",

@@ -30,7 +30,7 @@ export const EventFeedFilterView = ({
     <div
       role="group"
       aria-label={dictionary.events.filterLabel}
-      className="flex shrink-0 items-center rounded-full border border-white/10 bg-black/20 p-0.5 backdrop-blur-md"
+      className="glass-chip flex shrink-0 items-center rounded-full p-0.5"
     >
       {MODES.map((value) => {
         const active = value === mode;
@@ -43,7 +43,7 @@ export const EventFeedFilterView = ({
             onClick={handleClick}
             aria-pressed={active}
             className={cn(
-              "press rounded-full px-3 py-1 text-[12px] font-bold tracking-wide outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/70",
+              "press rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/70",
               active
                 ? "bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.25)]"
                 : "text-muted-foreground hover:text-foreground",

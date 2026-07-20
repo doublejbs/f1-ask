@@ -17,6 +17,16 @@ import {
   teamColorHex,
 } from "@/lib/Format";
 import { LiveDriverState } from "@f1/domain";
+import {
+  ChevronUp,
+  Disc3,
+  Flag,
+  Gauge,
+  Split,
+  Timer,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 type Props = {
@@ -37,17 +47,34 @@ type ContentProps = {
   onAskAi: (driver: LiveDriverState) => void;
 };
 
-type StatProps = {
+type StatRowProps = {
+  icon: LucideIcon;
   label: string;
+  // 목록 마지막 행에는 헤어라인을 붙이지 않는다.
+  divided?: boolean;
   children: ReactNode;
 };
 
-const Stat = ({ label, children }: StatProps) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-      {label}
-    </span>
-    <span className="text-sm font-semibold tabular-nums">{children}</span>
+// 아이콘 + 작은 라벨 + 큰 값의 스탯 행. 행 사이는 헤어라인으로만 나눈다.
+const StatRow = ({
+  icon: Icon,
+  label,
+  divided = true,
+  children,
+}: StatRowProps) => (
+  <div
+    className={cn(
+      "flex min-h-[52px] items-center gap-3 py-2.5",
+      divided && "hairline",
+    )}
+  >
+    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+
+    <span className="text-xs text-muted-foreground">{label}</span>
+
+    <div className="flex-1" />
+
+    <div className="flex shrink-0 items-center gap-2">{children}</div>
   </div>
 );
 
@@ -66,16 +93,20 @@ const DriverDetailContent = ({
 
   return (
     <>
-      <div className="mb-4 flex items-center gap-3 pr-11">
+      <div className="mb-5 flex items-center gap-4 pr-11">
         <DriverAvatarView
           code={driver.code}
           headshotUrl={driver.headshotUrl}
           teamColour={driver.teamColour}
-          className="h-14 w-14 text-base"
+          className="h-20 w-20 text-lg"
         />
-        <div className="flex flex-col gap-0.5">
+
+        <div className="flex min-w-0 flex-col gap-1">
           <div className="flex items-center gap-2">
-            <span id="driver-sheet-title" className="text-xl font-bold">
+            <span
+              id="driver-sheet-title"
+              className="text-3xl font-bold tracking-tight"
+            >
               {driver.code}
             </span>
             <span className="text-sm text-muted-foreground">
@@ -87,66 +118,83 @@ const DriverDetailContent = ({
               <Badge variant="delayed">{dictionary.table.inPit}</Badge>
             ) : null}
           </div>
-          <span className="text-xs font-semibold" style={{ color: accent }}>
+
+          <span
+            className="truncate text-sm font-semibold"
+            style={{ color: accent }}
+          >
             {driver.teamName}
           </span>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Stat label={dictionary.table.position}>
-          <span className="flex items-center gap-1.5">
-            {driver.position === null ? "—" : `P${driver.position}`}
+          <span className="flex items-center gap-2 text-sm">
+            <span className="font-bold tabular-nums">
+              {driver.position === null
+                ? "—"
+                : `P${String(driver.position).padStart(2, "0")}`}
+            </span>
             <span
               className={cn(
-                "text-xs",
+                "text-xs font-semibold tabular-nums",
                 getPositionChangeColor(driver.positionChange),
               )}
             >
               {formatPositionChange(driver.positionChange)}
             </span>
           </span>
-        </Stat>
-        <Stat label={dictionary.driverSheet.leadGap}>
-          {driver.position === 1
-            ? dictionary.table.leader
-            : formatGap(driver.gapToLeaderSeconds)}
-        </Stat>
-        <Stat label={dictionary.driverSheet.ahead}>
-          {formatGap(driver.intervalToAheadSeconds)}
-        </Stat>
+        </div>
+      </div>
 
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            {dictionary.table.tire}
+      <div className="flex flex-col">
+        <StatRow icon={Flag} label={dictionary.driverSheet.leadGap}>
+          <span className="text-2xl font-bold tabular-nums">
+            {driver.position === 1
+              ? dictionary.table.leader
+              : formatGap(driver.gapToLeaderSeconds)}
           </span>
+        </StatRow>
+
+        <StatRow icon={ChevronUp} label={dictionary.driverSheet.ahead}>
+          <span className="text-2xl font-bold tabular-nums">
+            {formatGap(driver.intervalToAheadSeconds)}
+          </span>
+        </StatRow>
+
+        <StatRow icon={Disc3} label={dictionary.table.tire}>
           <TireCompoundView
             dictionary={dictionary}
             compound={driver.compound}
             tireAgeLaps={driver.tireAgeLaps}
           />
-        </div>
-        <Stat label={dictionary.driverSheet.lastLap}>
-          {formatLapTime(driver.lastLapSeconds)}
-        </Stat>
-        <Stat label={dictionary.driverSheet.topSpeed}>
-          {formatSpeed(driver.topSpeedKph)}
-        </Stat>
+        </StatRow>
 
-        <div className="col-span-2 flex flex-col gap-0.5">
-          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            {dictionary.driverSheet.sectors}
+        <StatRow icon={Timer} label={dictionary.driverSheet.lastLap}>
+          <span className="text-2xl font-bold tabular-nums">
+            {formatLapTime(driver.lastLapSeconds)}
           </span>
-          <div className="flex">
-            <SectorChipsView
-              sectors={driver.lastSectorsSeconds}
-              fieldBest={fieldBestSectors}
-            />
-          </div>
-        </div>
-        <Stat label={dictionary.driverSheet.pitStops}>
-          {String(driver.pitStopCount)}
-        </Stat>
+        </StatRow>
+
+        <StatRow icon={Gauge} label={dictionary.driverSheet.topSpeed}>
+          <span className="text-2xl font-bold tabular-nums">
+            {formatSpeed(driver.topSpeedKph)}
+          </span>
+        </StatRow>
+
+        <StatRow icon={Wrench} label={dictionary.driverSheet.pitStops}>
+          <span className="text-2xl font-bold tabular-nums">
+            {String(driver.pitStopCount)}
+          </span>
+        </StatRow>
+
+        <StatRow
+          icon={Split}
+          label={dictionary.driverSheet.sectors}
+          divided={false}
+        >
+          <SectorChipsView
+            sectors={driver.lastSectorsSeconds}
+            fieldBest={fieldBestSectors}
+          />
+        </StatRow>
       </div>
 
       <Button type="button" onClick={handleAskAi} className="mt-5 w-full">

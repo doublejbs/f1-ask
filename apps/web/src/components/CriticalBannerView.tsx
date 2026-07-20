@@ -76,7 +76,7 @@ export const CriticalBannerView = ({
     <>
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
       <span className="flex flex-1 flex-col gap-0.5">
-        <span className="text-sm font-semibold leading-snug text-foreground">
+        <span className="text-[15px] font-semibold leading-snug text-foreground">
           {translateRaceEvent(event, locale)}
         </span>
         <span className="text-xs tabular-nums text-muted-foreground">
@@ -89,7 +89,7 @@ export const CriticalBannerView = ({
   return (
     <div
       role="alert"
-      className="glass-panel animate-fade-up relative overflow-hidden rounded-xl border border-red-500/30 bg-red-500/[0.08]"
+      className="glass-float animate-fade-up relative overflow-hidden rounded-2xl border-red-500/25 bg-red-500/[0.10]"
     >
       <span
         className="absolute inset-y-0 left-0 w-[3px] bg-red-500"

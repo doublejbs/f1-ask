@@ -1,8 +1,7 @@
 "use client";
 
 import { EventFeedFilterView } from "@/components/EventFeedFilterView";
-import { Badge, type BadgeProps } from "@/components/ui/Badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { SectionView } from "@/components/ui/SectionView";
 import { useEventFeedState } from "@/hooks/UseEventFeedState";
 import { Dictionary } from "@/i18n/Messages";
 import { translateRaceEvent } from "@/i18n/TranslateRaceEvent";
@@ -23,20 +22,20 @@ type Props = {
 const MAX_EVENTS = 12;
 
 // 행 내부 레이아웃. 탭 가능 여부에 따라 button / div 로 감싸므로 클래스를 공유한다.
-const ROW_CLASS = "flex w-full items-start gap-2 px-4 py-2.5 text-left text-sm";
+const ROW_CLASS =
+  "flex w-full min-h-[44px] items-center gap-2.5 py-3 pl-3 pr-1 text-left text-[15px] leading-snug";
 
-const getPriorityVariant = (
-  priority: RaceEventPriority,
-): NonNullable<BadgeProps["variant"]> => {
+// 우선순위 점 색. Tailwind 퍼지 때문에 리터럴 클래스만 사용한다.
+const getPriorityDotColor = (priority: RaceEventPriority): string => {
   switch (priority) {
     case RaceEventPriority.Critical:
-      return "critical";
+      return "bg-red-400";
     case RaceEventPriority.High:
-      return "high";
+      return "bg-amber-400";
     case RaceEventPriority.Medium:
-      return "medium";
+      return "bg-sky-400";
     default:
-      return "low";
+      return "bg-white/30";
   }
 };
 
@@ -77,82 +76,91 @@ export const EventFeedView = ({
     mode === EventFeedFilterMode.Primary && hiddenCount > 0;
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between gap-3">
-        <CardTitle>{dictionary.events.title}</CardTitle>
+    <SectionView
+      title={dictionary.events.title}
+      action={
         <EventFeedFilterView
           dictionary={dictionary}
           mode={mode}
           onChangeMode={handleChangeMode}
         />
-      </CardHeader>
-      <CardContent className="p-0">
-        {visibleEvents.length === 0 ? (
-          <p className="px-4 pb-4 text-sm text-muted-foreground">
-            {dictionary.events.empty}
-          </p>
-        ) : (
-          <ul className="divide-y divide-border/50">
-            {visibleEvents.map((event) => {
-              const code = getEventDriverCode(event);
-              const tappable = onSelectEvent !== undefined && code !== null;
-              const critical = event.priority === RaceEventPriority.Critical;
-              const handleSelect = () => onSelectEvent?.(event);
-              // 탭 가능한 항목만 네이티브 button 으로 감싼다. 클릭해도 아무 일도 없는
-              // 항목까지 포커스 가능하게 만들면 키보드 사용자가 빈 항목을 타넘게 된다.
-              const content = (
-                <>
-                  <Badge variant={getPriorityVariant(event.priority)}>
-                    {dictionary.eventPriority[event.priority]}
-                  </Badge>
-                  <span className="flex-1">
-                    {translateRaceEvent(event, locale)}
-                  </span>
-                  <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
-                    {formatClock(event.timestamp)}
-                  </span>
-                </>
-              );
-
-              return (
-                <li
-                  key={event.id}
+      }
+    >
+      {visibleEvents.length === 0 ? (
+        <p className="px-1 text-sm text-muted-foreground">
+          {dictionary.events.empty}
+        </p>
+      ) : (
+        <ul className="flex flex-col">
+          {visibleEvents.map((event, index) => {
+            const code = getEventDriverCode(event);
+            const tappable = onSelectEvent !== undefined && code !== null;
+            const critical = event.priority === RaceEventPriority.Critical;
+            const divided = index < visibleEvents.length - 1;
+            const priorityLabel = dictionary.eventPriority[event.priority];
+            const handleSelect = () => onSelectEvent?.(event);
+            // 탭 가능한 항목만 네이티브 button 으로 감싼다. 클릭해도 아무 일도 없는
+            // 항목까지 포커스 가능하게 만들면 키보드 사용자가 빈 항목을 타넘게 된다.
+            const content = (
+              <>
+                {/* 배지 대신 작은 컬러 점. 우선순위 라벨은 스크린리더·툴팁으로 남긴다. */}
+                <span
+                  role="img"
+                  aria-label={priorityLabel}
+                  title={priorityLabel}
                   className={cn(
-                    "relative",
-                    // Critical 은 좌측 액센트 바로 시선을 끈다.
-                    critical &&
-                      "bg-red-500/[0.06] before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-red-400/80",
+                    "h-1.5 w-1.5 shrink-0 rounded-full",
+                    getPriorityDotColor(event.priority),
                   )}
-                >
-                  {tappable ? (
-                    <button
-                      type="button"
-                      onClick={handleSelect}
-                      className={cn(
-                        ROW_CLASS,
-                        "cursor-pointer outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
-                      )}
-                    >
-                      {content}
-                    </button>
-                  ) : (
-                    <div className={ROW_CLASS}>{content}</div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                />
+                <span className="flex-1">
+                  {translateRaceEvent(event, locale)}
+                </span>
+                <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground">
+                  {formatClock(event.timestamp)}
+                </span>
+              </>
+            );
 
-        {showsHiddenNote ? (
-          <p className="border-t border-border/50 px-4 py-2 text-xs text-muted-foreground">
-            {dictionary.events.hiddenCount.replace(
-              "{count}",
-              String(hiddenCount),
-            )}
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
+            return (
+              <li
+                key={event.id}
+                className={cn(
+                  "relative",
+                  divided && "hairline",
+                  // Critical 은 좌측 액센트 바로 시선을 끈다.
+                  critical &&
+                    "before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:rounded-full before:bg-red-400/80",
+                )}
+              >
+                {tappable ? (
+                  <button
+                    type="button"
+                    onClick={handleSelect}
+                    className={cn(
+                      ROW_CLASS,
+                      "press cursor-pointer outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+                    )}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <div className={ROW_CLASS}>{content}</div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {showsHiddenNote ? (
+        <p className="px-1 pt-1 text-xs text-muted-foreground">
+          {dictionary.events.hiddenCount.replace(
+            "{count}",
+            String(hiddenCount),
+          )}
+        </p>
+      ) : null}
+    </SectionView>
   );
 };

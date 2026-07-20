@@ -49,7 +49,7 @@ export const StandingsTabView = ({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {/* 모바일: 컴팩트 행 목록. 행 탭 → 상세 시트 */}
       <div className="lg:hidden">
         <DriverListView

@@ -1,11 +1,21 @@
+import { CardVariant } from "@/components/ui/CardVariant";
 import { cn } from "@/lib/Utils";
 import { type HTMLAttributes } from "react";
 
-// 플로팅 글래스 패널. 반투명 + 블러 + 상단 하이라이트 + 앰비언트 섀도로 깊이감을 준다.
-export const Card = ({ className, ...props }: HTMLAttributes<HTMLDivElement>) => (
+export type CardProps = HTMLAttributes<HTMLDivElement> & {
+  variant?: CardVariant;
+};
+
+// glass: 반투명 + 블러 + 상단 하이라이트로 떠 있는 표면. plain: 배경·보더·섀도 없이 패딩만.
+export const Card = ({
+  className,
+  variant = CardVariant.Glass,
+  ...props
+}: CardProps) => (
   <div
     className={cn(
-      "glass-panel animate-fade-up rounded-xl text-card-foreground",
+      "animate-fade-up text-card-foreground",
+      variant === CardVariant.Glass && "glass-panel rounded-xl",
       className,
     )}
     {...props}

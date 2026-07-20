@@ -2,26 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 다크 전용 테마. Box Box Club 풍의 글래스/깊이감 UI + Apple HIG 지향. */
+/* 다크 전용 테마. 순수 검정 베이스 + 컨텍스트 앰비언트 워시 + 애플 글래스모피즘. */
+/* 주의: 이 레포의 css-loader 는 멀티라인 값을 파싱하지 못한다. 모든 선언 값은 한 줄로 작성한다. */
 :root {
-  --background: 225 40% 6%;
-  --foreground: 210 40% 98%;
-  --card: 222 32% 12%;
-  --card-foreground: 210 40% 98%;
+  --background: 0 0% 0%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 98%;
   --primary: 0 84% 55%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 217 30% 20%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217 28% 16%;
-  --muted-foreground: 216 18% 66%;
-  --accent: 217 30% 22%;
-  --accent-foreground: 210 40% 98%;
+  --secondary: 0 0% 16%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 0 0% 18%;
+  --accent-foreground: 0 0% 98%;
   --destructive: 0 84% 55%;
   --destructive-foreground: 0 0% 100%;
-  --border: 217 30% 24%;
-  --input: 217 30% 24%;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
   --ring: 0 84% 55%;
   --radius: 1.25rem;
+  /* 앰비언트 워시 기본색. AmbientWashView 가 런타임에 덮어쓴다. */
+  --ambient-color: rgba(38, 48, 62, 0.7);
 }
 
 * {
@@ -42,19 +45,60 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   background-color: hsl(var(--background));
-  background-image: radial-gradient(70rem 40rem at 15% -10%, hsla(0, 70%, 30%, 0.18), transparent 60%), radial-gradient(60rem 40rem at 110% 10%, hsla(220, 80%, 40%, 0.16), transparent 55%), radial-gradient(50rem 40rem at 50% 120%, hsla(260, 70%, 40%, 0.12), transparent 60%);
-  background-attachment: fixed;
 }
 
 @layer components {
-  /* 플로팅 글래스 패널: 반투명 + 블러 + 상단 하이라이트 + 앰비언트 섀도. */
+  /* 앰비언트 워시: 화면 상단 한 개의 큰 라디얼. 아래로 갈수록 검정으로 소멸한다. */
+  /* 색을 background-color 로 두고 마스크로 모양을 만들어야 색 전환이 부드럽게 애니메이션된다. */
+  .ambient-wash {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: var(--ambient-color);
+    -webkit-mask-image: radial-gradient(125% 68% at 50% -6%, hsla(0, 0%, 0%, 1), hsla(0, 0%, 0%, 0.45) 45%, transparent 72%);
+    mask-image: radial-gradient(125% 68% at 50% -6%, hsla(0, 0%, 0%, 1), hsla(0, 0%, 0%, 0.45) 45%, transparent 72%);
+    transition: background-color 1s ease;
+  }
+
+  /* 글래스 계층 1 — 탭바·플로팅 버튼. */
+  .glass-float {
+    position: relative;
+    background: hsla(0, 0%, 100%, 0.07);
+    backdrop-filter: blur(24px) saturate(170%);
+    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.1), 0 12px 32px -16px hsla(0, 0%, 0%, 0.9);
+  }
+
+  /* 글래스 계층 2 — 바텀 시트. */
+  .glass-sheet {
+    position: relative;
+    background: hsla(0, 0%, 100%, 0.09);
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.1), 0 -8px 48px -20px hsla(0, 0%, 0%, 0.95);
+  }
+
+  /* 글래스 계층 3 — pill 버튼·배지. */
+  .glass-chip {
+    position: relative;
+    background: hsla(0, 0%, 100%, 0.06);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.1), 0 6px 18px -12px hsla(0, 0%, 0%, 0.8);
+  }
+
+  /* 레거시 글래스 패널. 신규 팔레트에 맞춰 톤만 조정했다. 신규 코드는 glass-* 계층을 쓴다. */
   .glass-panel {
     position: relative;
-    background: linear-gradient(180deg, hsla(210, 40%, 98%, 0.06), hsla(210, 40%, 98%, 0.015) 22%, transparent 60%), hsla(220, 32%, 14%, 0.55);
+    background: hsla(0, 0%, 100%, 0.05);
     backdrop-filter: blur(20px) saturate(160%);
     -webkit-backdrop-filter: blur(20px) saturate(160%);
-    border: 1px solid hsla(210, 40%, 98%, 0.1);
-    box-shadow: inset 0 1px 0 0 hsla(210, 40%, 98%, 0.1), 0 1px 2px 0 hsla(225, 40%, 2%, 0.4), 0 16px 40px -20px hsla(225, 40%, 2%, 0.85);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.1), 0 12px 32px -18px hsla(0, 0%, 0%, 0.9);
   }
 
   /* 눌리는 인터랙션에 부드러운 반응. */
@@ -68,6 +112,11 @@ body {
 }
 
 @layer utilities {
+  /* 행 구분선. 목록 마지막 행에는 붙이지 않는다. */
+  .hairline {
+    border-bottom: 1px solid hsla(0, 0%, 100%, 0.08);
+  }
+
   .pt-safe {
     padding-top: max(1rem, env(safe-area-inset-top));
   }
@@ -103,5 +152,9 @@ body {
 
   .press:active {
     transform: none;
+  }
+
+  .ambient-wash {
+    transition: none;
   }
 }

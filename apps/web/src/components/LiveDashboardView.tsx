@@ -1,5 +1,6 @@
 "use client";
 
+import { AmbientWashView } from "@/components/AmbientWashView";
 import { AskAiTabView } from "@/components/AskAiTabView";
 import { NowTabView } from "@/components/NowTabView";
 import { SettingsSheetView } from "@/components/SettingsSheetView";
@@ -79,8 +80,11 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const getTabPanelClass = (tab: DashboardTab): string =>
     cn(activeTab === tab ? "block" : "hidden", "lg:block");
 
+  // 모바일 하단 패딩은 떠 있는 탭바(알약 약 64px + pb-safe 24px)에 여유를 더해 확보한다.
   return (
-    <main className="container flex flex-col gap-4 pb-[6rem] lg:gap-5 lg:pb-8">
+    <main className="container flex flex-col gap-4 pb-[7.5rem] lg:gap-5 lg:pb-8">
+      <AmbientWashView snapshot={race.snapshot} />
+
       <StatusBarView
         dictionary={dictionary}
         snapshot={race.snapshot}

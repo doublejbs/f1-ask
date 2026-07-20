@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/Card";
 import { Dictionary } from "@/i18n/Messages";
 import { WeatherState } from "@f1/domain";
 import { CloudRain, Droplets, Sun, Thermometer, Wind } from "lucide-react";
@@ -45,30 +44,29 @@ export const WeatherChipView = ({ dictionary, weather }: Props) => {
   ];
 
   return (
-    <Card>
-      <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
-        <div className="flex items-center gap-1.5 text-[13px] font-semibold">
-          {weather.rainfall ? (
-            <>
-              <CloudRain className="h-3.5 w-3.5 text-sky-400" />
-              <span>{dictionary.weather.rain}</span>
-            </>
-          ) : (
-            <>
-              <Sun className="h-3.5 w-3.5 text-amber-400" />
-              <span>{dictionary.weather.dry}</span>
-            </>
-          )}
+    <div className="glass-chip animate-fade-up flex items-center justify-between gap-3 rounded-full px-4 py-2.5">
+      <div className="flex shrink-0 items-center gap-1.5 text-[13px] font-semibold">
+        {weather.rainfall ? (
+          <>
+            <CloudRain className="h-3.5 w-3.5 text-sky-400" />
+            <span>{dictionary.weather.rain}</span>
+          </>
+        ) : (
+          <>
+            <Sun className="h-3.5 w-3.5 text-amber-400" />
+            <span>{dictionary.weather.dry}</span>
+          </>
+        )}
+      </div>
+
+      {metrics.map((metric, index) => (
+        <div key={index} className="flex shrink-0 items-center gap-1">
+          {metric.icon}
+          <span className="text-[13px] font-medium tabular-nums text-muted-foreground">
+            {metric.value}
+          </span>
         </div>
-        {metrics.map((metric, index) => (
-          <div key={index} className="flex items-center gap-1">
-            {metric.icon}
-            <span className="text-[13px] font-medium tabular-nums text-muted-foreground">
-              {metric.value}
-            </span>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+      ))}
+    </div>
   );
 };

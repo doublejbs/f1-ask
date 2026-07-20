@@ -64,12 +64,18 @@ const config: Config = {
         md: "calc(var(--radius) - 10px)",
         sm: "calc(var(--radius) - 14px)",
       },
+      fontSize: {
+        // 레퍼런스의 히어로 수치 스케일. 큰 숫자 + 작은 라벨 패턴에 쓴다.
+        hero: ["3.5rem", { lineHeight: "1", letterSpacing: "-0.03em" }],
+        stat: ["2.75rem", { lineHeight: "1.05", letterSpacing: "-0.02em" }],
+        label: ["0.6875rem", { lineHeight: "1.2", letterSpacing: "0.08em" }],
+      },
       boxShadow: {
         glass:
-          "inset 0 1px 0 0 hsl(210 40% 98% / 0.10), 0 1px 2px 0 hsl(225 40% 2% / 0.4), 0 16px 40px -20px hsl(225 40% 2% / 0.85)",
+          "inset 0 1px 0 0 hsla(0, 0%, 100%, 0.10), 0 12px 32px -18px hsla(0, 0%, 0%, 0.9)",
         elevated:
-          "inset 0 1px 0 0 hsl(210 40% 98% / 0.12), 0 24px 60px -24px hsl(225 40% 2% / 0.9)",
-        glow: "0 0 24px -4px hsl(var(--primary) / 0.5)",
+          "inset 0 1px 0 0 hsla(0, 0%, 100%, 0.12), 0 24px 60px -24px hsla(0, 0%, 0%, 0.95)",
+        glow: "0 0 24px -4px hsla(0, 84%, 55%, 0.5)",
       },
       keyframes: {
         "fade-up": {

@@ -11,6 +11,8 @@ const buttonVariants = cva(
           "bg-primary text-primary-foreground shadow-[0_6px_20px_-8px_hsl(var(--primary)/0.8),inset_0_1px_0_0_hsl(0_0%_100%/0.25)] hover:brightness-110",
         outline:
           "border border-white/12 bg-white/5 text-foreground backdrop-blur-md hover:bg-white/10",
+        // 반투명 알약. 보조 액션(타임라인·결과·서킷 통계)과 필터 토글에 쓴다.
+        chip: "glass-chip text-foreground hover:bg-white/10",
         ghost: "text-muted-foreground hover:bg-white/5 hover:text-foreground",
       },
       size: {

@@ -23,13 +23,15 @@ const TAB_CONFIGS: TabConfig[] = [
   { tab: DashboardTab.Ask, labelKey: "ask", Icon: Sparkles },
 ];
 
-// 하단 탭바(모바일 전용). 지금 / 순위 / AI 3버튼. pb-safe + 44pt 이상 터치 타깃.
+// 하단 탭바(모바일 전용). 지금 / 순위 / AI 3버튼.
+// 바닥에 붙지 않고 좌우 여백을 둔 떠 있는 알약이다 — 콘텐츠가 그 아래로 흘러 비친다.
+// 활성 탭은 더 밝은 알약 칩으로 구분한다. 44pt 이상 터치 타깃 + pb-safe.
 export const TabBarView = ({ dictionary, activeTab, onChangeTab }: Props) => (
   <nav
-    className="fixed inset-x-0 bottom-0 z-40 pb-safe lg:hidden"
+    className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-safe lg:hidden"
     aria-label={dictionary.appName}
   >
-    <div className="glass-panel flex items-stretch rounded-none border-x-0 border-b-0">
+    <div className="glass-float pointer-events-auto mx-auto flex max-w-md items-stretch gap-1 rounded-full p-1.5">
       {TAB_CONFIGS.map(({ tab, labelKey, Icon }) => {
         const isActive = tab === activeTab;
 
@@ -40,9 +42,9 @@ export const TabBarView = ({ dictionary, activeTab, onChangeTab }: Props) => (
             onClick={() => onChangeTab(tab)}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "press flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold transition-colors",
+              "press flex min-h-[2.875rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-full px-2 py-1.5 text-[11px] font-semibold transition-colors",
               isActive
-                ? "text-primary"
+                ? "bg-white/[0.16] text-foreground shadow-[inset_0_1px_0_0_hsla(0,0%,100%,0.16)]"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >

@@ -32,7 +32,7 @@ export const NowTabView = ({
   onSelectEvent,
   onSelectBattle,
 }: Props) => (
-  <div className="flex flex-col gap-4">
+  <div className="flex flex-col gap-6">
     <CriticalBannerView
       dictionary={dictionary}
       locale={locale}

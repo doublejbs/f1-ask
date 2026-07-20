@@ -93,14 +93,20 @@ export const BottomSheetView = ({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="glass-panel animate-fade-up relative w-full max-w-lg rounded-t-2xl p-5 pb-safe outline-none sm:rounded-2xl sm:pb-5"
+        className="glass-sheet animate-fade-up w-full max-w-lg rounded-t-[1.75rem] px-5 pb-safe pt-3 outline-none sm:rounded-[1.75rem] sm:pb-5 sm:pt-5"
       >
-        {/* 닫기 버튼. 44pt 터치 타깃(HIG). */}
+        {/* 그랩 핸들. iOS 시트 관례 — 바닥에서 올라오는 모바일 레이아웃에서만 노출한다. */}
+        <div
+          className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/25 sm:hidden"
+          aria-hidden
+        />
+
+        {/* 닫기 버튼. 원형 글래스 + 44pt 터치 타깃(HIG). */}
         <button
           type="button"
           onClick={onClose}
           aria-label={closeLabel}
-          className="press absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+          className="press glass-chip absolute right-3 top-3 z-10 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>

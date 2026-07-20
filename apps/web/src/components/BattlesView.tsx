@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { SectionView } from "@/components/ui/SectionView";
 import { Dictionary } from "@/i18n/Messages";
 import { teamColorHex } from "@/lib/Format";
 import { cn } from "@/lib/Utils";
@@ -16,6 +16,8 @@ type Props = {
 type RowProps = {
   dictionary: Dictionary;
   battle: Battle;
+  // 목록 마지막 행에는 헤어라인을 붙이지 않는다.
+  divided: boolean;
   onSelectBattle: (aheadCode: string, chasingCode: string) => void;
 };
 
@@ -24,8 +26,13 @@ const MAX_BATTLES = 3;
 
 const formatGapSeconds = (seconds: number): string => `${seconds.toFixed(1)}s`;
 
-// 배틀 행: [팀바] P6 HAD ↔ P7 NOR ... [DRS] 0.7s. 44px 이상 터치 타깃.
-const BattleRow = ({ dictionary, battle, onSelectBattle }: RowProps) => {
+// 배틀 행: [팀바] P6 HAD ↔ P7 NOR ... [DRS] 0.7s. 카드 없이 헤어라인으로 구분한다.
+const BattleRow = ({
+  dictionary,
+  battle,
+  divided,
+  onSelectBattle,
+}: RowProps) => {
   const aheadAccent = teamColorHex(battle.aheadDriver.teamColour);
   const chasingAccent = teamColorHex(battle.chasingDriver.teamColour);
 
@@ -37,10 +44,13 @@ const BattleRow = ({ dictionary, battle, onSelectBattle }: RowProps) => {
     <button
       type="button"
       onClick={handleSelect}
-      className="press flex min-h-[44px] w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left outline-none transition-colors hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70"
+      className={cn(
+        "press flex min-h-[56px] w-full items-center gap-2 px-1 py-2.5 text-left outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
+        divided && "hairline",
+      )}
     >
       <span
-        className="h-6 w-1 shrink-0 rounded-full"
+        className="h-7 w-[3px] shrink-0 rounded-full"
         style={{ backgroundColor: aheadAccent ?? "hsl(var(--border))" }}
         aria-hidden
       />
@@ -58,7 +68,7 @@ const BattleRow = ({ dictionary, battle, onSelectBattle }: RowProps) => {
       </span>
       <span className="shrink-0 font-bold">{battle.chasingDriver.code}</span>
       <span
-        className="h-6 w-1 shrink-0 rounded-full"
+        className="h-7 w-[3px] shrink-0 rounded-full"
         style={{ backgroundColor: chasingAccent ?? "hsl(var(--border))" }}
         aria-hidden
       />
@@ -66,14 +76,14 @@ const BattleRow = ({ dictionary, battle, onSelectBattle }: RowProps) => {
       <div className="flex-1" />
 
       {battle.isDrsRange ? (
-        <span className="shrink-0 rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+        <span className="glass-chip shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
           {dictionary.battles.drsLabel}
         </span>
       ) : null}
 
       <span
         className={cn(
-          "w-12 shrink-0 text-right text-sm font-bold tabular-nums",
+          "shrink-0 text-right text-xl font-bold tabular-nums",
           battle.isDrsRange ? "text-amber-300" : "text-foreground",
         )}
       >
@@ -97,20 +107,18 @@ export const BattlesView = ({ dictionary, snapshot, onSelectBattle }: Props) => 
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{dictionary.battles.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-0.5 p-2">
-        {battles.map((battle) => (
+    <SectionView title={dictionary.battles.title}>
+      <div className="flex flex-col">
+        {battles.map((battle, index) => (
           <BattleRow
             key={`${battle.aheadDriver.driverNumber}-${battle.chasingDriver.driverNumber}`}
             dictionary={dictionary}
             battle={battle}
+            divided={index < battles.length - 1}
             onSelectBattle={onSelectBattle}
           />
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </SectionView>
   );
 };

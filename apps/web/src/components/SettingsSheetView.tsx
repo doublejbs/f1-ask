@@ -4,6 +4,7 @@ import { BottomSheetView } from "@/components/BottomSheetView";
 import { ExplanationLevelSwitcherView } from "@/components/ExplanationLevelSwitcherView";
 import { LocaleSwitcherView } from "@/components/LocaleSwitcherView";
 import { Dictionary } from "@/i18n/Messages";
+import { cn } from "@/lib/Utils";
 import { ExplanationLevel, LiveRaceSnapshot, SupportedLocale } from "@f1/domain";
 import type { ReactNode } from "react";
 
@@ -19,11 +20,19 @@ type Props = {
 
 type RowProps = {
   label: string;
+  // 마지막 행은 헤어라인 구분선을 생략한다.
+  isLast?: boolean;
   children: ReactNode;
 };
 
-const Row = ({ label, children }: RowProps) => (
-  <div className="flex items-center justify-between gap-4">
+// 설정 행. 카드 없이 헤어라인 구분선만으로 나눈다(마지막 행에는 붙이지 않는다).
+const Row = ({ label, isLast = false, children }: RowProps) => (
+  <div
+    className={cn(
+      "flex min-h-[3rem] items-center justify-between gap-4 py-2.5",
+      isLast ? "" : "hairline",
+    )}
+  >
     <span className="text-[13px] font-semibold text-muted-foreground">
       {label}
     </span>
@@ -48,7 +57,7 @@ export const SettingsSheetView = ({
     titleId="settings-sheet-title"
     closeLabel={dictionary.settings.close}
   >
-    <div className="mb-4 pr-11">
+    <div className="mb-1 pr-11">
       <h2
         id="settings-sheet-title"
         className="text-[13px] font-bold uppercase tracking-[0.1em] text-foreground/80"
@@ -57,7 +66,7 @@ export const SettingsSheetView = ({
       </h2>
     </div>
 
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col">
       <Row label={dictionary.localeName[locale]}>
         <LocaleSwitcherView dictionary={dictionary} currentLocale={locale} />
       </Row>
@@ -70,20 +79,17 @@ export const SettingsSheetView = ({
         />
       </Row>
 
-      <div className="border-t border-border/60 pt-4">
-        <Row label={dictionary.header.session}>
-          <span className="truncate text-sm font-semibold">
-            {snapshot.sessionName}
-          </span>
-        </Row>
-        <div className="mt-3">
-          <Row label={dictionary.settings.circuit}>
-            <span className="truncate text-sm font-semibold">
-              {snapshot.circuitName} · {snapshot.countryCode}
-            </span>
-          </Row>
-        </div>
-      </div>
+      <Row label={dictionary.header.session}>
+        <span className="truncate text-sm font-semibold">
+          {snapshot.sessionName}
+        </span>
+      </Row>
+
+      <Row label={dictionary.settings.circuit} isLast>
+        <span className="truncate text-sm font-semibold">
+          {snapshot.circuitName} · {snapshot.countryCode}
+        </span>
+      </Row>
     </div>
   </BottomSheetView>
 );
