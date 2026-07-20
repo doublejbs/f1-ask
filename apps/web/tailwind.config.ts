@@ -2,6 +2,12 @@ import type { Config } from "tailwindcss";
 
 // shadcn/ui 호환 Tailwind 설정. CSS 변수 기반 테마 토큰을 사용한다.
 const config: Config = {
+  // 터치 기기에서는 hover 를 해제할 방법이 없어 탭 이후 hover 잔상이 남는다.
+  // 이 플래그는 모든 hover 변형을 @media (hover: hover) 로 감싸 마우스가 있는
+  // 기기에서만 hover 가 적용되게 한다.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   darkMode: ["class"],
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
