@@ -23,7 +23,7 @@ const LOOP_PAUSE_SECONDS = 5;
 const OPENF1_REPLAY_SPEED = 40;
 // 주요(Critical + High) 이벤트 전용 구독 한도. 피드는 12 건만 그리므로 20 이면 충분하다.
 const LIVE_PRIMARY_EVENT_LIMIT = 20;
-// 우선순위 필터 없는 전체 구독 한도. drs_range_entered / gap_closing 같은 Low·Medium 이
+// 우선순위 필터 없는 전체 구독 한도. override_range_entered / gap_closing 같은 Low·Medium 이
 // 초당 여러 건씩 쌓여 20 건이면 팀 라디오만으로도 창이 차버린다. 60 이면 피드의
 // "전체 보기"(12 건)에 여유가 있고, AI 컨텍스트도 최근 흐름을 충분히 담는다.
 // 더 키우면 구독 페이로드와 재렌더 비용이 선형으로 늘어 모바일에서 손해다.

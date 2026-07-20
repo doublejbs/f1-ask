@@ -8,8 +8,8 @@ type RankedDriver = LiveDriverState & { position: number };
 // 배틀 후보 판정 임계값(초). 인접 쌍의 간격이 이 값 미만이면 접전으로 본다.
 export const BATTLE_GAP_THRESHOLD_SECONDS = 1.5;
 
-// DRS 사정권 임계값(초). 간격이 이 값 미만이면 DRS 범위로 표시한다.
-export const DRS_RANGE_THRESHOLD_SECONDS = 1.0;
+// 매뉴얼 오버라이드 사정권 임계값(초). 간격이 이 값 미만이면 오버라이드 범위로 표시한다.
+export const OVERRIDE_RANGE_THRESHOLD_SECONDS = 1.0;
 
 // 순위 인접 쌍 중 간격이 좁은 접전을 골라 배틀 목록으로 만든다.
 // snapshot 에서 계산하지 않고 "선택·투영"만 하는 순수 함수다(예외 없음).
@@ -64,7 +64,7 @@ export const selectBattles = (
       aheadDriver,
       chasingDriver,
       gapSeconds,
-      isDrsRange: gapSeconds < DRS_RANGE_THRESHOLD_SECONDS,
+      isOverrideRange: gapSeconds < OVERRIDE_RANGE_THRESHOLD_SECONDS,
     });
   }
 

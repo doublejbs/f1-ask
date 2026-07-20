@@ -291,11 +291,11 @@ export const translateRaceEvent = (
         ko: `${driver}가 간격이 벌어지고 있습니다.`,
         ja: `${driver} が差を広げられています。`,
       });
-    case RaceEventType.DrsRangeEntered:
+    case RaceEventType.OverrideRangeEntered:
       return pick(locale, {
-        en: `${driver} is within DRS range of ${target}.`,
-        ko: `${driver}가 ${target}에 대해 DRS 범위에 진입했습니다.`,
-        ja: `${driver} が ${target} に対しDRS圏内に入りました。`,
+        en: `${driver} is within 1s of ${target} — overtake mode available.`,
+        ko: `${driver}가 ${target} 뒤 1초 이내로 붙어 오버테이크 모드 사정권에 들어왔습니다.`,
+        ja: `${driver} が ${target} の1秒以内に接近し、オーバーテイクモード圏内に入りました。`,
       });
     case RaceEventType.YellowFlag:
       return pick(locale, {
@@ -502,18 +502,19 @@ export const translateRaceEvent = (
         ko: "체커기 — 경기가 종료되었습니다.",
         ja: "チェッカーフラッグ — レース終了。",
       });
-    case RaceEventType.DrsEnabled:
-      // OpenF1 원문은 `OVERTAKE ENABLED` 지만 실제 의미는 DRS 활성화다.
+    case RaceEventType.OvertakeModeEnabled:
+      // OpenF1 원문은 `OVERTAKE ENABLED`. 2026 규정에서는 DRS 가 아니라
+      // 매뉴얼 오버라이드(전기 부스트) 사용 가능 구간을 뜻한다.
       return pick(locale, {
-        en: "DRS enabled.",
-        ko: "DRS가 활성화되었습니다.",
-        ja: "DRSが有効になりました。",
+        en: "Overtake mode available.",
+        ko: "오버테이크 모드를 사용할 수 있습니다.",
+        ja: "オーバーテイクモードが使用可能になりました。",
       });
-    case RaceEventType.DrsDisabled:
+    case RaceEventType.OvertakeModeDisabled:
       return pick(locale, {
-        en: "DRS disabled.",
-        ko: "DRS가 비활성화되었습니다.",
-        ja: "DRSが無効になりました。",
+        en: "Overtake mode unavailable.",
+        ko: "오버테이크 모드를 사용할 수 없습니다.",
+        ja: "オーバーテイクモードが使用できなくなりました。",
       });
     case RaceEventType.TrackHazard: {
       const noun = pick(

@@ -277,9 +277,9 @@ export class MockLlmProvider implements RaceLlmProvider {
           });
         case QuestionIntent.Gap:
           return pick(locale, {
-            en: "Tip: the gap is the time to the car ahead; under ~1s unlocks DRS.",
-            ko: "팁: 간격은 앞차와의 시간 차이이며, 약 1초 이내면 DRS를 쓸 수 있습니다.",
-            ja: "ヒント: 差は前車とのタイム差で、約1秒以内でDRSが使えます。",
+            en: "Tip: the gap is the time to the car ahead; under ~1s unlocks overtake mode.",
+            ko: "팁: 간격은 앞차와의 시간 차이이며, 약 1초 이내면 오버테이크 모드를 쓸 수 있습니다.",
+            ja: "ヒント: 差は前車とのタイム差で、約1秒以内でオーバーテイクモードが使えます。",
           });
         case QuestionIntent.Pace:
           return pick(locale, {
@@ -314,9 +314,9 @@ export class MockLlmProvider implements RaceLlmProvider {
           });
         case QuestionIntent.Gap:
           return pick(locale, {
-            en: "Note: sub-1s brings DRS; balance track position against tyre offset.",
-            ko: "참고: 1초 이내면 DRS가 열리며, 트랙 포지션과 타이어 오프셋을 균형 있게 보세요.",
-            ja: "補足: 1秒以内でDRSが有効。トラックポジションとタイヤオフセットのバランスを見ましょう。",
+            en: "Note: sub-1s unlocks overtake mode; balance track position against tyre offset.",
+            ko: "참고: 1초 이내면 오버테이크 모드가 열리며, 트랙 포지션과 타이어 오프셋을 균형 있게 보세요.",
+            ja: "補足: 1秒以内でオーバーテイクモードが有効。トラックポジションとタイヤオフセットのバランスを見ましょう。",
           });
         case QuestionIntent.Pace:
           return pick(locale, {

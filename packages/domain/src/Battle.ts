@@ -6,5 +6,5 @@ export type Battle = {
   aheadDriver: LiveDriverState;
   chasingDriver: LiveDriverState;
   gapSeconds: number;
-  isDrsRange: boolean;
+  isOverrideRange: boolean;
 };

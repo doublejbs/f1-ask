@@ -348,7 +348,7 @@ describe("race_control 메시지 파싱", () => {
     expect(penalties[1]?.params.penaltySeconds).toBe(10);
   });
 
-  it("트랙 리밋·트랙 위험물·DRS·피트레인·강우 확률을 매핑한다", () => {
+  it("트랙 리밋·트랙 위험물·오버테이크 모드·피트레인·강우 확률을 매핑한다", () => {
     const events = eventsFromRaceControl([
       { date: at(10), category: "Other", flag: null, scope: null, message: "CAR 44 (HAM) TRACK LIMITS AT TURN 4 LAP 12 - LAP TIME DELETED" },
       { date: at(20), category: "Other", flag: null, scope: null, message: "RECOVERY VEHICLE ON TRACK AT TURN 6" },
@@ -374,10 +374,10 @@ describe("race_control 메시지 파싱", () => {
     expect(hazards[0]?.params.turn).toBe(6);
     expect(hazards[1]?.params.kind).toBe(TrackHazardKind.Marshals);
 
-    expect(findEvent(events, RaceEventType.DrsEnabled)?.priority).toBe(
+    expect(findEvent(events, RaceEventType.OvertakeModeEnabled)?.priority).toBe(
       RaceEventPriority.Medium,
     );
-    expect(typesOf(events)).toContain(RaceEventType.DrsDisabled);
+    expect(typesOf(events)).toContain(RaceEventType.OvertakeModeDisabled);
     expect(typesOf(events)).toContain(RaceEventType.PitLaneClosed);
     expect(typesOf(events)).toContain(RaceEventType.PitLaneOpen);
 
@@ -445,7 +445,7 @@ describe("상태 전이 중복 제거", () => {
     ).toHaveLength(2);
   });
 
-  it("동일 DRS 상태 연속 입력은 1건만 만든다", () => {
+  it("동일 오버테이크 모드 상태 연속 입력은 1건만 만든다", () => {
     const events = eventsFromRaceControl([
       { date: at(1), category: "Other", flag: null, scope: null, message: "OVERTAKE ENABLED" },
       { date: at(2), category: "Other", flag: null, scope: null, message: "OVERTAKE ENABLED" },
@@ -453,10 +453,10 @@ describe("상태 전이 중복 제거", () => {
     ]);
 
     expect(
-      events.filter((event) => event.type === RaceEventType.DrsEnabled),
+      events.filter((event) => event.type === RaceEventType.OvertakeModeEnabled),
     ).toHaveLength(1);
     expect(
-      events.filter((event) => event.type === RaceEventType.DrsDisabled),
+      events.filter((event) => event.type === RaceEventType.OvertakeModeDisabled),
     ).toHaveLength(1);
   });
 
@@ -708,9 +708,9 @@ describe("재활용 이벤트", () => {
     expect(gapClosing?.params.aheadDriverCode).toBeUndefined();
   });
 
-  // DRS 활성 구간의 1.0초 미만 진입은 DrsRangeEntered 로만 발행한다
+  // 오버라이드 사용 가능 구간의 1.0초 미만 진입은 OverrideRangeEntered 로만 발행한다
   // (GapClosing 과 동시에 발행하면 같은 순간이 피드에 두 번 뜬다).
-  it("DRS 활성 구간의 진입은 DrsRangeEntered 로 발행한다", () => {
+  it("오버라이드 사용 가능 구간의 진입은 OverrideRangeEntered 로 발행한다", () => {
     const data = makeData({
       raceControl: [
         { date: at(5), category: "Other", flag: null, scope: null, message: "OVERTAKE ENABLED" },
@@ -725,19 +725,19 @@ describe("재활용 이벤트", () => {
       ],
     });
     const events = buildEvents(data, T0, END).map((timed) => timed.event);
-    const drsRange = findEvent(events, RaceEventType.DrsRangeEntered);
+    const overrideRange = findEvent(events, RaceEventType.OverrideRangeEntered);
 
-    expect(drsRange?.priority).toBe(RaceEventPriority.Medium);
-    expect(drsRange?.driverNumber).toBe(44);
-    expect(drsRange?.params.gapSeconds).toBe(0.6);
-    expect(drsRange?.params.aheadDriverCode).toBe("VER");
-    expect(drsRange?.params.targetDriverCode).toBe("VER");
-    expect(drsRange?.targetDriverNumber).toBe(1);
+    expect(overrideRange?.priority).toBe(RaceEventPriority.Medium);
+    expect(overrideRange?.driverNumber).toBe(44);
+    expect(overrideRange?.params.gapSeconds).toBe(0.6);
+    expect(overrideRange?.params.aheadDriverCode).toBe("VER");
+    expect(overrideRange?.params.targetDriverCode).toBe("VER");
+    expect(overrideRange?.targetDriverNumber).toBe(1);
     // 같은 진입이 GapClosing 으로 중복 발행되지 않는다.
     expect(typesOf(events)).not.toContain(RaceEventType.GapClosing);
   });
 
-  it("DRS 비활성 구간의 진입은 GapClosing 으로만 발행한다", () => {
+  it("오버라이드 비활성 구간의 진입은 GapClosing 으로만 발행한다", () => {
     const data = makeData({
       raceControl: [
         { date: at(5), category: "Other", flag: null, scope: null, message: "OVERTAKE ENABLED" },
@@ -751,10 +751,10 @@ describe("재활용 이벤트", () => {
     const types = typesOf(buildEvents(data, T0, END).map((timed) => timed.event));
 
     expect(types).toContain(RaceEventType.GapClosing);
-    expect(types).not.toContain(RaceEventType.DrsRangeEntered);
+    expect(types).not.toContain(RaceEventType.OverrideRangeEntered);
   });
 
-  it("SC 전개 중에는 DrsRangeEntered 를 만들지 않는다", () => {
+  it("SC 전개 중에는 OverrideRangeEntered 를 만들지 않는다", () => {
     const data = makeData({
       raceControl: [
         { date: at(5), category: "Other", flag: null, scope: null, message: "OVERTAKE ENABLED" },
@@ -767,7 +767,7 @@ describe("재활용 이벤트", () => {
     });
     const types = typesOf(buildEvents(data, T0, END).map((timed) => timed.event));
 
-    expect(types).not.toContain(RaceEventType.DrsRangeEntered);
+    expect(types).not.toContain(RaceEventType.OverrideRangeEntered);
     expect(types).toContain(RaceEventType.GapClosing);
   });
 
@@ -977,6 +977,6 @@ describe("params 계약", () => {
       T0 + 20_000,
     ).map((timed) => timed.event);
 
-    expect(typesOf(events)).toEqual([RaceEventType.DrsEnabled]);
+    expect(typesOf(events)).toEqual([RaceEventType.OvertakeModeEnabled]);
   });
 });

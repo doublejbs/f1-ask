@@ -114,8 +114,10 @@ export type Dictionary = {
   };
   battles: {
     title: string;
-    // DRS 사정권 소형 라벨.
-    drsLabel: string;
+    // 매뉴얼 오버라이드 사정권 소형 라벨. 칩 폭이 좁아 축약어를 쓴다.
+    overtakeLabel: string;
+    // 위 축약 라벨의 풀네임. title / aria-label 로 의미를 전달한다.
+    overtakeTitle: string;
     // {ahead}/{chasing} 를 드라이버 코드로 치환하는 배틀 탭투애스크 질문 템플릿.
     tapQuestion: string;
   };
@@ -241,7 +243,8 @@ const en: Dictionary = {
   },
   battles: {
     title: "Battles",
-    drsLabel: "DRS",
+    overtakeLabel: "OT",
+    overtakeTitle: "Overtake mode available",
     tapQuestion: "How is the battle between {ahead} and {chasing}?",
   },
   criticalBanner: {
@@ -395,7 +398,8 @@ const ko: Dictionary = {
   },
   battles: {
     title: "배틀",
-    drsLabel: "DRS",
+    overtakeLabel: "OT",
+    overtakeTitle: "오버테이크 모드 사용 가능",
     tapQuestion: "{ahead}와 {chasing} 배틀 상황 어때?",
   },
   criticalBanner: {
@@ -549,7 +553,8 @@ const ja: Dictionary = {
   },
   battles: {
     title: "バトル",
-    drsLabel: "DRS",
+    overtakeLabel: "OT",
+    overtakeTitle: "オーバーテイクモード使用可能",
     tapQuestion: "{ahead} と {chasing} のバトルはどんな状況？",
   },
   criticalBanner: {

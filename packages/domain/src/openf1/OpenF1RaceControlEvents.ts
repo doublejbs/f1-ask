@@ -26,7 +26,7 @@ import { OpenF1RaceControl } from "./OpenF1Types";
 // 상태 전이 중복 제거용 키. 같은 키에 같은 값이 연속으로 들어오면 발행하지 않는다.
 const TRACK_STATE_KEY = "track";
 const SESSION_STATE_KEY = "session";
-const DRS_STATE_KEY = "drs";
+const OVERTAKE_MODE_STATE_KEY = "overtake_mode";
 const PIT_LANE_STATE_KEY = "pit_lane";
 const RAIN_STATE_KEY = "rain";
 const SECTOR_STATE_PREFIX = "sector";
@@ -415,10 +415,10 @@ const emitOtherCategoryEvent = (
 
   if (text.includes("OVERTAKE ENABLED") || text.includes("OVERTAKE DISABLED")) {
     const enabled = text.includes("OVERTAKE ENABLED");
-    const type = enabled ? RaceEventType.DrsEnabled : RaceEventType.DrsDisabled;
+    const type = enabled ? RaceEventType.OvertakeModeEnabled : RaceEventType.OvertakeModeDisabled;
 
     emit({
-      stateKey: DRS_STATE_KEY,
+      stateKey: OVERTAKE_MODE_STATE_KEY,
       stateValue: type,
       type,
       priority: RaceEventPriority.Medium,

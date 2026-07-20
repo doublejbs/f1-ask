@@ -54,7 +54,7 @@ Formula 1은 세계에서 가장 복잡한 스포츠 중 하나이다.
 - Gap
 - Delta
 - Tire
-- DRS
+- Overtake Mode
 - ERS
 - Pit Window
 - Strategy
@@ -417,7 +417,7 @@ Worker가 감지한 이벤트를
 예시
 
 - Norris entered the pits.
-- Verstappen entered DRS range.
+- Verstappen is within 1s of Norris — overtake mode available.
 - Safety Car deployed.
 - Russell set the fastest lap.
 - Leclerc gained two positions.
@@ -440,7 +440,7 @@ High
 Medium
 
 - Fastest Lap
-- DRS
+- Overtake Mode
 
 Low
 
@@ -551,7 +551,8 @@ AI는
 
 예시
 
-> DRS는 앞차와 1초 이내일 때 사용할 수 있는 가변 리어윙 시스템입니다.
+> 오버테이크 모드(매뉴얼 오버라이드)는 앞차와 1초 이내일 때 추격 차량에게 주어지는
+> 추가 전기 부스트입니다. 2026 시즌부터 DRS 를 대체했습니다.
 
 ---
 

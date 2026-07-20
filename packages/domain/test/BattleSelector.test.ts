@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BATTLE_GAP_THRESHOLD_SECONDS,
-  DRS_RANGE_THRESHOLD_SECONDS,
+  OVERRIDE_RANGE_THRESHOLD_SECONDS,
   selectBattles,
 } from "../src/BattleSelector";
 import { LiveDriverState } from "../src/LiveDriverState";
@@ -91,14 +91,14 @@ describe("selectBattles", () => {
     expect(battles[0]?.chasingDriver.code).toBe("CCC");
   });
 
-  it("DRS 판정 경계: 0.99 는 사정권, 1.0 은 사정권이 아니다", () => {
+  it("오버라이드 사정권 판정 경계: 0.99 는 사정권, 1.0 은 사정권이 아니다", () => {
     const snapshot = makeSnapshot([
       makeDriver({ position: 1, code: "AAA" }),
       makeDriver({ position: 2, code: "BBB", intervalToAheadSeconds: 0.99 }),
       makeDriver({
         position: 3,
         code: "CCC",
-        intervalToAheadSeconds: DRS_RANGE_THRESHOLD_SECONDS,
+        intervalToAheadSeconds: OVERRIDE_RANGE_THRESHOLD_SECONDS,
       }),
     ]);
 
@@ -106,8 +106,8 @@ describe("selectBattles", () => {
     const bbb = battles.find((battle) => battle.chasingDriver.code === "BBB");
     const ccc = battles.find((battle) => battle.chasingDriver.code === "CCC");
 
-    expect(bbb?.isDrsRange).toBe(true);
-    expect(ccc?.isDrsRange).toBe(false);
+    expect(bbb?.isOverrideRange).toBe(true);
+    expect(ccc?.isOverrideRange).toBe(false);
   });
 
   it("리타이어·피트인 드라이버가 낀 쌍은 제외한다", () => {
@@ -175,7 +175,7 @@ describe("selectBattles", () => {
     expect(selectBattles(snapshot, 5)).toEqual([]);
   });
 
-  it("1.2초 쌍은 배틀이지만 DRS 사정권은 아니다", () => {
+  it("1.2초 쌍은 배틀이지만 오버라이드 사정권은 아니다", () => {
     const snapshot = makeSnapshot([
       makeDriver({ position: 1, code: "AAA" }),
       makeDriver({ position: 2, code: "BBB", intervalToAheadSeconds: 1.2 }),
@@ -184,7 +184,7 @@ describe("selectBattles", () => {
     const battles = selectBattles(snapshot, 5);
 
     expect(battles.length).toBe(1);
-    expect(battles[0]?.isDrsRange).toBe(false);
+    expect(battles[0]?.isOverrideRange).toBe(false);
   });
 
   it("limit 이 0 이면 빈 배열을 반환한다", () => {

@@ -26,7 +26,7 @@ const MAX_BATTLES = 3;
 
 const formatGapSeconds = (seconds: number): string => `${seconds.toFixed(1)}s`;
 
-// 배틀 행: [팀바] P6 HAD ↔ P7 NOR ... [DRS] 0.7s. 카드 없이 헤어라인으로 구분한다.
+// 배틀 행: [팀바] P6 HAD ↔ P7 NOR ... [OT] 0.7s. 카드 없이 헤어라인으로 구분한다.
 const BattleRow = ({
   dictionary,
   battle,
@@ -75,16 +75,20 @@ const BattleRow = ({
 
       <div className="flex-1" />
 
-      {battle.isDrsRange ? (
-        <span className="glass-chip shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
-          {dictionary.battles.drsLabel}
+      {battle.isOverrideRange ? (
+        <span
+          className="glass-chip shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300"
+          title={dictionary.battles.overtakeTitle}
+          aria-label={dictionary.battles.overtakeTitle}
+        >
+          {dictionary.battles.overtakeLabel}
         </span>
       ) : null}
 
       <span
         className={cn(
           "shrink-0 text-right text-xl font-bold tabular-nums",
-          battle.isDrsRange ? "text-amber-300" : "text-foreground",
+          battle.isOverrideRange ? "text-amber-300" : "text-foreground",
         )}
       >
         {formatGapSeconds(battle.gapSeconds)}

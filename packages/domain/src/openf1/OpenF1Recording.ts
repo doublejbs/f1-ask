@@ -4,7 +4,7 @@ import { RaceEvent, RaceEventParams } from "../RaceEvent";
 import { RaceEventPriority } from "../RaceEventPriority";
 import { RaceEventType } from "../RaceEventType";
 import { RetirementReason } from "../RetirementReason";
-import { buildDrsWindow } from "./OpenF1DrsWindow";
+import { buildOverrideWindow } from "./OpenF1OverrideWindow";
 import { makeEvent, TimedRaceEvent } from "./OpenF1EventFactory";
 import {
   buildOpenF1Index,
@@ -18,7 +18,7 @@ import { OpenF1RaceControl, OpenF1SessionData } from "./OpenF1Types";
 const MAX_PERSONAL_BEST_PER_DRIVER = 3;
 const MAX_TEAM_RADIO_PER_DRIVER = 5;
 const MAX_GAP_CLOSING_PER_DRIVER = 5;
-const MAX_DRS_RANGE_PER_DRIVER = 5;
+const MAX_OVERRIDE_RANGE_PER_DRIVER = 5;
 const MAX_STRATEGY_NOTE_PER_DRIVER = 3;
 const GAP_CLOSING_THRESHOLD_SECONDS = 1;
 const GAP_CLOSING_COOLDOWN_MS = 60_000;
@@ -261,14 +261,14 @@ export const buildEvents = (
 
   // 앞차와의 간격이 1.0초 미만으로 "진입"하는 순간만 이벤트로 만든다.
   //
-  // GapClosing 과 DrsRangeEntered 는 같은 순간을 가리키므로 둘 다 발행하면 피드가
-  // 중복된다. DRS 활성 구간이면 DrsRangeEntered, 아니면 GapClosing 으로 **하나만**
+  // GapClosing 과 OverrideRangeEntered 는 같은 순간을 가리키므로 둘 다 발행하면 피드가
+  // 중복된다. 오버라이드 사용 가능 구간이면 OverrideRangeEntered, 아니면 GapClosing 으로 **하나만**
   // 발행해 상호 배타로 수렴시킨다.
   const gapClosings = new Map<number, TimedRaceEvent[]>();
-  const drsRangeEntries = new Map<number, TimedRaceEvent[]>();
+  const overrideRangeEntries = new Map<number, TimedRaceEvent[]>();
   const withinRangeByDriver = new Map<number, boolean>();
   const lastGapEventMsByDriver = new Map<number, number>();
-  const drsWindow = buildDrsWindow(sortedRaceControl);
+  const overrideWindow = buildOverrideWindow(sortedRaceControl);
   const timedIntervals = data.intervals
     .map((interval) => ({ interval, atMs: parseMs(interval.date) }))
     .filter((entry) => !Number.isNaN(entry.atMs))
@@ -372,15 +372,15 @@ export const buildEvents = (
         ? {}
         : { aheadDriverCode };
 
-    const inDrsWindow = drsWindow.isActiveAt(atMs, currentLapNumber);
-    const type = inDrsWindow
-      ? RaceEventType.DrsRangeEntered
+    const inOverrideWindow = overrideWindow.isActiveAt(atMs, currentLapNumber);
+    const type = inOverrideWindow
+      ? RaceEventType.OverrideRangeEntered
       : RaceEventType.GapClosing;
-    const bucket = inDrsWindow ? drsRangeEntries : gapClosings;
+    const bucket = inOverrideWindow ? overrideRangeEntries : gapClosings;
     const entries = bucket.get(driverNumber) ?? [];
-    // DrsRangeEntered 는 "누구에 대해" DRS 권 안인지가 핵심이라 앞차를 추격 대상으로도 담는다.
+    // OverrideRangeEntered 는 "누구에 대해" 오버라이드 사정권 안인지가 핵심이라 앞차를 추격 대상으로도 담는다.
     const targetParams: RaceEventParams =
-      inDrsWindow && aheadDriverCode !== undefined && aheadDriverCode !== ""
+      inOverrideWindow && aheadDriverCode !== undefined && aheadDriverCode !== ""
         ? { targetDriverCode: aheadDriverCode }
         : {};
 
@@ -388,7 +388,7 @@ export const buildEvents = (
       atMs,
       event: makeEvent(sessionId, type, RaceEventPriority.Medium, atMs, {
         driverNumber,
-        ...(inDrsWindow && aheadDriverNumber !== null
+        ...(inOverrideWindow && aheadDriverNumber !== null
           ? { targetDriverNumber: aheadDriverNumber }
           : {}),
         key: `${type}:${driverNumber}:${atMs}`,
@@ -404,7 +404,7 @@ export const buildEvents = (
   }
 
   pushLatestPerDriver(gapClosings, MAX_GAP_CLOSING_PER_DRIVER);
-  pushLatestPerDriver(drsRangeEntries, MAX_DRS_RANGE_PER_DRIVER);
+  pushLatestPerDriver(overrideRangeEntries, MAX_OVERRIDE_RANGE_PER_DRIVER);
 
   // 컴파운드 전략 갈림. 피트 후 새 스틴트를 시작한 드라이버가 같은 랩 기준으로
   // 필드 과반과 다른 컴파운드를 골랐을 때만 발행한다.
