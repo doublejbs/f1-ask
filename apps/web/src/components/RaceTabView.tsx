@@ -187,6 +187,7 @@ export const RaceTabView = ({
         dictionary={dictionary}
         drivers={snapshot.drivers}
         battles={battles}
+        fieldBestSectors={fieldBestSectors}
         radiosByDriver={radiosByDriver}
         radioReferenceMs={raceClockMs}
         playingRadioUrl={playingUrl}

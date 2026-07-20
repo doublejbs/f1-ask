@@ -128,6 +128,17 @@ body {
     padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
   }
 
+  /* 가로 스크롤 막대를 숨긴다. 순위 목록처럼 컨테이너가 아주 긴(1600px+) 경우
+     막대가 목록 맨 아래에만 그려져 어포던스 구실을 못 하면서 높이만 먹는다.
+     스크롤 가능하다는 신호는 얼린 열 경계의 페이드와 우측에 잘려 보이는 열이 맡는다. */
+  .scrollbar-hidden {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
   .scroll-slim {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;

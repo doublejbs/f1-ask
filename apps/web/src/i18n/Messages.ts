@@ -25,6 +25,19 @@ export type Dictionary = {
     inPit: string;
     retired: string;
     lapsUnit: string;
+    // 순위 목록의 가로 스크롤 영역 접근성 라벨.
+    extraColumns: string;
+    // 데이터 열 헤더 라벨. 열 폭이 좁아 driverSheet 의 긴 표기 대신 축약형을 쓴다
+    // (스크린리더에는 sr-only 로 driverSheet 의 긴 표기를 함께 싣는다).
+    columns: {
+      gap: string;
+      lastLap: string;
+      topSpeed: string;
+      pitStops: string;
+      // 섹터 열의 스크린리더 라벨. 화면 라벨은 F1 관례대로 "S1/S2/S3" 를 그대로 쓴다.
+      // {n} 은 섹터 번호(1~3).
+      sector: string;
+    };
   };
   weather: {
     rain: string;
@@ -167,6 +180,14 @@ const en: Dictionary = {
     inPit: "IN PIT",
     retired: "OUT",
     lapsUnit: "L",
+    extraColumns: "Standings with extra timing columns. Scroll horizontally for more.",
+    columns: {
+      gap: "Gap",
+      lastLap: "Last lap",
+      topSpeed: "Speed",
+      pitStops: "Pit",
+      sector: "Sector {n}",
+    },
   },
   weather: {
     rain: "Rain",
@@ -327,6 +348,14 @@ const ko: Dictionary = {
     inPit: "피트인",
     retired: "리타이어",
     lapsUnit: "랩",
+    extraColumns: "추가 기록 열이 있는 순위표입니다. 가로로 스크롤하면 더 볼 수 있습니다.",
+    columns: {
+      gap: "갭",
+      lastLap: "최근 랩",
+      topSpeed: "최고속",
+      pitStops: "피트",
+      sector: "섹터 {n}",
+    },
   },
   weather: {
     rain: "강수",
@@ -487,6 +516,14 @@ const ja: Dictionary = {
     inPit: "ピットイン",
     retired: "リタイア",
     lapsUnit: "周",
+    extraColumns: "追加データ列付きの順位表です。横にスクロールすると続きが見られます。",
+    columns: {
+      gap: "差",
+      lastLap: "最終LAP",
+      topSpeed: "最高速",
+      pitStops: "PIT",
+      sector: "セクター{n}",
+    },
   },
   weather: {
     rain: "降水",
