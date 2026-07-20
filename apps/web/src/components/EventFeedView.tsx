@@ -1,5 +1,6 @@
 "use client";
 
+import { EventCommentaryLineView } from "@/components/EventCommentaryLineView";
 import { EventFeedFilterView } from "@/components/EventFeedFilterView";
 import { SectionView } from "@/components/ui/SectionView";
 import { useEventFeedState } from "@/hooks/UseEventFeedState";
@@ -7,7 +8,13 @@ import { Dictionary } from "@/i18n/Messages";
 import { translateRaceEvent } from "@/i18n/TranslateRaceEvent";
 import { EventFeedFilterMode } from "@/lib/EventFeedFilterMode";
 import { cn } from "@/lib/Utils";
-import { RaceEvent, RaceEventPriority, SupportedLocale } from "@f1/domain";
+import {
+  AiCommentary,
+  attachCommentary,
+  RaceEvent,
+  RaceEventPriority,
+  SupportedLocale,
+} from "@f1/domain";
 
 type Props = {
   dictionary: Dictionary;
@@ -16,6 +23,8 @@ type Props = {
   primaryEvents: RaceEvent[];
   // 우선순위 무관 전체 이벤트. "전체 보기" 모드에서 그린다.
   allEvents: RaceEvent[];
+  // 이벤트에 sourceEventId 로 결합되는 AI 해설. 없으면 윗줄만 그린다.
+  commentary: AiCommentary[];
   onSelectEvent?: (event: RaceEvent) => void;
 };
 
@@ -24,6 +33,9 @@ const MAX_EVENTS = 12;
 // 행 내부 레이아웃. 탭 가능 여부에 따라 button / div 로 감싸므로 클래스를 공유한다.
 const ROW_CLASS =
   "flex w-full min-h-[44px] items-center gap-2.5 py-3 pl-3 pr-1 text-left text-[15px] leading-snug";
+
+// 해설 줄이 붙는 행은 아래 패딩을 해설 블록이 대신 갖는다.
+const ROW_WITH_COMMENTARY_CLASS = "pb-1";
 
 // 우선순위 점 색. Tailwind 퍼지 때문에 리터럴 클래스만 사용한다.
 const getPriorityDotColor = (priority: RaceEventPriority): string => {
@@ -68,10 +80,13 @@ export const EventFeedView = ({
   locale,
   primaryEvents,
   allEvents,
+  commentary,
   onSelectEvent,
 }: Props) => {
   const { mode, visibleEvents, hiddenCount, handleChangeMode } =
     useEventFeedState(primaryEvents, allEvents, MAX_EVENTS);
+  // 해설은 별도 목록이 아니라 이벤트의 한 겹이다 (docs/13-race-console.md 원칙 1).
+  const rows = attachCommentary(visibleEvents, commentary);
   const showsHiddenNote =
     mode === EventFeedFilterMode.Primary && hiddenCount > 0;
 
@@ -92,11 +107,11 @@ export const EventFeedView = ({
         </p>
       ) : (
         <ul className="flex flex-col">
-          {visibleEvents.map((event, index) => {
+          {rows.map(({ event, commentary: eventCommentary }, index) => {
             const code = getEventDriverCode(event);
             const tappable = onSelectEvent !== undefined && code !== null;
             const critical = event.priority === RaceEventPriority.Critical;
-            const divided = index < visibleEvents.length - 1;
+            const divided = index < rows.length - 1;
             const priorityLabel = dictionary.eventPriority[event.priority];
             const handleSelect = () => onSelectEvent?.(event);
             // 탭 가능한 항목만 네이티브 button 으로 감싼다. 클릭해도 아무 일도 없는
@@ -139,14 +154,30 @@ export const EventFeedView = ({
                     onClick={handleSelect}
                     className={cn(
                       ROW_CLASS,
+                      eventCommentary !== null && ROW_WITH_COMMENTARY_CLASS,
                       "press cursor-pointer outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
                     )}
                   >
                     {content}
                   </button>
                 ) : (
-                  <div className={ROW_CLASS}>{content}</div>
+                  <div
+                    className={cn(
+                      ROW_CLASS,
+                      eventCommentary !== null && ROW_WITH_COMMENTARY_CLASS,
+                    )}
+                  >
+                    {content}
+                  </div>
                 )}
+
+                {/* 해설은 있을 때만. 없으면 이벤트 문장만 남는다(LLM 실패 내성). */}
+                {eventCommentary !== null ? (
+                  <EventCommentaryLineView
+                    dictionary={dictionary}
+                    commentary={eventCommentary}
+                  />
+                ) : null}
               </li>
             );
           })}

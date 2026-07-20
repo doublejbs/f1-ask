@@ -41,7 +41,7 @@ export const POST = async (request: Request): Promise<NextResponse> => {
         snapshot,
       });
 
-      return toAiCommentary(event, generated.text);
+      return toAiCommentary(event, generated.text, generated.isMock === true);
     }),
   );
 

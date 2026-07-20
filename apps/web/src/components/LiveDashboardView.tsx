@@ -103,6 +103,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
             summary={summary}
             primaryEvents={race.primaryEvents}
             allEvents={race.allEvents}
+            commentary={commentary}
             onSelectEvent={handleAskEvent}
           />
         </div>
@@ -114,7 +115,6 @@ export const LiveDashboardView = ({ locale }: Props) => {
             explanationLevel={explanationLevel}
             snapshot={race.snapshot}
             events={race.allEvents}
-            commentary={commentary}
             favoriteDriverNumbers={Array.from(favorites)}
             prefill={askPrefill}
           />

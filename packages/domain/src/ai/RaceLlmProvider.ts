@@ -48,6 +48,9 @@ export type LlmCommentaryRequest = {
 export type LlmCommentary = {
   sourceEventId: string;
   text: string;
+  // 결정론적 Mock provider 가 만든 간이 해설이면 true.
+  // FallbackLlmProvider 로 폴백된 경우에도 Mock 자신이 표시하므로 별도 처리가 필요 없다.
+  isMock?: boolean;
 };
 
 // 경기 종료 요약 서술 요청. 사실(RaceSummaryData)은 도메인이 계산한 값이다.

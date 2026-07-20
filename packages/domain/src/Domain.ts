@@ -165,8 +165,9 @@ export type {
 } from "./ai/ClaudeProvider";
 export { FallbackLlmProvider } from "./ai/FallbackLlmProvider";
 export type { LlmFailureHandler } from "./ai/FallbackLlmProvider";
-export type { AiCommentary } from "./ai/AiCommentary";
+export type { AiCommentary, CommentedRaceEvent } from "./ai/AiCommentary";
 export {
+  attachCommentary,
   isCommentaryEligible,
   selectCommentaryEvents,
   toAiCommentary,

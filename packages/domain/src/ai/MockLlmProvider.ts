@@ -129,6 +129,7 @@ export class MockLlmProvider implements RaceLlmProvider {
   generateCommentary(request: LlmCommentaryRequest): Promise<LlmCommentary> {
     return Promise.resolve({
       sourceEventId: request.event.id,
+      isMock: true,
       text: this.withLevelNote(
         this.commentaryText(request.event, request.locale),
         this.commentaryLevelNote(

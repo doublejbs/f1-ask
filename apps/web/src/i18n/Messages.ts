@@ -37,6 +37,9 @@ export type Dictionary = {
     filterAll: string;
     // {count} 를 숨겨진 이벤트 수로 치환한다.
     hiddenCount: string;
+    // 이벤트에 붙는 AI 해설 줄.
+    commentaryExpand: string;
+    commentaryCollapse: string;
   };
   teamRadio: {
     title: string;
@@ -61,10 +64,6 @@ export type Dictionary = {
     driverTapQuestion: string;
     confidence: Record<AiConfidence, string>;
   };
-  commentary: {
-    title: string;
-    empty: string;
-  };
   explanationLevel: {
     label: string;
     levels: Record<ExplanationLevel, string>;
@@ -86,6 +85,12 @@ export type Dictionary = {
     now: string;
     standings: string;
     ask: string;
+  };
+  eventSheet: {
+    // 논모달 이벤트 시트의 aria-label.
+    label: string;
+    // 그랩 핸들 버튼의 접근성 라벨(탭하면 다음 단계로 순환).
+    handle: string;
   };
   settings: {
     title: string;
@@ -153,6 +158,8 @@ const en: Dictionary = {
     filterPrimary: "Key",
     filterAll: "All",
     hiddenCount: "{count} more hidden",
+    commentaryExpand: "More",
+    commentaryCollapse: "Less",
   },
   teamRadio: {
     title: "Team Radio",
@@ -177,10 +184,6 @@ const en: Dictionary = {
       [AiConfidence.Medium]: "Medium",
       [AiConfidence.High]: "High",
     },
-  },
-  commentary: {
-    title: "AI Commentary",
-    empty: "AI commentary will appear as key moments happen.",
   },
   explanationLevel: {
     label: "Explanation",
@@ -207,6 +210,10 @@ const en: Dictionary = {
     now: "Now",
     standings: "Standings",
     ask: "AI",
+  },
+  eventSheet: {
+    label: "Recent events",
+    handle: "Resize the events sheet",
   },
   settings: {
     title: "Settings",
@@ -298,6 +305,8 @@ const ko: Dictionary = {
     filterPrimary: "주요",
     filterAll: "전체",
     hiddenCount: "그 외 {count}건",
+    commentaryExpand: "더 보기",
+    commentaryCollapse: "접기",
   },
   teamRadio: {
     title: "팀 라디오",
@@ -322,10 +331,6 @@ const ko: Dictionary = {
       [AiConfidence.Medium]: "보통",
       [AiConfidence.High]: "높음",
     },
-  },
-  commentary: {
-    title: "AI 해설",
-    empty: "주요 순간이 발생하면 AI 해설이 표시됩니다.",
   },
   explanationLevel: {
     label: "설명 수준",
@@ -352,6 +357,10 @@ const ko: Dictionary = {
     now: "지금",
     standings: "순위",
     ask: "AI",
+  },
+  eventSheet: {
+    label: "최근 이벤트",
+    handle: "이벤트 시트 크기 조절",
   },
   settings: {
     title: "설정",
@@ -443,6 +452,8 @@ const ja: Dictionary = {
     filterPrimary: "主要",
     filterAll: "すべて",
     hiddenCount: "他 {count}件",
+    commentaryExpand: "もっと見る",
+    commentaryCollapse: "閉じる",
   },
   teamRadio: {
     title: "チームラジオ",
@@ -467,10 +478,6 @@ const ja: Dictionary = {
       [AiConfidence.Medium]: "中",
       [AiConfidence.High]: "高",
     },
-  },
-  commentary: {
-    title: "AI解説",
-    empty: "重要な場面が起きるとAI解説が表示されます。",
   },
   explanationLevel: {
     label: "解説レベル",
@@ -497,6 +504,10 @@ const ja: Dictionary = {
     now: "現在",
     standings: "順位",
     ask: "AI",
+  },
+  eventSheet: {
+    label: "最近のイベント",
+    handle: "イベントシートのサイズ変更",
   },
   settings: {
     title: "設定",

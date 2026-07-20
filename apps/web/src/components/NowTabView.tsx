@@ -5,7 +5,12 @@ import { EventFeedView } from "@/components/EventFeedView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { WeatherChipView } from "@/components/WeatherChipView";
 import { Dictionary } from "@/i18n/Messages";
-import { LiveRaceSnapshot, RaceEvent, SupportedLocale } from "@f1/domain";
+import {
+  AiCommentary,
+  LiveRaceSnapshot,
+  RaceEvent,
+  SupportedLocale,
+} from "@f1/domain";
 import { RaceSummaryResponse } from "@f1/schemas";
 
 type Props = {
@@ -15,6 +20,7 @@ type Props = {
   summary: RaceSummaryResponse | null;
   primaryEvents: RaceEvent[];
   allEvents: RaceEvent[];
+  commentary: AiCommentary[];
   onSelectEvent: (event: RaceEvent) => void;
 };
 
@@ -28,6 +34,7 @@ export const NowTabView = ({
   summary,
   primaryEvents,
   allEvents,
+  commentary,
   onSelectEvent,
 }: Props) => (
   <div className="flex flex-col gap-6">
@@ -51,6 +58,7 @@ export const NowTabView = ({
       locale={locale}
       primaryEvents={primaryEvents}
       allEvents={allEvents}
+      commentary={commentary}
       onSelectEvent={onSelectEvent}
     />
 

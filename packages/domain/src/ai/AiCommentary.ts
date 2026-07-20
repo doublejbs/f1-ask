@@ -11,6 +11,9 @@ export type AiCommentary = {
   priority: RaceEventPriority;
   text: string;
   timestamp: string;
+  // 결정론적 Mock provider 가 만든 간이 해설인지 여부.
+  // 실제 LLM 해설과 폴백 해설을 화면에서 구분하기 위한 정직성 신호다.
+  isMock: boolean;
 };
 
 // 자동 해설 대상 여부. 모든 이벤트가 아니라 중요 이벤트(high/critical)만 해설한다.
@@ -27,11 +30,43 @@ export const selectCommentaryEvents = (
 ): RaceEvent[] => events.filter(isCommentaryEligible).slice(-limit);
 
 // 이벤트 + 생성된 텍스트 → 해설 아이템. id 는 원본 이벤트 기준으로 결정론적.
-export const toAiCommentary = (event: RaceEvent, text: string): AiCommentary => ({
+export const toAiCommentary = (
+  event: RaceEvent,
+  text: string,
+  isMock: boolean = false,
+): AiCommentary => ({
   id: `commentary:${event.id}`,
   sourceEventId: event.id,
   sourceEventType: event.type,
   priority: event.priority,
   text,
   timestamp: event.timestamp,
+  isMock,
 });
+
+// 이벤트 + (있으면) 그 이벤트의 해설. 해설은 이벤트에 1:1 종속된 파생 데이터이므로
+// 별도 목록이 아니라 이벤트 항목의 한 겹으로 다룬다 (docs/13-race-console.md 원칙 1).
+export type CommentedRaceEvent = {
+  event: RaceEvent;
+  commentary: AiCommentary | null;
+};
+
+// 이벤트 목록에 해설을 sourceEventId 기준으로 결합한다.
+// - 해설이 없는 이벤트도 그대로 포함한다(해설은 optional 한 겹).
+// - 대응하는 이벤트가 없는 해설은 버린다.
+// Map 인덱스를 써 O(n + m) 으로 처리한다.
+export const attachCommentary = (
+  events: readonly RaceEvent[],
+  commentary: readonly AiCommentary[],
+): CommentedRaceEvent[] => {
+  const commentaryByEventId = new Map<string, AiCommentary>();
+
+  for (const item of commentary) {
+    commentaryByEventId.set(item.sourceEventId, item);
+  }
+
+  return events.map((event) => ({
+    event,
+    commentary: commentaryByEventId.get(event.id) ?? null,
+  }));
+};
