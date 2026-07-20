@@ -68,7 +68,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
 
     return Array.from(favorites)
       .map((driverNumber) =>
-        selectFavoriteDriverDetail(race.snapshot, race.events, driverNumber),
+        selectFavoriteDriverDetail(race.snapshot, race.allEvents, driverNumber),
       )
       .filter((detail): detail is FavoriteDriverDetail => detail !== null)
       .sort(
@@ -115,7 +115,8 @@ export const LiveDashboardView = ({ locale }: Props) => {
         locale={locale}
         explanationLevel={explanationLevel}
         snapshot={race.snapshot}
-        events={race.events}
+        // AI 컨텍스트는 우선순위로 거르지 않고 전부 받는다 (docs/10-race-events.md).
+        events={race.allEvents}
         favoriteDriverNumbers={Array.from(favorites)}
         prefill={askPrefill}
       />
@@ -147,7 +148,8 @@ export const LiveDashboardView = ({ locale }: Props) => {
           <EventFeedView
             dictionary={dictionary}
             locale={locale}
-            events={race.events}
+            primaryEvents={race.primaryEvents}
+            allEvents={race.allEvents}
             onSelectEvent={askAboutEvent}
           />
         </div>

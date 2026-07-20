@@ -40,7 +40,11 @@ export const useRaceCommentary = (
       return;
     }
 
-    const eligible = selectCommentaryEvents(race.events, DEFAULT_COMMENTARY_LIMIT);
+    // AI 컨텍스트는 우선순위로 거르지 않은 전체 배열을 받는다 (docs/10-race-events.md).
+    const eligible = selectCommentaryEvents(
+      race.allEvents,
+      DEFAULT_COMMENTARY_LIMIT,
+    );
     const fresh = eligible.filter(
       (event) => !requestedRef.current.has(event.id),
     );

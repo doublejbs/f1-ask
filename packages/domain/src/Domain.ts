@@ -4,6 +4,10 @@ export { SessionStatus } from "./SessionStatus";
 export { TireCompound } from "./TireCompound";
 export { RaceEventType } from "./RaceEventType";
 export { RaceEventPriority } from "./RaceEventPriority";
+export {
+  PRIMARY_EVENT_PRIORITIES,
+  isPrimaryRaceEvent,
+} from "./PrimaryEventPriorities";
 // 이벤트 params 에 담기는 값 키 (UI 가 로케일별로 번역한다).
 export { RetirementReason } from "./RetirementReason";
 export { TrackHazardKind } from "./TrackHazardKind";
@@ -171,6 +175,7 @@ export {
 export type {
   LiveRaceReadRepository,
   Unsubscribe,
+  EventQueryPlan,
 } from "./firestore/LiveRaceRepository";
 export {
   firestorePaths,
@@ -178,4 +183,6 @@ export {
   toLiveSnapshotDoc,
   toSessionDoc,
   eventDocId,
+  buildEventQueryPlan,
+  FIRESTORE_IN_MAX_VALUES,
 } from "./firestore/LiveRaceRepository";

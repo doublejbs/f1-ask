@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildEventQueryPlan,
   eventDocId,
+  FIRESTORE_IN_MAX_VALUES,
   firestorePaths,
   toLiveSnapshotDoc,
   toSessionDoc,
 } from "../src/firestore/LiveRaceRepository";
 import { MockRaceEngine } from "../src/mock/MockRaceEngine";
 import { DEFAULT_MOCK_SCENARIO } from "../src/mock/MockScenario";
+import {
+  isPrimaryRaceEvent,
+  PRIMARY_EVENT_PRIORITIES,
+} from "../src/PrimaryEventPriorities";
+import { RaceEvent } from "../src/RaceEvent";
+import { RaceEventPriority } from "../src/RaceEventPriority";
 
 const frame = new MockRaceEngine(
   DEFAULT_MOCK_SCENARIO,
@@ -42,5 +50,67 @@ describe("Firestore document mappers", () => {
 
     expect(event).toBeDefined();
     expect(eventDocId(event!)).toBe(event!.deduplicationKey);
+  });
+});
+
+describe("buildEventQueryPlan", () => {
+  it("priorities 를 생략하면 우선순위 필터 없이 최신순으로 조회한다", () => {
+    const plan = buildEventQueryPlan("s1", 60);
+
+    expect(plan.collectionPath).toBe("sessions/s1/events");
+    expect(plan.priorities).toBeNull();
+    expect(plan.orderByField).toBe("timestamp");
+    expect(plan.isDescending).toBe(true);
+    expect(plan.limit).toBe(60);
+  });
+
+  it("priorities 를 주면 쿼리에 우선순위 필터가 반영된다", () => {
+    const plan = buildEventQueryPlan("s1", 20, PRIMARY_EVENT_PRIORITIES);
+
+    expect(plan.priorities).toEqual([
+      RaceEventPriority.Critical,
+      RaceEventPriority.High,
+    ]);
+    // 필터를 걸어도 정렬·한도는 그대로 유지된다.
+    expect(plan.orderByField).toBe("timestamp");
+    expect(plan.isDescending).toBe(true);
+    expect(plan.limit).toBe(20);
+  });
+
+  it("주요 우선순위는 Firestore in 연산자 한도 안에 들어간다", () => {
+    expect(PRIMARY_EVENT_PRIORITIES.length).toBeLessThanOrEqual(
+      FIRESTORE_IN_MAX_VALUES,
+    );
+  });
+
+  it("빈 priorities 는 in 쿼리를 만들 수 없으므로 거부한다", () => {
+    expect(() => buildEventQueryPlan("s1", 20, [])).toThrow();
+  });
+
+  it("in 연산자 한도를 넘는 priorities 는 거부한다", () => {
+    const tooMany = Array.from(
+      { length: FIRESTORE_IN_MAX_VALUES + 1 },
+      () => RaceEventPriority.Low,
+    );
+
+    expect(() => buildEventQueryPlan("s1", 20, tooMany)).toThrow();
+  });
+});
+
+describe("isPrimaryRaceEvent", () => {
+  it("Critical / High 만 주요 이벤트로 본다", () => {
+    const event = frame.events[0];
+
+    expect(event).toBeDefined();
+
+    const makeWithPriority = (priority: RaceEventPriority): RaceEvent => ({
+      ...event!,
+      priority,
+    });
+
+    expect(isPrimaryRaceEvent(makeWithPriority(RaceEventPriority.Critical))).toBe(true);
+    expect(isPrimaryRaceEvent(makeWithPriority(RaceEventPriority.High))).toBe(true);
+    expect(isPrimaryRaceEvent(makeWithPriority(RaceEventPriority.Medium))).toBe(false);
+    expect(isPrimaryRaceEvent(makeWithPriority(RaceEventPriority.Low))).toBe(false);
   });
 });

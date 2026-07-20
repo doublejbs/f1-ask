@@ -13,7 +13,10 @@ import { RaceEvent, RaceEventPriority, SupportedLocale } from "@f1/domain";
 type Props = {
   dictionary: Dictionary;
   locale: SupportedLocale;
-  events: RaceEvent[];
+  // 주요(Critical + High) 이벤트. 기본 모드에서 그린다.
+  primaryEvents: RaceEvent[];
+  // 우선순위 무관 전체 이벤트. "전체 보기" 모드에서 그린다.
+  allEvents: RaceEvent[];
   onSelectEvent?: (event: RaceEvent) => void;
 };
 
@@ -64,11 +67,12 @@ const getEventDriverCode = (event: RaceEvent): string | null => {
 export const EventFeedView = ({
   dictionary,
   locale,
-  events,
+  primaryEvents,
+  allEvents,
   onSelectEvent,
 }: Props) => {
   const { mode, visibleEvents, hiddenCount, handleChangeMode } =
-    useEventFeedState(events, MAX_EVENTS);
+    useEventFeedState(primaryEvents, allEvents, MAX_EVENTS);
   const showsHiddenNote =
     mode === EventFeedFilterMode.Primary && hiddenCount > 0;
 
