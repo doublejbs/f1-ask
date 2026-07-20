@@ -64,6 +64,12 @@ const FROZEN_COLUMN_CLASS = "w-[min(calc(100cqw-9.5rem),13rem)]";
 // bg-background 로 통일돼 있어 이음매가 보이지 않는다.
 const FROZEN_SURFACE_CLASS = "sticky z-10 shrink-0 bg-background";
 
+// 얼린 열의 불투명 배경(bg-background)이 행의 반투명 호버 레이어를 가린다. 같은
+// 레이어를 얼린 열 안쪽에서 한 번 더 깔아 호버 강조가 행 전체에 이어지게 한다.
+// hoverOnlyWhenSupported 로 포인터가 있는 환경(데스크톱)에서만 적용된다 —
+// 모바일에서는 아무 배경도 생기지 않는다.
+const FROZEN_HOVER_CLASS = "group-hover:bg-white/[0.03]";
+
 // 방향키 한 번에 밀리는 폭. 가장 넓은 데이터 열(갭·최근 랩)과 맞춰 한 번 누르면
 // 한 열이 넘어가게 한다.
 const COLUMN_SCROLL_STEP_PX = 76;
@@ -257,14 +263,6 @@ const DriverRow = ({
     latestRadio !== null &&
     isRecentTeamRadio(latestRadio.timestamp, radioReferenceMs);
 
-  // 얼린 열은 불투명 배경(bg-background)이 스크롤 콘텐츠를 가려야 하므로 행의
-  // 반투명 배틀 틴트·호버가 묻힌다. 같은 반투명 레이어를 얼린 열 안에서 다시 깔아
-  // 행 배경과 시각적으로 이어 붙인다.
-  const tintClass = cn(
-    inBattle && (overrideRange ? "bg-amber-400/[0.06]" : "bg-amber-400/[0.03]"),
-    "group-hover:bg-white/[0.03]",
-  );
-
   const handleSelect = () => {
     onSelectDriver(driver);
   };
@@ -304,11 +302,13 @@ const DriverRow = ({
         // 56.5~63px 로 들쭉날쭉했다. 고정 높이면 내용이 바뀌어도 행이 흔들리지 않는다.
         // 가장 높은 내용(배틀 우측 컬럼 45px)도 56px 안에 여유롭게 들어간다.
         // w-max: 행 폭은 열 폭 상수의 합이다. 모든 행이 같은 폭이라 열이 정렬된다.
+        // 배틀 행에는 배경 틴트를 깔지 않는다. 검정 배경 위 3~6% 앰버는 회색빛
+        // 하이라이트로 보여 "선택/호버된 행"과 구분되지 않았고, 연쇄 배틀이면
+        // 여러 행이 한 덩어리로 선택된 것처럼 읽혔다. 배틀은 좌측 앰버 액센트 바 ·
+        // 앞차 간격 수치 · OT 칩 · sr-only 설명만으로 표시한다.
         "press group relative flex h-14 w-max cursor-pointer items-stretch outline-none transition-colors hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
         divided && "hairline",
         driver.retired && "opacity-45",
-        // 배틀 쌍은 아주 옅은 앰버 틴트로 하나의 덩어리처럼 읽히게 한다.
-        inBattle && (overrideRange ? "bg-amber-400/[0.06]" : "bg-amber-400/[0.03]"),
       )}
     >
       {/* ── 고정 식별 열 ── 별·등락·순위·팀 액센트·코드·팀명. 스크롤해도 남는다. */}
@@ -317,7 +317,10 @@ const DriverRow = ({
           // gap-2 → gap-1. 고정 열이 좁아진 만큼 컬럼 사이 여백에서도 6px(3군데)을
           // 회수한다. 별·등락·액센트 바는 모두 폭이 작은 글리프라 4px 이면 서로 붙어
           // 보이지 않는다.
-          className={cn("relative flex h-full items-center gap-1 pl-1", tintClass)}
+          className={cn(
+            "relative flex h-full items-center gap-1 pl-1",
+            FROZEN_HOVER_CLASS,
+          )}
         >
           {/* 배틀 액센트 바는 행 좌측 가장자리에 붙는다. 고정 열 안에 두어야
               가로로 밀어도 제자리에 남는다. */}
@@ -603,7 +606,7 @@ const DriverRow = ({
         <div
           className={cn(
             "flex h-full items-center justify-center pr-1",
-            tintClass,
+            FROZEN_HOVER_CLASS,
           )}
         >
           <ChevronRight
