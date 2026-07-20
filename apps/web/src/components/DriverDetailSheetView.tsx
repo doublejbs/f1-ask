@@ -79,6 +79,11 @@ type ContentProps = {
   allEvents: RaceEvent[];
   commentary: AiCommentary[];
   onToggleRadio: (url: string) => void;
+};
+
+type FooterProps = {
+  dictionary: Dictionary;
+  driver: LiveDriverState;
   onAskAi: (driver: LiveDriverState) => void;
 };
 
@@ -320,13 +325,8 @@ const DriverDetailContent = ({
   allEvents,
   commentary,
   onToggleRadio,
-  onAskAi,
 }: ContentProps) => {
   const accent = teamColorHex(driver.teamColour) ?? "hsl(var(--border))";
-
-  const handleAskAi = () => {
-    onAskAi(driver);
-  };
 
   return (
     <>
@@ -454,11 +454,20 @@ const DriverDetailContent = ({
         allEvents={allEvents}
         commentary={commentary}
       />
-
-      <Button type="button" onClick={handleAskAi} className="mt-5 w-full">
-        {dictionary.driverSheet.ask.replace("{code}", driver.code)}
-      </Button>
     </>
+  );
+};
+
+// "AI에게 질문" — 시트의 주요 행동이라 스크롤 본문이 아니라 셸의 하단 고정 영역에 둔다.
+const DriverAskAiFooter = ({ dictionary, driver, onAskAi }: FooterProps) => {
+  const handleAskAi = () => {
+    onAskAi(driver);
+  };
+
+  return (
+    <Button type="button" onClick={handleAskAi} className="w-full">
+      {dictionary.driverSheet.ask.replace("{code}", driver.code)}
+    </Button>
   );
 };
 
@@ -482,6 +491,15 @@ export const DriverDetailSheetView = ({
     onClose={onClose}
     titleId="driver-sheet-title"
     closeLabel={dictionary.driverSheet.close}
+    footer={
+      driver !== null ? (
+        <DriverAskAiFooter
+          dictionary={dictionary}
+          driver={driver}
+          onAskAi={onAskAi}
+        />
+      ) : undefined
+    }
   >
     {driver !== null ? (
       <DriverDetailContent
@@ -494,7 +512,6 @@ export const DriverDetailSheetView = ({
         allEvents={allEvents}
         commentary={commentary}
         onToggleRadio={onToggleRadio}
-        onAskAi={onAskAi}
       />
     ) : null}
   </BottomSheetView>
