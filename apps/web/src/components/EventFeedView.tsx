@@ -1,8 +1,10 @@
 "use client";
 
+import { DriverFilterChipView } from "@/components/DriverFilterChipView";
 import { EventFeedFilterView } from "@/components/EventFeedFilterView";
 import { EventFeedListView } from "@/components/EventFeedListView";
 import { SectionView } from "@/components/ui/SectionView";
+import { DriverEventFilterTarget } from "@/hooks/UseDriverEventFilter";
 import { MAX_FEED_EVENTS, useEventFeedState } from "@/hooks/UseEventFeedState";
 import { Dictionary } from "@/i18n/Messages";
 import { AiCommentary, RaceEvent, SupportedLocale } from "@f1/domain";
@@ -16,6 +18,9 @@ type Props = {
   allEvents: RaceEvent[];
   // 이벤트에 sourceEventId 로 결합되는 AI 해설. 없으면 윗줄만 그린다.
   commentary: AiCommentary[];
+  // 적용 중인 드라이버 필터. 우선순위 모드와 AND 로 걸린다.
+  driverFilter: DriverEventFilterTarget | null;
+  onClearDriverFilter: () => void;
   onSelectEvent?: (event: RaceEvent) => void;
 };
 
@@ -30,20 +35,35 @@ export const EventFeedView = ({
   primaryEvents,
   allEvents,
   commentary,
+  driverFilter,
+  onClearDriverFilter,
   onSelectEvent,
 }: Props) => {
   const { mode, visibleEvents, hiddenCount, handleChangeMode } =
-    useEventFeedState(primaryEvents, allEvents, MAX_FEED_EVENTS);
+    useEventFeedState(
+      primaryEvents,
+      allEvents,
+      MAX_FEED_EVENTS,
+      driverFilter,
+    );
 
   return (
     <SectionView
       title={dictionary.events.title}
       action={
-        <EventFeedFilterView
-          dictionary={dictionary}
-          mode={mode}
-          onChangeMode={handleChangeMode}
-        />
+        <div className="flex items-center gap-2">
+          <DriverFilterChipView
+            dictionary={dictionary}
+            driverFilter={driverFilter}
+            onClear={onClearDriverFilter}
+          />
+
+          <EventFeedFilterView
+            dictionary={dictionary}
+            mode={mode}
+            onChangeMode={handleChangeMode}
+          />
+        </div>
       }
     >
       <EventFeedListView
@@ -52,6 +72,9 @@ export const EventFeedView = ({
         visibleEvents={visibleEvents}
         commentary={commentary}
         hiddenCount={hiddenCount}
+        emptyLabel={
+          driverFilter === null ? undefined : dictionary.events.emptyForDriver
+        }
         onSelectEvent={onSelectEvent}
       />
     </SectionView>

@@ -6,6 +6,7 @@ import { DriverListView } from "@/components/DriverListView";
 import { EventSheetView } from "@/components/EventSheetView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { WeatherChipView } from "@/components/WeatherChipView";
+import { DriverEventFilterTarget } from "@/hooks/UseDriverEventFilter";
 import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
 import { Dictionary } from "@/i18n/Messages";
 import { computeFieldBestSectors } from "@/lib/Format";
@@ -32,6 +33,11 @@ type Props = {
   primaryEvents: RaceEvent[];
   allEvents: RaceEvent[];
   commentary: AiCommentary[];
+  // 적용 중인 드라이버 이벤트 필터. 상태는 LiveDashboardView 가 소유한다
+  // (데스크톱 EventFeedView 도 같은 필터를 써야 하기 때문).
+  driverFilter: DriverEventFilterTarget | null;
+  onFilterEventsByDriver: (driver: LiveDriverState) => void;
+  onClearDriverFilter: () => void;
   isFavorite: (driverNumber: number) => boolean;
   onToggleFavorite: (driverNumber: number) => void;
   // 탭투애스크: AI 탭으로 전환하며 이 드라이버에 대한 질문을 제출한다.
@@ -57,6 +63,9 @@ export const RaceTabView = ({
   primaryEvents,
   allEvents,
   commentary,
+  driverFilter,
+  onFilterEventsByDriver,
+  onClearDriverFilter,
   isFavorite,
   onToggleFavorite,
   onSelectDriver,
@@ -115,6 +124,12 @@ export const RaceTabView = ({
     onSelectDriver(driver);
   };
 
+  // 시트의 "이 드라이버 이벤트만 보기": 시트를 닫고 이벤트 피드를 좁힌다.
+  const handleFilterEvents = (driver: LiveDriverState) => {
+    setSelectedDriver(null);
+    onFilterEventsByDriver(driver);
+  };
+
   const isFinished = snapshot.status === SessionStatus.Finished;
 
   return (
@@ -167,6 +182,7 @@ export const RaceTabView = ({
         onToggleRadio={togglePlay}
         onClose={handleCloseSheet}
         onAskAi={handleAskAi}
+        onFilterEvents={handleFilterEvents}
       />
 
       {/* 이벤트 + 해설. 모바일 전용 논모달 시트. */}
@@ -176,6 +192,8 @@ export const RaceTabView = ({
         primaryEvents={primaryEvents}
         allEvents={allEvents}
         commentary={commentary}
+        driverFilter={driverFilter}
+        onClearDriverFilter={onClearDriverFilter}
         onSelectEvent={onSelectEvent}
       />
     </div>

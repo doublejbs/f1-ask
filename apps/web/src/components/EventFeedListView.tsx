@@ -21,6 +21,8 @@ type Props = {
   commentary: AiCommentary[];
   // "전체 보기"로 전환하면 새로 보이게 될 건수. 0 이면 안내를 그리지 않는다.
   hiddenCount: number;
+  // 목록이 비었을 때 문구. 드라이버 필터가 걸린 경우 그에 맞는 문구를 넘긴다.
+  emptyLabel?: string;
   onSelectEvent?: (event: RaceEvent) => void;
 };
 
@@ -76,6 +78,7 @@ export const EventFeedListView = ({
   visibleEvents,
   commentary,
   hiddenCount,
+  emptyLabel,
   onSelectEvent,
 }: Props) => {
   // 해설은 별도 목록이 아니라 이벤트의 한 겹이다 (docs/13-race-console.md 원칙 1).
@@ -85,7 +88,7 @@ export const EventFeedListView = ({
     return (
       <>
         <p className="px-1 text-sm text-muted-foreground">
-          {dictionary.events.empty}
+          {emptyLabel ?? dictionary.events.empty}
         </p>
 
         {hiddenCount > 0 ? (

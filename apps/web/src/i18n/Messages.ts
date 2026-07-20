@@ -40,6 +40,10 @@ export type Dictionary = {
     // 이벤트에 붙는 AI 해설 줄.
     commentaryExpand: string;
     commentaryCollapse: string;
+    // 드라이버 필터가 걸렸는데 해당 이벤트가 없을 때.
+    emptyForDriver: string;
+    // 필터 칩의 해제 버튼 접근성 라벨. {code} 를 드라이버 코드로 치환한다.
+    driverFilterClear: string;
   };
   teamRadio: {
     title: string;
@@ -107,6 +111,8 @@ export type Dictionary = {
     // {code} 를 드라이버 코드로 치환하는 시트 하단 AI 질문 버튼 라벨.
     ask: string;
     close: string;
+    // {code} 의 이벤트만 보도록 이벤트 피드를 좁히는 액션.
+    filterEvents: string;
   };
   battles: {
     // 매뉴얼 오버라이드 사정권 소형 라벨. 칩 폭이 좁아 축약어를 쓴다.
@@ -159,6 +165,8 @@ const en: Dictionary = {
     hiddenCount: "{count} more hidden",
     commentaryExpand: "More",
     commentaryCollapse: "Less",
+    emptyForDriver: "No events for this driver yet",
+    driverFilterClear: "Clear {code} event filter",
   },
   teamRadio: {
     title: "Team Radio",
@@ -228,6 +236,7 @@ const en: Dictionary = {
     pitStops: "Pit Stops",
     ask: "Ask AI about {code}",
     close: "Close",
+    filterEvents: "Show only {code} events",
   },
   battles: {
     overtakeLabel: "OT",
@@ -305,6 +314,8 @@ const ko: Dictionary = {
     hiddenCount: "그 외 {count}건",
     commentaryExpand: "더 보기",
     commentaryCollapse: "접기",
+    emptyForDriver: "이 드라이버의 이벤트가 없습니다",
+    driverFilterClear: "{code} 이벤트 필터 해제",
   },
   teamRadio: {
     title: "팀 라디오",
@@ -374,6 +385,7 @@ const ko: Dictionary = {
     pitStops: "피트",
     ask: "{code}에 대해 AI에게 질문",
     close: "닫기",
+    filterEvents: "{code} 이벤트만 보기",
   },
   battles: {
     overtakeLabel: "OT",
@@ -451,6 +463,8 @@ const ja: Dictionary = {
     hiddenCount: "他 {count}件",
     commentaryExpand: "もっと見る",
     commentaryCollapse: "閉じる",
+    emptyForDriver: "このドライバーのイベントはありません",
+    driverFilterClear: "{code} イベントフィルターを解除",
   },
   teamRadio: {
     title: "チームラジオ",
@@ -520,6 +534,7 @@ const ja: Dictionary = {
     pitStops: "ピット回数",
     ask: "{code} についてAIに質問",
     close: "閉じる",
+    filterEvents: "{code} のイベントのみ表示",
   },
   battles: {
     overtakeLabel: "OT",

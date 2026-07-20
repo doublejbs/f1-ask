@@ -1,7 +1,8 @@
 "use client";
 
+import { DriverEventFilterTarget } from "@/hooks/UseDriverEventFilter";
 import { EventFeedFilterMode } from "@/lib/EventFeedFilterMode";
-import { isPrimaryRaceEvent, RaceEvent } from "@f1/domain";
+import { filterEventsByDriver, isPrimaryRaceEvent, RaceEvent } from "@f1/domain";
 import { useCallback, useMemo, useState } from "react";
 
 // 피드에 그리는 최대 이벤트 수. 데스크톱 피드와 모바일 이벤트 시트가 같은 창을 쓴다.
@@ -23,6 +24,8 @@ export const useEventFeedState = (
   primaryEvents: RaceEvent[],
   allEvents: RaceEvent[],
   maxEvents: number,
+  // 드라이버 필터. 우선순위 모드와 AND 로 걸린다. null 이면 필터 없음.
+  driverFilter: DriverEventFilterTarget | null = null,
 ): EventFeedState => {
   const [mode, setMode] = useState<EventFeedFilterMode>(
     EventFeedFilterMode.Primary,
@@ -33,9 +36,20 @@ export const useEventFeedState = (
   }, []);
 
   const { visibleEvents, hiddenCount } = useMemo(() => {
+    // 드라이버 필터는 maxEvents 창을 자르기 전에 건다. 뒤에 걸면 최근 12건 중
+    // 그 드라이버 것만 남아 사실상 빈 목록이 된다.
+    const applyDriverFilter = (events: RaceEvent[]): RaceEvent[] =>
+      driverFilter === null
+        ? events
+        : filterEventsByDriver(
+            events,
+            driverFilter.driverNumber,
+            driverFilter.code,
+          );
+
     // "전체 보기"로 바꿔도 결국 최근 maxEvents 건만 그린다. 그 창 안에서
     // 주요 이벤트가 아닌 항목 수가 곧 "전환하면 새로 보이게 될 건수"다.
-    const allWindow = allEvents.slice(-maxEvents);
+    const allWindow = applyDriverFilter(allEvents).slice(-maxEvents);
 
     if (mode === EventFeedFilterMode.All) {
       return {
@@ -45,11 +59,11 @@ export const useEventFeedState = (
     }
 
     return {
-      visibleEvents: primaryEvents.slice(-maxEvents).reverse(),
+      visibleEvents: applyDriverFilter(primaryEvents).slice(-maxEvents).reverse(),
       hiddenCount: allWindow.filter((event) => !isPrimaryRaceEvent(event))
         .length,
     };
-  }, [primaryEvents, allEvents, mode, maxEvents]);
+  }, [primaryEvents, allEvents, mode, maxEvents, driverFilter]);
 
   return { mode, visibleEvents, hiddenCount, handleChangeMode };
 };

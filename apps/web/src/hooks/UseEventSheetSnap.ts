@@ -39,6 +39,9 @@ export type EventSheetSnapController = {
   // 시트에 적용할 height. 드래그 중에는 px, 아니면 단계별 CSS 길이다.
   heightStyle: string;
   isDragging: boolean;
+  // 접힘이면 기본 단계로 올린다. 이미 기본·펼침이면 그대로 둔다.
+  // 드라이버 필터를 걸었는데 시트가 접혀 있어 결과가 안 보이는 상황을 막는다.
+  handleRaiseToDefault: () => void;
   handleToggleSnap: () => void;
   handlePointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
   handlePointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -133,6 +136,12 @@ export const useEventSheetSnap = (
       previous === EventSheetSnap.Collapsed ? EventSheetSnap.Default : previous,
     );
   }, [latestCriticalEventId]);
+
+  const handleRaiseToDefault = useCallback(() => {
+    setSnap((previous) =>
+      previous === EventSheetSnap.Collapsed ? EventSheetSnap.Default : previous,
+    );
+  }, []);
 
   const handleToggleSnap = useCallback(() => {
     // 드래그 직후 발생하는 click 은 무시한다(드래그로 이미 스냅이 정해졌다).
@@ -233,6 +242,7 @@ export const useEventSheetSnap = (
     sheetRef,
     heightStyle: getHeightStyle(),
     isDragging: dragHeightPx !== null,
+    handleRaiseToDefault,
     handleToggleSnap,
     handlePointerDown,
     handlePointerMove,

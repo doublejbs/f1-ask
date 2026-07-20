@@ -1,7 +1,9 @@
 "use client";
 
+import { DriverFilterChipView } from "@/components/DriverFilterChipView";
 import { EventFeedFilterView } from "@/components/EventFeedFilterView";
 import { EventFeedListView } from "@/components/EventFeedListView";
+import { DriverEventFilterTarget } from "@/hooks/UseDriverEventFilter";
 import { MAX_FEED_EVENTS, useEventFeedState } from "@/hooks/UseEventFeedState";
 import {
   TAB_BAR_INSET_PX,
@@ -27,6 +29,9 @@ type Props = {
   allEvents: RaceEvent[];
   // 이벤트에 sourceEventId 로 결합되는 AI 해설. 없으면 윗줄만 그린다.
   commentary: AiCommentary[];
+  // 적용 중인 드라이버 필터. 우선순위 모드와 AND 로 걸린다.
+  driverFilter: DriverEventFilterTarget | null;
+  onClearDriverFilter: () => void;
   onSelectEvent?: (event: RaceEvent) => void;
 };
 
@@ -61,10 +66,17 @@ export const EventSheetView = ({
   primaryEvents,
   allEvents,
   commentary,
+  driverFilter,
+  onClearDriverFilter,
   onSelectEvent,
 }: Props) => {
   const { mode, visibleEvents, hiddenCount, handleChangeMode } =
-    useEventFeedState(primaryEvents, allEvents, MAX_FEED_EVENTS);
+    useEventFeedState(
+      primaryEvents,
+      allEvents,
+      MAX_FEED_EVENTS,
+      driverFilter,
+    );
 
   const latestCriticalEventId = useMemo(
     () => findLatestCriticalEventId(allEvents),
@@ -105,11 +117,24 @@ export const EventSheetView = ({
     sheetRef,
     heightStyle,
     isDragging,
+    handleRaiseToDefault,
     handleToggleSnap,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
   } = useEventSheetSnap(latestCriticalEventId, firstRowHeightPx);
+
+  // 필터를 새로 걸었는데 시트가 접혀 있으면 결과가 보이지 않는다. 기본 단계로 올린다.
+  // 해제(null)에서는 사용자가 정한 단계를 건드리지 않는다.
+  const filteredDriverNumber = driverFilter?.driverNumber ?? null;
+
+  useEffect(() => {
+    if (filteredDriverNumber === null) {
+      return;
+    }
+
+    handleRaiseToDefault();
+  }, [filteredDriverNumber, handleRaiseToDefault]);
 
   return (
     <section
@@ -142,7 +167,13 @@ export const EventSheetView = ({
           <span className="h-1 w-10 rounded-full bg-white/25" aria-hidden />
         </button>
 
-        <div className="relative z-10">
+        <div className="relative z-10 flex items-center gap-2">
+          <DriverFilterChipView
+            dictionary={dictionary}
+            driverFilter={driverFilter}
+            onClear={onClearDriverFilter}
+          />
+
           <EventFeedFilterView
             dictionary={dictionary}
             mode={mode}
@@ -163,6 +194,9 @@ export const EventSheetView = ({
           visibleEvents={visibleEvents}
           commentary={commentary}
           hiddenCount={hiddenCount}
+          emptyLabel={
+            driverFilter === null ? undefined : dictionary.events.emptyForDriver
+          }
           onSelectEvent={onSelectEvent}
         />
       </div>

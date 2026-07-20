@@ -133,6 +133,11 @@ export {
   DEFAULT_FAVORITE_EVENT_LIMIT,
 } from "./FavoriteDriverDetail";
 
+export {
+  filterEventsByDriver,
+  matchesDriverEvent,
+} from "./DriverEventFilter";
+
 export type { Battle } from "./Battle";
 export {
   selectBattles,

@@ -8,6 +8,7 @@ import { SettingsSheetView } from "@/components/SettingsSheetView";
 import { StatusBarView } from "@/components/StatusBarView";
 import { TabBarView } from "@/components/TabBarView";
 import { useDashboardTabState } from "@/hooks/UseDashboardTabState";
+import { useDriverEventFilter } from "@/hooks/UseDriverEventFilter";
 import { useExplanationLevel } from "@/hooks/UseExplanationLevel";
 import { useFavoriteDrivers } from "@/hooks/UseFavoriteDrivers";
 import { useLiveRace } from "@/hooks/UseLiveRace";
@@ -38,6 +39,9 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const { activeTab, handleChangeTab, askPrefill, switchToAskWithQuestion } =
     useDashboardTabState();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // 드라이버 이벤트 필터는 모바일 시트와 데스크톱 피드가 함께 쓰므로 여기서 소유한다.
+  const { driverFilter, handleFilterByDriver, handleClearDriverFilter } =
+    useDriverEventFilter();
 
   // 탭투애스크: 드라이버/이벤트를 탭하면 AI 탭으로 전환하며 질문을 자동 제출한다.
   const handleAskCode = (code: string) => {
@@ -95,6 +99,9 @@ export const LiveDashboardView = ({ locale }: Props) => {
             primaryEvents={race.primaryEvents}
             allEvents={race.allEvents}
             commentary={commentary}
+            driverFilter={driverFilter}
+            onFilterEventsByDriver={handleFilterByDriver}
+            onClearDriverFilter={handleClearDriverFilter}
             isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
             onSelectDriver={handleAskDriver}
@@ -110,6 +117,8 @@ export const LiveDashboardView = ({ locale }: Props) => {
             primaryEvents={race.primaryEvents}
             allEvents={race.allEvents}
             commentary={commentary}
+            driverFilter={driverFilter}
+            onClearDriverFilter={handleClearDriverFilter}
             onSelectEvent={handleAskEvent}
           />
         </div>

@@ -26,6 +26,7 @@ import {
   Disc3,
   Flag,
   Gauge,
+  ListFilter,
   Pause,
   Play,
   Radio,
@@ -49,6 +50,8 @@ type Props = {
   onClose: () => void;
   // "AI에게 질문" — 시트를 닫고 AI 탭으로 전환하며 질문을 제출한다.
   onAskAi: (driver: LiveDriverState) => void;
+  // "이 드라이버 이벤트만 보기" — 시트를 닫고 이벤트 피드를 이 드라이버로 좁힌다.
+  onFilterEvents: (driver: LiveDriverState) => void;
 };
 
 type ContentProps = {
@@ -59,6 +62,7 @@ type ContentProps = {
   playingRadioUrl: string | null;
   onToggleRadio: (url: string) => void;
   onAskAi: (driver: LiveDriverState) => void;
+  onFilterEvents: (driver: LiveDriverState) => void;
 };
 
 type RadioSectionProps = {
@@ -176,11 +180,16 @@ const DriverDetailContent = ({
   playingRadioUrl,
   onToggleRadio,
   onAskAi,
+  onFilterEvents,
 }: ContentProps) => {
   const accent = teamColorHex(driver.teamColour) ?? "hsl(var(--border))";
 
   const handleAskAi = () => {
     onAskAi(driver);
+  };
+
+  const handleFilterEvents = () => {
+    onFilterEvents(driver);
   };
 
   return (
@@ -304,6 +313,17 @@ const DriverDetailContent = ({
       <Button type="button" onClick={handleAskAi} className="mt-5 w-full">
         {dictionary.driverSheet.ask.replace("{code}", driver.code)}
       </Button>
+
+      {/* 보조 액션: 이벤트 피드를 이 드라이버로 좁힌다 (docs/13-race-console.md 원칙 3). */}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={handleFilterEvents}
+        className="mt-2 w-full"
+      >
+        <ListFilter className="h-4 w-4" aria-hidden />
+        {dictionary.driverSheet.filterEvents.replace("{code}", driver.code)}
+      </Button>
     </>
   );
 };
@@ -319,6 +339,7 @@ export const DriverDetailSheetView = ({
   onToggleRadio,
   onClose,
   onAskAi,
+  onFilterEvents,
 }: Props) => (
   <BottomSheetView
     isOpen={driver !== null}
@@ -335,6 +356,7 @@ export const DriverDetailSheetView = ({
         playingRadioUrl={playingRadioUrl}
         onToggleRadio={onToggleRadio}
         onAskAi={onAskAi}
+        onFilterEvents={onFilterEvents}
       />
     ) : null}
   </BottomSheetView>
