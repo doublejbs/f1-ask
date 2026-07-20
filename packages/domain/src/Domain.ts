@@ -4,6 +4,11 @@ export { SessionStatus } from "./SessionStatus";
 export { TireCompound } from "./TireCompound";
 export { RaceEventType } from "./RaceEventType";
 export { RaceEventPriority } from "./RaceEventPriority";
+// 이벤트 params 에 담기는 값 키 (UI 가 로케일별로 번역한다).
+export { RetirementReason } from "./RetirementReason";
+export { TrackHazardKind } from "./TrackHazardKind";
+export { RaceIncidentReason } from "./RaceIncidentReason";
+export { InvestigationStatus } from "./InvestigationStatus";
 export { DataFreshnessStatus } from "./DataFreshnessStatus";
 export { DataMode } from "./DataMode";
 export {
@@ -78,6 +83,7 @@ export type {
   OpenF1TeamRadio,
   OpenF1SessionMeta,
   OpenF1SessionData,
+  OpenF1SessionResult,
 } from "./openf1/OpenF1Types";
 export { scheduledRaceLaps } from "./openf1/RaceLapCounts";
 export type { OpenF1Index } from "./openf1/OpenF1Normalizer";

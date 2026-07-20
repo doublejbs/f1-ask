@@ -19,4 +19,20 @@ export enum RaceEventType {
   RedFlag = "red_flag",
   Retirement = "retirement",
   StrategyNote = "strategy_note",
+  // docs/10-race-events.md 신규 14종.
+  // 기존 멤버의 값은 Firestore 에 저장된 이벤트와 호환을 위해 변경하지 않는다.
+  Penalty = "penalty",
+  Investigation = "investigation",
+  TrackLimits = "track_limits",
+  BlueFlag = "blue_flag",
+  SectorYellow = "sector_yellow",
+  SectorClear = "sector_clear",
+  ChequeredFlag = "chequered_flag",
+  DrsEnabled = "drs_enabled",
+  DrsDisabled = "drs_disabled",
+  TrackHazard = "track_hazard",
+  PitLaneClosed = "pit_lane_closed",
+  PitLaneOpen = "pit_lane_open",
+  RainRisk = "rain_risk",
+  TeamRadioPosted = "team_radio_posted",
 }

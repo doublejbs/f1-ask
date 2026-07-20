@@ -8,6 +8,7 @@ import {
   OpenF1RaceControl,
   OpenF1SessionData,
   OpenF1SessionMeta,
+  OpenF1SessionResult,
   OpenF1Stint,
   OpenF1TeamRadio,
   OpenF1Weather,
@@ -197,6 +198,22 @@ const fetchEndpoint = async <T>(
   throw new Error(`OpenF1 ${endpoint} failed after retries`);
 };
 
+// 선택적 엔드포인트 조회. 세션 진행 중에만 비어 있는 데이터(session_result 등)는
+// 404 뿐 아니라 "No results found" 계열 오류로도 응답할 수 있다.
+// 이런 실패가 전체 폴링을 중단시키면 안 되므로 빈 배열로 흡수한다.
+const fetchOptionalEndpoint = async <T>(
+  endpoint: string,
+  queryKey: string,
+  queryValue: string | number,
+  options: OpenF1ClientOptions,
+): Promise<T[]> => {
+  try {
+    return await fetchEndpoint<T>(endpoint, queryKey, queryValue, options);
+  } catch {
+    return [];
+  }
+};
+
 type OpenF1SessionRow = {
   session_key: number;
   meeting_key: number;
@@ -267,6 +284,9 @@ export const fetchOpenF1SessionData = async (
   const overtakes = await fetchEndpoint<OpenF1Overtake>("overtakes", "session_key", key, options);
   await sleep(gap);
   const teamRadio = await fetchEndpoint<OpenF1TeamRadio>("team_radio", "session_key", key, options);
+  await sleep(gap);
+  // 세션 종료 후에만 채워진다. 진행 중에는 빈 배열이거나 조회가 실패할 수 있다.
+  const sessionResults = await fetchOptionalEndpoint<OpenF1SessionResult>("session_result", "session_key", key, options);
 
   return {
     meta,
@@ -280,5 +300,6 @@ export const fetchOpenF1SessionData = async (
     weather,
     overtakes,
     teamRadio,
+    sessionResults,
   };
 };

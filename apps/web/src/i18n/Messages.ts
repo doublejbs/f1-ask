@@ -3,6 +3,7 @@ import {
   DataFreshnessStatus,
   DataMode,
   ExplanationLevel,
+  RaceEventPriority,
   SessionStatus,
   SupportedLocale,
   TireCompound,
@@ -50,6 +51,11 @@ export type Dictionary = {
   events: {
     title: string;
     empty: string;
+    filterLabel: string;
+    filterPrimary: string;
+    filterAll: string;
+    // {count} 를 숨겨진 이벤트 수로 치환한다.
+    hiddenCount: string;
   };
   teamRadio: {
     title: string;
@@ -101,6 +107,8 @@ export type Dictionary = {
     retirements: string;
   };
   status: Record<SessionStatus, string>;
+  // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
+  eventPriority: Record<RaceEventPriority, string>;
   freshness: Record<DataFreshnessStatus, string>;
   mode: Record<DataMode, string>;
   compound: Record<TireCompound, string>;
@@ -148,6 +156,10 @@ const en: Dictionary = {
   events: {
     title: "Recent Events",
     empty: "No events yet",
+    filterLabel: "Priority filter",
+    filterPrimary: "Key",
+    filterAll: "All",
+    hiddenCount: "{count} more hidden",
   },
   teamRadio: {
     title: "Team Radio",
@@ -216,6 +228,12 @@ const en: Dictionary = {
     [SessionStatus.Finished]: "Finished",
     [SessionStatus.Unknown]: "Unknown",
   },
+  eventPriority: {
+    [RaceEventPriority.Critical]: "Critical",
+    [RaceEventPriority.High]: "High",
+    [RaceEventPriority.Medium]: "Medium",
+    [RaceEventPriority.Low]: "Low",
+  },
   freshness: {
     [DataFreshnessStatus.Live]: "Live",
     [DataFreshnessStatus.Delayed]: "Delayed",
@@ -283,6 +301,10 @@ const ko: Dictionary = {
   events: {
     title: "최근 이벤트",
     empty: "아직 이벤트가 없습니다",
+    filterLabel: "우선순위 필터",
+    filterPrimary: "주요",
+    filterAll: "전체",
+    hiddenCount: "그 외 {count}건",
   },
   teamRadio: {
     title: "팀 라디오",
@@ -351,6 +373,12 @@ const ko: Dictionary = {
     [SessionStatus.Finished]: "종료",
     [SessionStatus.Unknown]: "알 수 없음",
   },
+  eventPriority: {
+    [RaceEventPriority.Critical]: "중대",
+    [RaceEventPriority.High]: "높음",
+    [RaceEventPriority.Medium]: "보통",
+    [RaceEventPriority.Low]: "낮음",
+  },
   freshness: {
     [DataFreshnessStatus.Live]: "실시간",
     [DataFreshnessStatus.Delayed]: "지연",
@@ -418,6 +446,10 @@ const ja: Dictionary = {
   events: {
     title: "最近のイベント",
     empty: "まだイベントがありません",
+    filterLabel: "優先度フィルター",
+    filterPrimary: "主要",
+    filterAll: "すべて",
+    hiddenCount: "他 {count}件",
   },
   teamRadio: {
     title: "チームラジオ",
@@ -485,6 +517,12 @@ const ja: Dictionary = {
     [SessionStatus.Suspended]: "中断",
     [SessionStatus.Finished]: "終了",
     [SessionStatus.Unknown]: "不明",
+  },
+  eventPriority: {
+    [RaceEventPriority.Critical]: "重大",
+    [RaceEventPriority.High]: "高",
+    [RaceEventPriority.Medium]: "中",
+    [RaceEventPriority.Low]: "低",
   },
   freshness: {
     [DataFreshnessStatus.Live]: "ライブ",
