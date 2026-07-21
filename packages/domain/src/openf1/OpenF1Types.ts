@@ -108,6 +108,10 @@ export type OpenF1SessionMeta = {
   sessionType: string;
   circuitName: string;
   countryCode: string;
+  // 세션 예정 시각 (ISO). 워커의 활성 판정에 쓴다.
+  // 과거 fixture 와의 호환을 위해 optional 로 둔다 — 없으면 판정이 비활성으로 닫힌다.
+  dateStart?: string | null;
+  dateEnd?: string | null;
 };
 
 // 한 세션의 OpenF1 원본 데이터 묶음.

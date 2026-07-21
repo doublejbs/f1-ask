@@ -11,9 +11,15 @@ export const firestorePaths = {
   events: (sessionId: string): string => `sessions/${sessionId}/events`,
   eventDoc: (sessionId: string, eventId: string): string =>
     `sessions/${sessionId}/events/${eventId}`,
+  // 서버 전용 워커 상태. 규칙에서 클라이언트 읽기/쓰기가 모두 막혀 있다.
+  runtimeDoc: (sessionId: string, docId: string): string =>
+    `sessions/${sessionId}/runtime/${docId}`,
+  workerLease: (sessionId: string): string => `workerLeases/${sessionId}`,
 };
 
 export const LIVE_CURRENT_DOC_ID = "current";
+// 폴러가 "이미 쓴 이벤트 키"를 이어받는 문서.
+export const EVENT_CURSOR_DOC_ID = "eventCursor";
 
 export type Unsubscribe = () => void;
 

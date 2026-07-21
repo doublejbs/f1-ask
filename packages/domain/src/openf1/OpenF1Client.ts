@@ -222,6 +222,9 @@ type OpenF1SessionRow = {
   circuit_short_name: string;
   country_code: string;
   year: number;
+  // 세션 예정 시각. 워커가 활성 여부를 판정하는 근거다.
+  date_start?: string | null;
+  date_end?: string | null;
 };
 
 // 안정적인 세션 ID 슬러그 (예: "2026-sgp-race").
@@ -254,6 +257,8 @@ export const fetchLatestOpenF1Meta = async (
     sessionType: session.session_type,
     circuitName: session.circuit_short_name,
     countryCode: session.country_code,
+    dateStart: session.date_start ?? null,
+    dateEnd: session.date_end ?? null,
   };
 };
 

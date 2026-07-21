@@ -233,9 +233,50 @@ export type {
 export {
   firestorePaths,
   LIVE_CURRENT_DOC_ID,
+  EVENT_CURSOR_DOC_ID,
   toLiveSnapshotDoc,
   toSessionDoc,
   eventDocId,
   buildEventQueryPlan,
   FIRESTORE_IN_MAX_VALUES,
 } from "./firestore/LiveRaceRepository";
+
+// 폴러 워커 (docs/16-poller-worker.md). Cloud Functions 번들이 사용한다.
+export { SessionActivityReason } from "./worker/SessionActivityReason";
+export type {
+  SessionActivity,
+  SessionActivityOptions,
+} from "./worker/SessionActivity";
+export {
+  resolveSessionActivity,
+  SESSION_PRE_ROLL_MS,
+  SESSION_GRACE_MS,
+  SESSION_MAX_DURATION_MS,
+} from "./worker/SessionActivity";
+export type {
+  EventWriteCursor,
+  UnwrittenEventSelection,
+} from "./worker/EventWriteCursor";
+export {
+  selectUnwrittenEvents,
+  parseEventWriteCursor,
+  EMPTY_EVENT_WRITE_CURSOR,
+  MAX_TRACKED_EVENT_KEYS,
+} from "./worker/EventWriteCursor";
+export type { WorkerLease } from "./worker/WorkerLease";
+export {
+  buildWorkerLease,
+  parseWorkerLease,
+  isLeaseHeld,
+  WORKER_LEASE_TTL_MS,
+} from "./worker/WorkerLease";
+export type {
+  PublishState,
+  PublishDecision,
+  PublishDecisionOptions,
+} from "./worker/PublishDecision";
+export {
+  decidePublish,
+  EMPTY_PUBLISH_STATE,
+  SNAPSHOT_HEARTBEAT_MS,
+} from "./worker/PublishDecision";
