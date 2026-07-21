@@ -5,10 +5,12 @@ import {
   selectCommentaryEvents,
   toAiCommentary,
 } from "../src/ai/AiCommentary";
+import { COMMENTARY_ELIGIBLE_EVENT_TYPES } from "../src/ai/CommentaryEventAllowlist";
 import { MockLlmProvider } from "../src/ai/MockLlmProvider";
 import { ExplanationLevel } from "../src/ExplanationLevel";
 import { MockRaceEngine } from "../src/mock/MockRaceEngine";
 import { DEFAULT_MOCK_SCENARIO } from "../src/mock/MockScenario";
+import { RaceEvent } from "../src/RaceEvent";
 import { RaceEventPriority } from "../src/RaceEventPriority";
 import { RaceEventType } from "../src/RaceEventType";
 import { SupportedLocale } from "../src/SupportedLocale";
@@ -21,34 +23,138 @@ const frame = new MockRaceEngine(DEFAULT_MOCK_SCENARIO, START_EPOCH).snapshotAt(
 
 const provider = new MockLlmProvider();
 
+// 해설 대상 타입(allowlist). 이 목록이 바뀌면 테스트도 같이 바뀌어야 한다.
+const ELIGIBLE_TYPES: readonly RaceEventType[] = [
+  RaceEventType.Penalty,
+  RaceEventType.Investigation,
+  RaceEventType.SafetyCar,
+  RaceEventType.VirtualSafetyCar,
+  RaceEventType.Retirement,
+  RaceEventType.TrackHazard,
+  RaceEventType.StrategyNote,
+  RaceEventType.FastestLap,
+  RaceEventType.SessionRestarted,
+];
+
+const buildEvent = (
+  type: RaceEventType,
+  priority: RaceEventPriority = RaceEventPriority.Low,
+): RaceEvent => ({
+  schemaVersion: 1,
+  id: `event:${type}`,
+  sessionId: "session:test",
+  type,
+  priority,
+  timestamp: "2026-07-19T05:00:00.000Z",
+  params: {},
+  deduplicationKey: `dedup:${type}`,
+});
+
+describe("COMMENTARY_ELIGIBLE_EVENT_TYPES", () => {
+  it("RaceEventType 전수를 덮는다", () => {
+    for (const type of Object.values(RaceEventType)) {
+      expect(
+        COMMENTARY_ELIGIBLE_EVENT_TYPES[type],
+        `${type} 매핑 누락`,
+      ).toBeTypeOf("boolean");
+    }
+
+    expect(Object.keys(COMMENTARY_ELIGIBLE_EVENT_TYPES).sort()).toEqual(
+      Object.values(RaceEventType).sort(),
+    );
+  });
+
+  it("allowlist 에 포함된 타입만 true 다", () => {
+    const eligible = Object.values(RaceEventType).filter(
+      (type) => COMMENTARY_ELIGIBLE_EVENT_TYPES[type],
+    );
+
+    expect(eligible.sort()).toEqual([...ELIGIBLE_TYPES].sort());
+  });
+});
+
+describe("isCommentaryEligible", () => {
+  it("해설 대상 타입은 우선순위와 무관하게 통과한다", () => {
+    for (const type of ELIGIBLE_TYPES) {
+      expect(
+        isCommentaryEligible(buildEvent(type, RaceEventPriority.Low)),
+        `${type} 는 해설 대상이어야 한다`,
+      ).toBe(true);
+    }
+  });
+
+  it("추월·피트스톱은 critical 이어도 제외한다", () => {
+    expect(
+      isCommentaryEligible(
+        buildEvent(RaceEventType.Overtake, RaceEventPriority.Critical),
+      ),
+    ).toBe(false);
+    expect(
+      isCommentaryEligible(
+        buildEvent(RaceEventType.PitStop, RaceEventPriority.Critical),
+      ),
+    ).toBe(false);
+  });
+
+  it("나머지 제외 대상도 걸러낸다", () => {
+    const excluded = [
+      RaceEventType.PersonalBestLap,
+      RaceEventType.GapClosing,
+      RaceEventType.OverrideRangeEntered,
+      RaceEventType.TeamRadioPosted,
+      RaceEventType.SectorYellow,
+      RaceEventType.SectorClear,
+      RaceEventType.BlueFlag,
+      RaceEventType.TrackLimits,
+    ];
+
+    for (const type of excluded) {
+      expect(
+        isCommentaryEligible(buildEvent(type, RaceEventPriority.High)),
+        `${type} 는 제외 대상이어야 한다`,
+      ).toBe(false);
+    }
+  });
+});
+
 describe("selectCommentaryEvents", () => {
-  it("high/critical 이벤트만 해설 대상으로 선별한다", () => {
+  it("allowlist 타입만 해설 대상으로 선별한다", () => {
     const selected = selectCommentaryEvents(frame.events, 100);
 
     expect(selected.length).toBeGreaterThan(0);
 
     for (const event of selected) {
-      expect(isCommentaryEligible(event)).toBe(true);
-      expect(
-        event.priority === RaceEventPriority.High ||
-          event.priority === RaceEventPriority.Critical,
-      ).toBe(true);
+      expect(ELIGIBLE_TYPES).toContain(event.type);
     }
   });
 
-  it("low/medium 이벤트는 제외한다", () => {
+  it("추월·피트스톱은 선별 결과에 없다", () => {
     const selected = selectCommentaryEvents(frame.events, 100);
-    const hasLowOrMedium = selected.some(
+    const hasNoisyType = selected.some(
       (event) =>
-        event.priority === RaceEventPriority.Low ||
-        event.priority === RaceEventPriority.Medium,
+        event.type === RaceEventType.Overtake ||
+        event.type === RaceEventType.PitStop,
     );
 
-    expect(hasLowOrMedium).toBe(false);
+    expect(hasNoisyType).toBe(false);
   });
 
-  it("limit 을 지킨다", () => {
+  it("우선순위 기반 선별보다 건수가 줄어든다", () => {
+    const priorityBased = frame.events.filter(
+      (event) =>
+        event.priority === RaceEventPriority.High ||
+        event.priority === RaceEventPriority.Critical,
+    );
+    const selected = selectCommentaryEvents(frame.events, 1000);
+
+    expect(selected.length).toBeLessThan(priorityBased.length);
+  });
+
+  it("limit 을 지키고 최신순 꼬리를 남긴다", () => {
+    const all = selectCommentaryEvents(frame.events, 1000);
+
     expect(selectCommentaryEvents(frame.events, 2).length).toBeLessThanOrEqual(2);
+    expect(selectCommentaryEvents(frame.events, 2)).toEqual(all.slice(-2));
   });
 });
 

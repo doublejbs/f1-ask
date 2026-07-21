@@ -255,6 +255,10 @@ export {
   toAiCommentary,
   DEFAULT_COMMENTARY_LIMIT,
 } from "./ai/AiCommentary";
+export {
+  COMMENTARY_ELIGIBLE_EVENT_TYPES,
+  isCommentaryEligibleType,
+} from "./ai/CommentaryEventAllowlist";
 
 export type { RaceSummaryData } from "./RaceSummary";
 export {
