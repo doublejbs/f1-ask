@@ -426,3 +426,28 @@ export {
   DEFAULT_POSITION_SWING_THRESHOLD,
 } from "./watchnow/WatchNowDetectorConfig";
 export { WatchNowDetector } from "./watchnow/WatchNowDetector";
+// 역할이 고정된 칸 3개. 점수 랭킹(감지기 기본 점수 · 스테이크 등급 · 희소성 · 즐겨찾기
+// 가산점 · 선두권 감점)은 근거 없는 값이라 폐기했다 — WatchNowLaneConfig.ts 머리말 참고.
+export { WatchNowLane } from "./watchnow/WatchNowLane";
+export {
+  F1_RACE_POINTS_BY_POSITION,
+  resolveChampionshipPoints,
+  resolvePointsBetweenPositions,
+} from "./watchnow/WatchNowChampionshipPoints";
+export type { WatchNowLaneConfig } from "./watchnow/WatchNowLaneConfig";
+export {
+  DEFAULT_WATCH_NOW_LANE_CONFIG,
+  WATCH_NOW_LEADER_LANE_MAX_POSITION,
+  WATCH_NOW_CANDIDATE_WINDOW_MS,
+  WATCH_NOW_MAX_ENTRIES_PER_LANE,
+} from "./watchnow/WatchNowLaneConfig";
+export type {
+  LaneWatchNowSignal,
+  WatchNowLaneGroup,
+  WatchNowLanes,
+  BuildWatchNowLanesOptions,
+} from "./watchnow/WatchNowLaneBuilder";
+export {
+  buildWatchNowLanes,
+  selectWatchNowCandidates,
+} from "./watchnow/WatchNowLaneBuilder";

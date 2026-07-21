@@ -1,0 +1,47 @@
+// "지금 볼 것" 칸 구성 설정 (docs/19-watch-now.md §화면 · §칸 안에서 무엇을 고를 것인가).
+//
+// **이 파일에 가중치가 없다는 것이 요점이다.** 초기 구현은 여기에 감지기 기본 점수(50/30) ·
+// 순위 스테이크 등급(18/15/8) · 희소성 상한(18) · 즐겨찾기 가산점(25) · 선두권 감점(10) 을
+// 두고 전부 더해 하나의 랭킹을 만들었다. 그 숫자들은 근거가 없었고 — 어떤 데이터도
+// "P16 언더컷과 선두 교체 중 무엇이 위인가" 를 말해 주지 않는다 — 실제로 P16 언더컷이
+// 선두 탈환 위에 오는 결과를 냈다.
+//
+// 해결책은 점수를 고치는 것이 아니라 칸을 나누는 것이었다. 칸에 역할을 고정하면 칸 사이
+// 비교가 사라지고, 칸 안에서는 F1 규정이 정한 챔피언십 포인트와 시각만으로 정렬된다.
+// **점수 랭킹을 되살리지 마라.** 되살리는 순간 근거 없는 숫자를 다시 지어내야 한다.
+//
+// 남은 값들은 가중치가 아니라 **경계와 화면 예산**이다. 무엇이 더 중요한지를 정하지 않고,
+// 어디서 자를지만 정한다.
+
+// 선두권 칸의 마지막 순위. P1~P3.
+//
+// 포디움은 F1 규정이 정한 경계다. "선두권은 방송이 보여줄 것" 같은 추정이 아니라
+// 트로피가 걸린 자리의 정의다.
+export const WATCH_NOW_LEADER_LANE_MAX_POSITION = 3;
+
+// --- 후보 창 ---
+//
+// 감지 신호는 한 프레임의 사건이지만 "지금 볼 것" 은 한동안 화면에 머물러야 한다.
+// 폴러 주기 6초 기준 90초 ≈ 15프레임 — 사용자가 방송에서 눈을 돌려 확인할 만한 시간이다.
+export const WATCH_NOW_CANDIDATE_WINDOW_MS = 90_000;
+
+// 칸 하나에 올릴 최대 줄 수.
+//
+// **중요도가 아니라 화면 예산이다.** 감지된 것을 전부 올리면 소음이므로(1초 이내 동시
+// 배틀이 평균 5.6개) 자를 뿐이고, 밀려난 신호는 버려지지 않고 순위표 행 표시로 간다
+// (docs/19 수용 기준 7).
+export const WATCH_NOW_MAX_ENTRIES_PER_LANE = 3;
+
+export type WatchNowLaneConfig = {
+  // 선두권 칸에 들어가는 마지막 순위(P1~P3 이면 3).
+  leaderLaneMaxPosition: number;
+  candidateWindowMs: number;
+  // 칸 하나에 올릴 최대 줄 수.
+  maxEntriesPerLane: number;
+};
+
+export const DEFAULT_WATCH_NOW_LANE_CONFIG: WatchNowLaneConfig = {
+  leaderLaneMaxPosition: WATCH_NOW_LEADER_LANE_MAX_POSITION,
+  candidateWindowMs: WATCH_NOW_CANDIDATE_WINDOW_MS,
+  maxEntriesPerLane: WATCH_NOW_MAX_ENTRIES_PER_LANE,
+};

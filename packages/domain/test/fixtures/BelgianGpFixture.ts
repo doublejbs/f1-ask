@@ -6,6 +6,7 @@ import {
   normalizeOpenF1SnapshotAt,
 } from "../../src/openf1/OpenF1Normalizer";
 import {
+  OpenF1Driver,
   OpenF1Interval,
   OpenF1Lap,
   OpenF1Pit,
@@ -25,14 +26,16 @@ type BelgianGpFixture = {
   position: OpenF1Position[];
   laps: OpenF1Lap[];
   raceControl: OpenF1RaceControl[];
+  drivers?: OpenF1Driver[];
 };
 
 // 감지기는 최종적으로 워커의 라이브 스냅샷 위에서 돈다. 회귀 테스트만 원본 형태를 쓰면
 // 감지 로직이 두 벌이 되므로, 픽스처를 OpenF1SessionData 로 되돌린 뒤 프로덕션과 **동일한**
 // normalizeOpenF1SnapshotAt 을 태워 스냅샷 스트림으로 만든다.
 const toSessionData = (fixture: BelgianGpFixture): OpenF1SessionData => {
-  // 축약본에 drivers 가 없다. 감지기는 번호 · 순위 · 타이어 · 피트만 보고 이름을 쓰지
-  // 않으므로, 데이터에 등장하는 번호로 최소 드라이버 목록을 합성한다.
+  // 감지기 자체는 번호 · 순위 · 타이어 · 피트만 보고 이름을 쓰지 않는다. 다만 랭킹 결과를
+  // 사람이 읽고 판단할 때는 번호(#44)보다 코드(HAM)가 훨씬 낫다. 픽스처에 drivers 가 있으면
+  // 그것을 쓰고, 없으면 등장 번호로 최소 목록을 합성한다.
   const driverNumbers = [
     ...new Set([
       ...fixture.position.map((row) => row.driver_number),
@@ -51,12 +54,15 @@ const toSessionData = (fixture: BelgianGpFixture): OpenF1SessionData => {
       circuitName: "spa-francorchamps",
       countryCode: "BEL",
     },
-    drivers: driverNumbers.map((number) => ({
-      driver_number: number,
-      name_acronym: `D${number}`,
-      full_name: `Driver ${number}`,
-      team_name: "Unknown",
-    })),
+    drivers:
+      fixture.drivers !== undefined && fixture.drivers.length > 0
+        ? fixture.drivers
+        : driverNumbers.map((number) => ({
+            driver_number: number,
+            name_acronym: `D${number}`,
+            full_name: `Driver ${number}`,
+            team_name: "Unknown",
+          })),
     positions: fixture.position,
     intervals: fixture.intervals,
     stints: fixture.stints,
