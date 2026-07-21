@@ -1,0 +1,399 @@
+import { ExplanationLevel } from "../ExplanationLevel";
+import { LiveDriverState } from "../LiveDriverState";
+import { LiveRaceSnapshot } from "../LiveRaceSnapshot";
+import { RaceEvent } from "../RaceEvent";
+import { RaceSummaryData } from "../RaceSummary";
+import { SupportedLocale } from "../SupportedLocale";
+import { AiConfidence } from "./AiConfidence";
+import { GeminiChatRole } from "./GeminiChatRole";
+import { LlmChatRole } from "./LlmChatRole";
+import {
+  LlmAnswer,
+  LlmCommentary,
+  LlmCommentaryRequest,
+  LlmQuestionRequest,
+  LlmSummary,
+  LlmSummaryRequest,
+  RaceLlmProvider,
+} from "./RaceLlmProvider";
+
+// Gemini 요청 본문의 한 발화 (contents[]).
+type GeminiContent = {
+  role: GeminiChatRole;
+  parts: { text: string }[];
+};
+
+// 주입 가능한 fetch (네트워크 없이 단위 테스트).
+export type GeminiFetch = (
+  url: string,
+  init: { method: string; headers: Record<string, string>; body: string },
+) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+
+export type GeminiProviderOptions = {
+  apiKey: string;
+  model?: string;
+  fetchImpl?: GeminiFetch;
+  baseUrl?: string;
+};
+
+// 무료 티어에서 쓸 수 있는 안정(stable) Flash 모델.
+// 해설/답변은 1~2문장으로 짧아 Flash 급으로 충분하다.
+const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const CONTEXT_DRIVER_LIMIT = 20;
+const RECENT_EVENT_LIMIT = 8;
+
+const LOCALE_LANGUAGE: Record<SupportedLocale, string> = {
+  [SupportedLocale.En]: "English",
+  [SupportedLocale.Ko]: "Korean",
+  [SupportedLocale.Ja]: "Japanese",
+};
+
+const LEVEL_GUIDANCE: Record<ExplanationLevel, string> = {
+  [ExplanationLevel.Beginner]:
+    "The reader is a beginner: briefly define any jargon you use in plain words.",
+  [ExplanationLevel.Standard]: "The reader knows the basics of F1.",
+  [ExplanationLevel.Expert]:
+    "The reader is an expert: you may add one concise strategic nuance.",
+};
+
+// AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다. ClaudeProvider 와 동일한 문구를 유지한다.
+const SYSTEM_RULES = [
+  "You are a reliable Formula 1 race engineer explaining live timing data on a second screen.",
+  "Rules you must follow:",
+  "- Use ONLY the data provided in the context. Never invent numbers, positions, or probabilities.",
+  "- Team strategy (pit calls, undercut) is an estimate — say it cannot be confirmed from the data.",
+  "- If the data is insufficient to answer, say you do not know.",
+  "- Be concise: 1-2 short sentences.",
+].join("\n");
+
+type DriverContext = {
+  n: number;
+  code: string;
+  team: string;
+  pos: number | null;
+  startPos: number | null;
+  posChange: number | null;
+  gapToLeader: number | null;
+  interval: number | null;
+  tire: string;
+  tireAgeLaps: number | null;
+  pits: number;
+  lastLap: number | null;
+  sectors: (number | null)[] | null;
+  topSpeedKph: number | null;
+  inPit: boolean;
+  retired: boolean;
+};
+
+const toDriverContext = (driver: LiveDriverState): DriverContext => ({
+  n: driver.driverNumber,
+  code: driver.code,
+  team: driver.teamName,
+  pos: driver.position,
+  startPos: driver.startingPosition,
+  posChange: driver.positionChange,
+  gapToLeader: driver.gapToLeaderSeconds,
+  interval: driver.intervalToAheadSeconds,
+  tire: driver.compound,
+  tireAgeLaps: driver.tireAgeLaps,
+  pits: driver.pitStopCount,
+  lastLap: driver.lastLapSeconds,
+  sectors: driver.lastSectorsSeconds ?? null,
+  topSpeedKph: driver.topSpeedKph ?? null,
+  inPit: driver.inPit,
+  retired: driver.retired,
+});
+
+// 질문 관련 데이터만 선택해 context 를 구성한다 (docs §42.2).
+const buildQuestionContext = (
+  snapshot: LiveRaceSnapshot,
+  recentEvents: RaceEvent[],
+  favoriteDriverNumbers: number[],
+): string => {
+  const drivers = snapshot.drivers
+    .slice(0, CONTEXT_DRIVER_LIMIT)
+    .map(toDriverContext);
+  const events = recentEvents.slice(-RECENT_EVENT_LIMIT).map((event) => ({
+    type: event.type,
+    driverNumber: event.driverNumber ?? null,
+    params: event.params,
+  }));
+  const weather =
+    snapshot.weather === undefined
+      ? null
+      : {
+          airTempC: snapshot.weather.airTemperatureCelsius,
+          trackTempC: snapshot.weather.trackTemperatureCelsius,
+          humidityPct: snapshot.weather.humidityPercent,
+          rainfall: snapshot.weather.rainfall,
+          windMps: snapshot.weather.windSpeedMps ?? null,
+        };
+
+  return JSON.stringify({
+    session: {
+      name: snapshot.sessionName,
+      circuit: snapshot.circuitName,
+      status: snapshot.status,
+      currentLap: snapshot.currentLap,
+      totalLaps: snapshot.totalLaps,
+    },
+    weather,
+    favoriteDriverNumbers,
+    // 드라이버별: 순위/시작순위/순위변동/간격/타이어/최근랩/섹터[S1,S2,S3]/스피드트랩/피트.
+    drivers,
+    recentEvents: events,
+  });
+};
+
+const parseConfidence = (value: unknown): AiConfidence => {
+  if (value === AiConfidence.High || value === AiConfidence.Low) {
+    return value;
+  }
+
+  return AiConfidence.Medium;
+};
+
+// 내부 role → Gemini wire role 매핑 (assistant 는 Gemini 에서 "model").
+const toGeminiRole = (role: LlmChatRole): GeminiChatRole => {
+  if (role === LlmChatRole.Assistant) {
+    return GeminiChatRole.Model;
+  }
+
+  return GeminiChatRole.User;
+};
+
+const SUGGESTED_QUESTIONS: Record<SupportedLocale, string[]> = {
+  [SupportedLocale.En]: [
+    "Who is leading now?",
+    "How is the leader's pace?",
+    "Is anyone in the pits?",
+  ],
+  [SupportedLocale.Ko]: [
+    "지금 누가 선두야?",
+    "선두 페이스 어때?",
+    "지금 피트인한 드라이버 있어?",
+  ],
+  [SupportedLocale.Ja]: [
+    "今は誰が首位？",
+    "首位のペースは？",
+    "ピットインした人は？",
+  ],
+};
+
+// 실제 Google Gemini provider. RaceLlmProvider 인터페이스를 구현하며 서버에서만 사용한다.
+// (API 키는 클라이언트 번들에 포함하지 않는다.)
+// 프롬프트·컨텍스트·응답 계약은 ClaudeProvider 와 동일하게 유지한다 — 모델만 다르다.
+export class GeminiProvider implements RaceLlmProvider {
+  private readonly apiKey: string;
+  private readonly model: string;
+  private readonly baseUrl: string;
+  private readonly fetchImpl: GeminiFetch;
+
+  constructor(options: GeminiProviderOptions) {
+    this.apiKey = options.apiKey;
+    this.model = options.model ?? DEFAULT_MODEL;
+    this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
+    this.fetchImpl =
+      options.fetchImpl ??
+      ((url, init) => fetch(url, init) as unknown as ReturnType<GeminiFetch>);
+  }
+
+  async answerQuestion(request: LlmQuestionRequest): Promise<LlmAnswer> {
+    const context = buildQuestionContext(
+      request.snapshot,
+      request.recentEvents,
+      request.favoriteDriverNumbers,
+    );
+
+    const system = [
+      SYSTEM_RULES,
+      `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
+      LEVEL_GUIDANCE[request.explanationLevel],
+      'Reply with ONLY a JSON object (no markdown, no prose around it): {"answer": string, "confidence": "low"|"medium"|"high", "insufficientData": boolean, "referencedDriverNumbers": number[]}.',
+    ].join("\n");
+
+    const user = `Question: ${request.question}\n\nCurrent race data (JSON):\n${context}`;
+
+    // 이전 대화 턴(원문 텍스트) + 현재 질문(데이터 첨부)으로 contents 를 구성한다.
+    // 데이터는 매 턴 바뀌므로 현재 질문에만 첨부하고, 히스토리는 Q&A 텍스트만 담는다.
+    const contents: GeminiContent[] = [
+      ...(request.conversationHistory ?? []).map((turn) => ({
+        role: toGeminiRole(turn.role),
+        parts: [{ text: turn.content }],
+      })),
+      { role: GeminiChatRole.User, parts: [{ text: user }] },
+    ];
+
+    const content = await this.generate(system, contents, 300);
+    const parsed = this.safeJson(content);
+
+    const answer =
+      typeof parsed?.answer === "string" && parsed.answer.length > 0
+        ? parsed.answer
+        : content.trim();
+
+    return {
+      answer,
+      confidence: parseConfidence(parsed?.confidence),
+      insufficientData: parsed?.insufficientData === true,
+      dataTimestamp: request.snapshot.sourceUpdatedAt,
+      snapshotVersion: request.snapshot.version,
+      referencedDriverNumbers: this.numberArray(parsed?.referencedDriverNumbers),
+      referencedEventIds: [],
+      suggestedQuestions: SUGGESTED_QUESTIONS[request.locale],
+    };
+  }
+
+  async generateCommentary(
+    request: LlmCommentaryRequest,
+  ): Promise<LlmCommentary> {
+    const system = [
+      SYSTEM_RULES,
+      `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
+      LEVEL_GUIDANCE[request.explanationLevel],
+      "Explain the strategic meaning of this single event in one short sentence. Do not replace TV commentary. Reply with only the sentence.",
+    ].join("\n");
+
+    const user = `Event (type + params): ${JSON.stringify({
+      type: request.event.type,
+      driverNumber: request.event.driverNumber ?? null,
+      params: request.event.params,
+    })}\n\nSession status: ${request.snapshot.status}, lap ${request.snapshot.currentLap ?? "?"}/${request.snapshot.totalLaps ?? "?"}.`;
+
+    const text = await this.generate(
+      system,
+      [{ role: GeminiChatRole.User, parts: [{ text: user }] }],
+      120,
+    );
+
+    return { sourceEventId: request.event.id, text: text.trim() };
+  }
+
+  async generateSummary(request: LlmSummaryRequest): Promise<LlmSummary> {
+    const codeOf = (driverNumber: number | null): string => {
+      if (driverNumber === null) {
+        return "unknown";
+      }
+
+      return (
+        request.snapshot.drivers.find((d) => d.driverNumber === driverNumber)
+          ?.code ?? "unknown"
+      );
+    };
+
+    const facts: RaceSummaryData = request.summary;
+    const system = [
+      SYSTEM_RULES,
+      `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
+      "Write a short post-session recap (2-3 sentences) using only these facts. Reply with only the recap.",
+    ].join("\n");
+
+    const user = JSON.stringify({
+      session: facts.sessionName,
+      winner: codeOf(facts.winnerDriverNumber),
+      podium: facts.podiumDriverNumbers.map(codeOf),
+      fastestLap: codeOf(facts.fastestLapDriverNumber),
+      totalOvertakes: facts.totalOvertakes,
+      totalPitStops: facts.totalPitStops,
+      retirements: facts.retiredDriverNumbers.length,
+    });
+
+    const text = await this.generate(
+      system,
+      [{ role: GeminiChatRole.User, parts: [{ text: user }] }],
+      200,
+    );
+
+    return { text: text.trim() };
+  }
+
+  // Google Generative Language API 의 generateContent 호출.
+  // system 은 systemInstruction 으로, 대화는 contents[] 로 전달한다.
+  // API 키는 URL query 대신 헤더로 보내 로그에 남지 않도록 한다.
+  private async generate(
+    system: string,
+    contents: GeminiContent[],
+    maxOutputTokens: number,
+  ): Promise<string> {
+    const body = {
+      contents,
+      systemInstruction: { parts: [{ text: system }] },
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens,
+      },
+    };
+    // 모델은 REST 경로 파라미터(models/{model})로만 전달한다.
+    // GenerateContentRequest 본문에는 model 필드가 없어 넣으면 400 이 난다.
+
+    const response = await this.fetchImpl(
+      `${this.baseUrl}/models/${this.model}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": this.apiKey,
+        },
+        body: JSON.stringify(body),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini request failed: ${response.status}`);
+    }
+
+    const data = (await response.json()) as {
+      candidates?: {
+        content?: { parts?: { text?: string }[] };
+      }[];
+    };
+
+    const candidate = data.candidates?.[0];
+
+    if (candidate === undefined) {
+      throw new Error("Gemini response has no candidates");
+    }
+
+    const parts = candidate.content?.parts;
+
+    if (!Array.isArray(parts)) {
+      throw new Error("Gemini candidate has no content parts");
+    }
+
+    // parts[] 의 text 조각을 합친다.
+    const text = parts
+      .filter((part): part is { text: string } => typeof part.text === "string")
+      .map((part) => part.text)
+      .join("");
+
+    if (text.length === 0) {
+      throw new Error("Gemini response has no text part");
+    }
+
+    return text;
+  }
+
+  private safeJson(
+    content: string,
+  ): {
+    answer?: unknown;
+    confidence?: unknown;
+    insufficientData?: unknown;
+    referencedDriverNumbers?: unknown;
+  } | null {
+    try {
+      return JSON.parse(content) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+
+  private numberArray(value: unknown): number[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.filter((item): item is number => typeof item === "number");
+  }
+}
