@@ -1,6 +1,35 @@
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, Firestore, getFirestore } from "firebase-admin/firestore";
 import { describe, expect, it } from "vitest";
+import { LiveRaceSnapshot } from "../src/LiveRaceSnapshot";
+import { RaceEvent } from "../src/RaceEvent";
+import { LLM_REQUEST_TIMEOUT_MS } from "../src/ai/LlmRequestTimeout";
+import {
+  createProcessEnvReader,
+  createRaceLlmProvider,
+  MOCK_LLM_PROVIDER_NAME,
+} from "../src/ai/LlmProviderSelection";
+import { CommentaryDocument } from "../src/firestore/CommentaryDocument";
+import {
+  COMMENTARY_CONTEXT_DOC_ID,
+  firestorePaths,
+} from "../src/firestore/LiveRaceRepository";
+import {
+  CommentaryRunContext,
+  parseCommentaryRunContext,
+} from "../src/worker/CommentaryRunContext";
+import {
+  parseCommentaryVariants,
+  toCommentaryVariantKey,
+} from "../src/worker/CommentaryVariant";
+import {
+  DEFAULT_REPLAY_COMMENTARY_CALL_CAP,
+  formatReplayCommentaryEntry,
+  formatReplayCommentaryPlan,
+  formatReplayCommentarySummary,
+  planReplayCommentary,
+  runReplayCommentary,
+} from "../src/worker/ReplayCommentaryHarness";
 import {
   fetchLatestOpenF1Meta,
   fetchOpenF1SessionData,
@@ -21,6 +50,10 @@ import { OpenF1SessionData } from "../src/openf1/OpenF1Types";
 // 실제 시각을 쓰면 매 폴링마다 레이스 전체가 한꺼번에 들어와 아무것도 변하지 않는다.
 // 리플레이 모드는 가상 시계를 써서 이벤트가 하나씩 쌓이는 것을 볼 수 있게 한다.
 // 실행 방법은 docs/04-worker-openf1.md 참고.
+//
+// POLL_COMMENTARY=1 을 주면 폴링이 끝난 뒤 워커와 **같은 도메인 함수**로 AI 해설을
+// 생성해 Firestore 에 저장하고 콘솔에 시간순으로 찍는다. 기본은 꺼짐 — 기존 하네스
+// 사용자가 모르는 사이에 LLM 비용을 물면 안 된다.
 const shouldRun = process.env.POLL_OPENF1 === "1";
 const LIVE_SESSION_ID = "openf1-live";
 const ITERATIONS = Number(process.env.POLL_ITERATIONS ?? "20");
@@ -33,6 +66,25 @@ const REPLAY_SPEED =
 const MAX_DELETE_BATCH_SIZE = 500;
 // 랩 시각이 하나도 없을 때 쓰는 fallback 세션 길이.
 const FALLBACK_SESSION_MS = 3_600_000;
+
+// ── AI 해설 (docs/18-ai-commentary-worker.md) ──
+
+// 기본은 꺼짐. 켜지 않으면 이 파일은 예전과 완전히 같게 동작한다.
+const SHOULD_GENERATE_COMMENTARY = process.env.POLL_COMMENTARY === "1";
+// 총 LLM 호출 수 상한. 무료 티어 한도(일 250회)와 지출 상한($5)을 하네스가 태우지 않게
+// 막는 마지막 방어선이다. 넘기면 생성을 멈추고 그 사실을 출력한다.
+const COMMENTARY_CALL_CAP = Number(
+  process.env.POLL_COMMENTARY_CALL_CAP ??
+    String(DEFAULT_REPLAY_COMMENTARY_CALL_CAP),
+);
+// 해설 단계 전체의 벽시계 상한. 워커는 함수 타임아웃·리스 TTL 에서 끌어오지만 하네스에는
+// 그 둘이 없으므로 폭주 방지용으로만 둔다. 기본 10분.
+const COMMENTARY_BUDGET_MS = Number(
+  process.env.POLL_COMMENTARY_BUDGET_MS ?? "600000",
+);
+// 러닝 컨텍스트와 이미 만든 해설을 지우고 처음부터 다시 생성할지.
+// 기본은 유지다 — 리플레이를 다시 돌릴 때마다 같은 해설을 다시 사는 일이 없게 한다.
+const SHOULD_RESET_COMMENTARY = process.env.POLL_COMMENTARY_RESET === "1";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -74,13 +126,13 @@ const formatElapsed = (elapsedMs: number): string => {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 };
 
-// 리플레이를 "처음부터" 재생하려면 이전 실행이 남긴 이벤트 문서를 지워야 한다.
+// 리플레이를 "처음부터" 재생하려면 이전 실행이 남긴 문서를 지워야 한다.
 // 에뮬레이터 REST DELETE 는 보안 규칙에 막히지만 admin SDK 는 규칙을 우회한다.
-const deleteSessionEvents = async (
+const deleteCollectionDocs = async (
   db: Firestore,
-  sessionId: string,
+  collectionPath: string,
 ): Promise<number> => {
-  const collection = db.collection(`sessions/${sessionId}/events`);
+  const collection = db.collection(collectionPath);
   let deleted = 0;
 
   // 문서가 수백 건이라 배치 상한(500) 단위로 끊어 지운다.
@@ -102,6 +154,161 @@ const deleteSessionEvents = async (
   }
 
   return deleted;
+};
+
+// 러닝 컨텍스트 입출력. 워커(functions/src/FirestoreWorkerStore.ts)와 **같은 문서 경로 ·
+// 같은 파서 · 같은 필드**를 쓴다. functions/ 는 별도 tsconfig(rootDir 밖)라 여기서
+// import 할 수 없어 이 열 줄만 형태가 겹치지만, 판정 로직은 전부 도메인 함수 쪽에 있다.
+//
+// 워커와 마찬가지로 **창당 읽기 1 · 쓰기 1** 이다. 해설마다 쓰면 이 문서가 쓰기 폭증이 된다.
+const readCommentaryContext = async (
+  db: Firestore,
+  sessionId: string,
+): Promise<CommentaryRunContext> => {
+  const snapshot = await db
+    .doc(firestorePaths.runtimeDoc(sessionId, COMMENTARY_CONTEXT_DOC_ID))
+    .get();
+
+  return parseCommentaryRunContext(snapshot.data());
+};
+
+const writeCommentaryContext = async (
+  db: Firestore,
+  sessionId: string,
+  context: CommentaryRunContext,
+): Promise<void> => {
+  await db
+    .doc(firestorePaths.runtimeDoc(sessionId, COMMENTARY_CONTEXT_DOC_ID))
+    .set({
+      recentTextsByVariant: context.recentTextsByVariant,
+      generatedKeys: context.generatedKeys,
+      failureCounts: context.failureCounts,
+      generatedCount: context.generatedCount,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+};
+
+// 해설 문서. id 가 `{eventId}:{locale}:{explanationLevel}` 라 재기록이 멱등이다.
+const writeCommentaryDocument = async (
+  db: Firestore,
+  sessionId: string,
+  docId: string,
+  document: CommentaryDocument,
+): Promise<void> => {
+  await db.doc(firestorePaths.aiCommentaryDoc(sessionId, docId)).set({
+    ...document,
+    persistedAt: FieldValue.serverTimestamp(),
+  });
+};
+
+// 마지막 폴링이 계산한 프레임. 워커와 같이 **폴링 루프가 끝난 뒤** 이것으로 해설을 만든다
+// (docs/18 §생성 주체 — 루프 안에서 LLM 을 기다리면 폴링 간격이 통째로 밀린다).
+type LastFrame = {
+  snapshot: LiveRaceSnapshot;
+  events: RaceEvent[];
+};
+
+// 해설 생성 한 판. 실패해도 폴링 결과(이벤트·스냅샷)를 되돌리지 않는다.
+const runCommentaryPhase = async (
+  db: Firestore,
+  sessionId: string,
+  lastFrame: LastFrame,
+  context: CommentaryRunContext,
+): Promise<void> => {
+  const variants = parseCommentaryVariants(process.env.COMMENTARY_VARIANTS);
+  // provider 선택은 워커와 같은 경로다. 키가 하나도 없으면 Mock 이 돌아온다.
+  const llm = createRaceLlmProvider(
+    createProcessEnvReader(process.env),
+    (error) => {
+      // 키 값은 어떤 경로로도 남기지 않는다. 사유만 남긴다.
+      // eslint-disable-next-line no-console
+      console.log(
+        `  LLM 호출 실패 → mock 폴백: ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
+      );
+    },
+  );
+
+  // mock 으로 조용히 도는 것이 이 하네스에서 가장 위험하다. 문장이 그럴듯하게 찍혀
+  // "잘 됐다" 고 오해하게 만든다. 실제 provider 가 아니면 아예 생성하지 않는다.
+  if (llm.name === MOCK_LLM_PROVIDER_NAME) {
+    // eslint-disable-next-line no-console
+    console.log(
+      [
+        "",
+        "해설 생성을 건너뛴다: LLM API 키가 없다.",
+        "  GEMINI_API_KEY 를 셸 환경에 넣고 다시 실행할 것 (값은 문서·로그에 남기지 않는다).",
+        "    export GEMINI_API_KEY=...",
+        "  키 없이 도는 mock 문장은 품질 판단에 쓸 수 없으므로 생성도 저장도 하지 않는다.",
+      ].join("\n"),
+    );
+
+    return;
+  }
+
+  const plan = planReplayCommentary(
+    lastFrame.events,
+    variants,
+    context,
+    COMMENTARY_CALL_CAP,
+  );
+
+  // eslint-disable-next-line no-console
+  console.log(
+    [
+      "",
+      `해설 provider: ${llm.name} (${llm.model}), 변형 ${variants.map(toCommentaryVariantKey).join(" · ")}`,
+      ...formatReplayCommentaryPlan(plan),
+    ].join("\n"),
+  );
+
+  if (plan.acceptedCalls === 0) {
+    // eslint-disable-next-line no-console
+    console.log(
+      "새로 만들 해설이 없다. 다시 생성하려면 POLL_COMMENTARY_RESET=1 로 러닝 컨텍스트를 비운다.",
+    );
+
+    return;
+  }
+
+  const report = await runReplayCommentary(
+    {
+      events: lastFrame.events,
+      snapshot: lastFrame.snapshot,
+      variants,
+      context,
+      model: llm.model,
+      budgetEndMs: Date.now() + COMMENTARY_BUDGET_MS,
+      // 호출 1회의 최악 소요는 provider 의 요청 타임아웃과 같은 상수에서 온다.
+      callBudgetMs: LLM_REQUEST_TIMEOUT_MS,
+      callCap: COMMENTARY_CALL_CAP,
+    },
+    {
+      generate: (request) => llm.provider.generateCommentary(request),
+      save: (docId, document) =>
+        writeCommentaryDocument(db, sessionId, docId, document),
+      nowMs: () => Date.now(),
+    },
+  );
+
+  // 생성 결과를 시간순으로 찍는다. 연속된 문장이 서로 다른 이야기를 하는지가
+  // 이 하네스의 핵심 관전 포인트다.
+  // eslint-disable-next-line no-console
+  console.log(
+    [
+      "",
+      "── 생성된 해설 (이벤트 시간순) ──",
+      ...report.entries.map((entry, index) =>
+        formatReplayCommentaryEntry(entry, index),
+      ),
+      "",
+      ...formatReplayCommentarySummary(report),
+    ].join("\n"),
+  );
+
+  // 워커와 같이 창 끝에 한 번만 쓴다.
+  if (report.hasContextChanged) {
+    await writeCommentaryContext(db, sessionId, report.nextContext);
+  }
 };
 
 describe("OpenF1 live poll → Firestore", () => {
@@ -164,13 +371,53 @@ describe("OpenF1 live poll → Firestore", () => {
       const wallClockStartMs = Date.now();
 
       if (replayData !== null) {
-        const deleted = await deleteSessionEvents(db, LIVE_SESSION_ID);
+        const deleted = await deleteCollectionDocs(
+          db,
+          firestorePaths.events(LIVE_SESSION_ID),
+        );
 
         // eslint-disable-next-line no-console
         console.log(
           `replay mode: speed x${REPLAY_SPEED}, duration ${formatElapsed(replayEndMs - replayStartMs)}, cleared ${deleted} existing events`,
         );
       }
+
+      // 해설 러닝 컨텍스트는 폴링 창 **시작에 한 번** 읽는다 (워커와 같은 방식).
+      // 해설을 끄면 읽지도 않는다 — 기존 동작이 그대로여야 한다.
+      let commentaryContext: CommentaryRunContext | null = null;
+
+      if (SHOULD_GENERATE_COMMENTARY) {
+        if (SHOULD_RESET_COMMENTARY) {
+          const clearedDocs = await deleteCollectionDocs(
+            db,
+            firestorePaths.aiCommentary(LIVE_SESSION_ID),
+          );
+
+          await db
+            .doc(
+              firestorePaths.runtimeDoc(
+                LIVE_SESSION_ID,
+                COMMENTARY_CONTEXT_DOC_ID,
+              ),
+            )
+            .delete();
+
+          // eslint-disable-next-line no-console
+          console.log(
+            `commentary reset: cleared ${clearedDocs} commentary docs and the running context`,
+          );
+        }
+
+        commentaryContext = await readCommentaryContext(db, LIVE_SESSION_ID);
+
+        // 예상 호출 수는 폴링이 끝나야 확정되지만, 상한과 이미 만든 건수는 지금 알린다.
+        // eslint-disable-next-line no-console
+        console.log(
+          `commentary enabled: 호출 상한 ${COMMENTARY_CALL_CAP}회, 이미 생성된 해설 ${commentaryContext.generatedKeys.length}건 (예상 호출 수는 폴링 종료 후 알린다)`,
+        );
+      }
+
+      let lastFrame: LastFrame | null = null;
 
       for (let iteration = 0; iteration < ITERATIONS; iteration += 1) {
         const data = replayData ?? (await fetchOpenF1SessionData(liveMeta, clientOptions));
@@ -230,6 +477,8 @@ describe("OpenF1 live poll → Firestore", () => {
           await batch.commit();
         }
 
+        lastFrame = { snapshot: liveSnapshot, events };
+
         if (isReplayMode) {
           const totalMs = Math.max(1, replayEndMs - replayStartMs);
           const progress = Math.round(((nowMs - startMs) / totalMs) * 100);
@@ -259,8 +508,28 @@ describe("OpenF1 live poll → Firestore", () => {
         }
       }
 
+      // 워커와 같은 순서다: 폴링 루프가 끝난 뒤 일괄 생성한다.
+      // 해설 실패가 이미 퍼블리시한 이벤트를 되돌릴 이유는 없으므로 여기서 삼킨다.
+      if (lastFrame !== null && commentaryContext !== null) {
+        try {
+          await runCommentaryPhase(
+            db,
+            LIVE_SESSION_ID,
+            lastFrame,
+            commentaryContext,
+          );
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `해설 생성 단계가 통째로 실패했다: ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
+          );
+        }
+      }
+
       expect(true).toBe(true);
     },
-    ITERATIONS * (INTERVAL_MS + 10_000),
+    // 해설을 켜면 폴링이 끝난 뒤 생성 단계가 붙는다. 그 몫을 더해 준다.
+    ITERATIONS * (INTERVAL_MS + 10_000) +
+      (SHOULD_GENERATE_COMMENTARY ? COMMENTARY_BUDGET_MS : 0),
   );
 });
