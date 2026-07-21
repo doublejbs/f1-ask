@@ -1,5 +1,6 @@
 import {
   AiConfidence,
+  ArchiveResultStatus,
   DataFreshnessStatus,
   ExplanationLevel,
   RaceEventPriority,
@@ -91,7 +92,52 @@ export type Dictionary = {
   };
   tabs: {
     race: string;
+    archive: string;
     ask: string;
+  };
+  // 지난 레이스 기록 (docs/17-race-archive.md).
+  archive: {
+    title: string;
+    // 목록 상단 한 줄 설명.
+    description: string;
+    loading: string;
+    // 목록·상세가 각각 갖는 오류 상태.
+    listError: string;
+    detailError: string;
+    retry: string;
+    empty: string;
+    // 라운드 표기. {round} 를 라운드 번호로 치환한다.
+    round: string;
+    podium: string;
+    results: string;
+    timeline: string;
+    // 상세로 들어가는 목록 행의 접근성 라벨. {name} 은 그랑프리명.
+    openRace: string;
+    back: string;
+    // 최종 순위 표 헤더.
+    columns: {
+      position: string;
+      driver: string;
+      gap: string;
+      laps: string;
+      points: string;
+    };
+    // 세션 종류 라벨. OpenF1 의 session_name 원문을 키로 쓴다.
+    sessionName: {
+      race: string;
+      sprint: string;
+    };
+    // 완주 상태 배지.
+    status: Record<ArchiveResultStatus, string>;
+  };
+  // 진행 중인 세션이 없을 때의 「경기」 탭 (docs/17-race-archive.md).
+  noSession: {
+    connecting: string;
+    title: string;
+    description: string;
+    action: string;
+    // 세션이 없으면 AI 탭도 답할 근거가 없다.
+    askUnavailable: string;
   };
   settings: {
     title: string;
@@ -260,7 +306,49 @@ const en: Dictionary = {
   },
   tabs: {
     race: "Race",
+    archive: "Archive",
     ask: "AI",
+  },
+  archive: {
+    title: "Race Archive",
+    description: "Completed 2026 races, newest first.",
+    loading: "Loading races…",
+    listError: "Couldn't load the race archive.",
+    detailError: "Couldn't load this race.",
+    retry: "Try again",
+    empty: "No completed races yet this season.",
+    round: "R{round}",
+    podium: "Podium",
+    results: "Final Classification",
+    timeline: "Key Moments",
+    openRace: "Open {name} results",
+    back: "All races",
+    columns: {
+      position: "Pos",
+      driver: "Driver",
+      gap: "Gap",
+      laps: "Laps",
+      points: "Pts",
+    },
+    sessionName: {
+      race: "Grand Prix",
+      sprint: "Sprint",
+    },
+    status: {
+      [ArchiveResultStatus.Finished]: "Finished",
+      [ArchiveResultStatus.Dnf]: "DNF",
+      [ArchiveResultStatus.Dns]: "DNS",
+      [ArchiveResultStatus.Dsq]: "DSQ",
+    },
+  },
+  noSession: {
+    connecting: "Connecting…",
+    title: "No session running",
+    description:
+      "There's no live F1 session right now. Look back at the races that already ran.",
+    action: "Open race archive",
+    askUnavailable:
+      "AI answers need race data. Open a past race from the archive tab.",
   },
   settings: {
     title: "Settings",
@@ -439,7 +527,49 @@ const ko: Dictionary = {
   },
   tabs: {
     race: "경기",
+    archive: "기록",
     ask: "AI",
+  },
+  archive: {
+    title: "지난 레이스",
+    description: "2026 시즌에 끝난 레이스를 최신순으로 봅니다.",
+    loading: "레이스를 불러오는 중…",
+    listError: "지난 레이스 목록을 불러오지 못했습니다.",
+    detailError: "이 레이스를 불러오지 못했습니다.",
+    retry: "다시 시도",
+    empty: "이번 시즌에 끝난 레이스가 아직 없습니다.",
+    round: "R{round}",
+    podium: "포디움",
+    results: "최종 순위",
+    timeline: "주요 장면",
+    openRace: "{name} 결과 열기",
+    back: "전체 레이스",
+    columns: {
+      position: "순위",
+      driver: "드라이버",
+      gap: "갭",
+      laps: "랩",
+      points: "포인트",
+    },
+    sessionName: {
+      race: "그랑프리",
+      sprint: "스프린트",
+    },
+    status: {
+      [ArchiveResultStatus.Finished]: "완주",
+      [ArchiveResultStatus.Dnf]: "리타이어",
+      [ArchiveResultStatus.Dns]: "미출발",
+      [ArchiveResultStatus.Dsq]: "실격",
+    },
+  },
+  noSession: {
+    connecting: "연결 중…",
+    title: "진행 중인 세션이 없습니다",
+    description:
+      "지금은 열려 있는 F1 세션이 없습니다. 이미 끝난 레이스를 돌아보세요.",
+    action: "지난 레이스 보기",
+    askUnavailable:
+      "AI가 답하려면 경기 데이터가 필요합니다. 기록 탭에서 지난 레이스를 열어 보세요.",
   },
   settings: {
     title: "설정",
@@ -618,7 +748,49 @@ const ja: Dictionary = {
   },
   tabs: {
     race: "レース",
+    archive: "記録",
     ask: "AI",
+  },
+  archive: {
+    title: "過去のレース",
+    description: "2026シーズンの終了済みレースを新しい順に表示します。",
+    loading: "レースを読み込み中…",
+    listError: "過去のレース一覧を読み込めませんでした。",
+    detailError: "このレースを読み込めませんでした。",
+    retry: "再試行",
+    empty: "今シーズンに終了したレースはまだありません。",
+    round: "R{round}",
+    podium: "表彰台",
+    results: "最終順位",
+    timeline: "主な出来事",
+    openRace: "{name} の結果を開く",
+    back: "レース一覧",
+    columns: {
+      position: "順位",
+      driver: "ドライバー",
+      gap: "差",
+      laps: "周回",
+      points: "ポイント",
+    },
+    sessionName: {
+      race: "グランプリ",
+      sprint: "スプリント",
+    },
+    status: {
+      [ArchiveResultStatus.Finished]: "完走",
+      [ArchiveResultStatus.Dnf]: "リタイア",
+      [ArchiveResultStatus.Dns]: "未出走",
+      [ArchiveResultStatus.Dsq]: "失格",
+    },
+  },
+  noSession: {
+    connecting: "接続中…",
+    title: "進行中のセッションはありません",
+    description:
+      "現在ライブのF1セッションはありません。すでに終わったレースを振り返りましょう。",
+    action: "過去のレースを見る",
+    askUnavailable:
+      "AIが答えるにはレースデータが必要です。記録タブから過去のレースを開いてください。",
   },
   settings: {
     title: "設定",

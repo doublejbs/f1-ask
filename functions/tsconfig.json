@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // rootDir 를 두지 않는다 — @f1/domain 소스가 functions/ 밖에 있고,
+    // 어차피 noEmit(번들은 esbuild 가 만든다)이라 출력 경로 계산이 필요 없다.
+    "noEmit": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    // @f1/domain 을 package.json 의존이 아니라 소스 경로로 잡는다.
+    // functions/package.json 에 workspace:* 가 한 줄도 없어야 Firebase 의
+    // npm 설치가 통과한다 (docs/16-poller-worker.md §배포 제약).
+    // esbuild 도 Build.mjs 에서 같은 경로로 alias 한다.
+    "paths": {
+      "@f1/domain": ["../packages/domain/src/Domain.ts"]
+    }
+  },
+  "include": ["src"]
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { getDataMode, getLiveSessionId } from "@/lib/Env";
+import { LiveRaceStatus } from "@/lib/LiveRaceStatus";
 import {
   DataFreshnessStatus,
   DataMode,
@@ -28,6 +29,10 @@ const LIVE_PRIMARY_EVENT_LIMIT = 20;
 // "전체 보기"(12 건)에 여유가 있고, AI 컨텍스트도 최근 흐름을 충분히 담는다.
 // 더 키우면 구독 페이로드와 재렌더 비용이 선형으로 늘어 모바일에서 손해다.
 const LIVE_ALL_EVENT_LIMIT = 60;
+// Firestore 구독이 이 시간 안에 한 번도 응답하지 않으면 연결 실패로 보고
+// 「세션 없음」으로 넘어간다. Firestore SDK 자체의 오프라인 판정(10초)보다
+// 넉넉히 잡아 느린 회선에서 성급하게 포기하지 않는다.
+const LIVE_CONNECT_TIMEOUT_MS = 15_000;
 
 export type LiveRaceState = {
   snapshot: LiveRaceSnapshot;
@@ -68,9 +73,21 @@ const createSource = async (
   };
 };
 
+export type LiveRaceResult = {
+  status: LiveRaceStatus;
+  // status 가 Ready 일 때만 채워진다.
+  race: LiveRaceState | null;
+};
+
 // 라이브 경기 훅. 소스 종류와 무관하게 동일한 tick 루프로 프레임을 렌더링한다.
-export const useLiveRace = (): LiveRaceState | null => {
+//
+// 상태를 세 갈래로 갈라 돌려준다 — 세션이 없을 때(Firestore 문서 부재)와
+// 아직 연결 중일 때를 화면이 구분할 수 있어야 하기 때문이다.
+export const useLiveRace = (): LiveRaceResult => {
   const [state, setState] = useState<LiveRaceState | null>(null);
+  const [status, setStatus] = useState<LiveRaceStatus>(
+    LiveRaceStatus.Connecting,
+  );
 
   useEffect(() => {
     const mode = getDataMode();
@@ -79,6 +96,16 @@ export const useLiveRace = (): LiveRaceState | null => {
     if (mode === DataMode.Live) {
       let cancelled = false;
       let dispose = () => {};
+      // Firestore 에 아예 닿지 못하면 구독 콜백이 영영 오지 않는다. 그대로 두면
+      // 「연결 중」에 갇혀 기록 탭으로 갈 길이 없으므로, 이 시간이 지나면
+      // 세션 없음으로 넘겨 사용자가 최소한 지난 레이스는 볼 수 있게 한다.
+      const connectTimeoutId = window.setTimeout(() => {
+        setStatus((previous) =>
+          previous === LiveRaceStatus.Connecting
+            ? LiveRaceStatus.NoSession
+            : previous,
+        );
+      }, LIVE_CONNECT_TIMEOUT_MS);
 
       void (async () => {
         const { FirestoreLiveRaceRepository } = await import(
@@ -94,12 +121,21 @@ export const useLiveRace = (): LiveRaceState | null => {
         let snapshot: LiveRaceSnapshot | null = null;
         let primaryEvents: RaceEvent[] = [];
         let allEvents: RaceEvent[] = [];
+        // 스냅샷 구독이 한 번이라도 응답했는지. 이벤트 구독이 먼저 도착했을 때
+        // "세션 없음"으로 잘못 넘어가는 것을 막는다.
+        let hasSnapshotResponse = false;
 
         const emit = () => {
           if (snapshot === null) {
+            if (hasSnapshotResponse) {
+              setStatus(LiveRaceStatus.NoSession);
+              setState(null);
+            }
+
             return;
           }
 
+          setStatus(LiveRaceStatus.Ready);
           setState({
             snapshot,
             primaryEvents,
@@ -115,6 +151,7 @@ export const useLiveRace = (): LiveRaceState | null => {
           sessionId,
           (next) => {
             snapshot = next;
+            hasSnapshotResponse = true;
             emit();
           },
         );
@@ -148,6 +185,7 @@ export const useLiveRace = (): LiveRaceState | null => {
 
       return () => {
         cancelled = true;
+        window.clearTimeout(connectTimeoutId);
         dispose();
       };
     }
@@ -218,6 +256,7 @@ export const useLiveRace = (): LiveRaceState | null => {
 
       lastState = next;
       setState(next);
+      setStatus(LiveRaceStatus.Ready);
     };
 
     void createSource(mode, startEpochMs).then((created) => {
@@ -239,5 +278,5 @@ export const useLiveRace = (): LiveRaceState | null => {
     };
   }, []);
 
-  return state;
+  return { status, race: status === LiveRaceStatus.Ready ? state : null };
 };

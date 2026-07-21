@@ -1,6 +1,6 @@
 // 화면 표시용 포맷 유틸. 도메인 값 계산이 아니라 렌더링 변환만 담당한다.
 
-import { LiveDriverState } from "@f1/domain";
+import { LiveDriverState, SupportedLocale } from "@f1/domain";
 
 export const formatLapTime = (seconds: number | null): string => {
   if (seconds === null) {
@@ -123,4 +123,58 @@ export const computeFieldBestSectors = (
   }
 
   return best;
+};
+
+// 아카이브 목록·상세의 날짜 표기. 로케일별 짧은 형식으로 행 폭을 지킨다.
+export const formatRaceDate = (iso: string, locale: SupportedLocale): string => {
+  const parsed = Date.parse(iso);
+
+  if (Number.isNaN(parsed)) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(parsed));
+};
+
+// 최종 순위의 갭 표기. 숫자면 초, 랩 다운이면 OpenF1 원문("+1 LAP")을 그대로 쓴다.
+export const formatArchiveGap = (
+  seconds: number | null,
+  label: string | null,
+  isLeader: boolean,
+): string => {
+  if (isLeader) {
+    return "—";
+  }
+
+  if (label !== null) {
+    return label;
+  }
+
+  if (seconds === null || seconds === 0) {
+    return "—";
+  }
+
+  return `+${seconds.toFixed(3)}`;
+};
+
+// 총 주행 시간 5082.479 → "1:24:42.479". 우승자 행에만 쓴다.
+export const formatRaceDuration = (seconds: number | null): string => {
+  if (seconds === null || !Number.isFinite(seconds)) {
+    return "—";
+  }
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds - hours * 3600) / 60);
+  const rest = seconds - hours * 3600 - minutes * 60;
+  const restText = rest.toFixed(3).padStart(6, "0");
+
+  if (hours === 0) {
+    return `${minutes}:${restText}`;
+  }
+
+  return `${hours}:${String(minutes).padStart(2, "0")}:${restText}`;
 };

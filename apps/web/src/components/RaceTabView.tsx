@@ -141,7 +141,8 @@ export const RaceTabView = ({
       {isFinished && summary !== null ? (
         <RaceSummaryView
           dictionary={dictionary}
-          summary={summary}
+          data={summary.data}
+          narrative={summary.narrative}
           drivers={snapshot.drivers}
         />
       ) : null}

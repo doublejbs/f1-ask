@@ -601,8 +601,12 @@ describe("재활용 이벤트", () => {
     expect(personalBests[0]?.params.lapTimeSeconds).toBe(94);
   });
 
-  it("드라이버당 PersonalBestLap 개수를 상한으로 제한한다", () => {
-    // 매 랩 갱신하므로 상한이 없으면 19건이 나온다.
+  it("갱신한 랩 수만큼 PersonalBestLap 을 만든다 (드라이버당 상한 없음)", () => {
+    // 매 랩 갱신하므로 첫 랩(기준선)을 뺀 19건이 모두 나와야 한다.
+    //
+    // 예전에는 "드라이버당 최근 3건" 상한이 걸려 있었지만, 폴러가 시점마다 전체를
+    // 재계산하면 그 3건이 매번 달라져 누적 문서가 부풀었다. 상한은 읽기 쪽
+    // (구독 limit / 표시용 셀렉터)이 담당한다 — docs/16-poller-worker.md.
     const laps = Array.from({ length: 20 }, (_, index) => ({
       driver_number: 1,
       lap_number: index + 1,
@@ -616,11 +620,11 @@ describe("재활용 이벤트", () => {
       (event) => event.type === RaceEventType.PersonalBestLap,
     );
 
-    expect(personalBests).toHaveLength(3);
-    // 상한을 넘긴 초과분 중 남는 것은 가장 최근 3건이다.
-    expect(personalBests.map((event) => event.params.lapTimeSeconds)).toEqual([
-      103, 102, 101,
-    ]);
+    expect(personalBests).toHaveLength(19);
+    // 가장 이른 갱신(2랩)부터 마지막 갱신(20랩)까지 빠짐없이 담긴다.
+    expect(personalBests.map((event) => event.lapNumber)).toEqual(
+      Array.from({ length: 19 }, (_, index) => index + 2),
+    );
   });
 
   it("팀 라디오가 TeamRadioPosted 를 만든다", () => {
@@ -672,8 +676,9 @@ describe("재활용 이벤트", () => {
       (event) => event.type === RaceEventType.GapClosing,
     );
 
-    // 쿨다운(60초)으로 7건까지 줄고, 드라이버당 상한 5건으로 다시 잘린다.
-    expect(gapClosing).toHaveLength(5);
+    // 40회 진입이 쿨다운(60초)으로 7건까지 줄어든다.
+    // 드라이버당 상한은 없앴으므로(재계산 안정성) 여기서 더 잘리지 않는다.
+    expect(gapClosing).toHaveLength(7);
   });
 
   it("GapClosing 에 앞차 코드를 담는다", () => {
@@ -824,7 +829,7 @@ describe("재활용 이벤트", () => {
     expect(types).not.toContain(RaceEventType.StrategyNote);
   });
 
-  it("드라이버당 StrategyNote 개수를 상한으로 제한한다", () => {
+  it("새 스틴트마다 StrategyNote 를 만든다 (드라이버당 상한 없음)", () => {
     const pitLaps = [5, 10, 15, 20, 25];
     const data = makeData({
       laps: pitLaps.map((lap) => ({
@@ -850,9 +855,9 @@ describe("재활용 이벤트", () => {
       .map((timed) => timed.event)
       .filter((event) => event.type === RaceEventType.StrategyNote);
 
-    expect(notes).toHaveLength(3);
-    // 남는 것은 가장 최근 3건이다.
-    expect(notes.map((event) => event.lapNumber)).toEqual([15, 20, 25]);
+    expect(notes).toHaveLength(5);
+    // 시점마다 달라지는 "최근 N건" 상한 없이 발생 순서대로 전부 담긴다.
+    expect(notes.map((event) => event.lapNumber)).toEqual(pitLaps);
   });
 
   it("범위 밖 이벤트 타입은 만들지 않는다", () => {

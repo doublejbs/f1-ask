@@ -76,6 +76,8 @@ export {
 
 export type {
   OpenF1Driver,
+  OpenF1Session,
+  OpenF1Meeting,
   OpenF1Position,
   OpenF1Interval,
   OpenF1Stint,
@@ -121,10 +123,56 @@ export type {
 export {
   fetchLatestOpenF1Meta,
   fetchOpenF1SessionData,
+  fetchOpenF1SessionByKey,
+  fetchOpenF1RaceSessions,
+  fetchOpenF1Meetings,
+  fetchOpenF1PodiumResults,
+  fetchOpenF1SeasonDrivers,
   fetchOpenF1Token,
   OpenF1Auth,
   toSessionId,
+  toOpenF1SessionMeta,
 } from "./openf1/OpenF1Client";
+
+// 지난 레이스 기록 (docs/17-race-archive.md).
+export { ArchiveResultStatus } from "./archive/ArchiveResultStatus";
+export type {
+  ArchiveRaceSession,
+  ArchivePodiumEntry,
+  ArchiveRaceListItem,
+  ArchiveResultRow,
+  ArchiveRaceDetail,
+} from "./archive/ArchiveRaceTypes";
+export {
+  ARCHIVE_RACE_SESSION_TYPE,
+  ARCHIVE_SETTLE_MARGIN_MS,
+  buildMeetingRounds,
+  selectCompletedRaceSessions,
+  isArchivableSession,
+} from "./archive/ArchiveSessionSelector";
+export {
+  ARCHIVE_PODIUM_SIZE,
+  resolveArchiveResultStatus,
+  buildArchiveResultRows,
+  selectArchivePodium,
+} from "./archive/ArchiveResultBuilder";
+export type { ArchiveSessionWindow } from "./archive/ArchiveSessionWindow";
+export {
+  resolveArchiveSessionWindow,
+  ARCHIVE_FALLBACK_SESSION_MS,
+} from "./archive/ArchiveSessionWindow";
+export type {
+  ArchiveLoadOptions,
+  ArchiveDetailLoadOptions,
+} from "./archive/ArchiveLoader";
+export {
+  loadArchiveRaceList,
+  loadArchiveRaceDetail,
+  selectArchiveTimelineEvents,
+  ARCHIVE_TIMELINE_EVENT_LIMIT,
+  ARCHIVE_TIMELINE_EXCLUDED_TYPES,
+  ARCHIVE_KEY_MOMENT_LIMIT,
+} from "./archive/ArchiveLoader";
 
 export type { FavoriteDriverDetail } from "./FavoriteDriverDetail";
 export {
@@ -233,9 +281,50 @@ export type {
 export {
   firestorePaths,
   LIVE_CURRENT_DOC_ID,
+  EVENT_CURSOR_DOC_ID,
   toLiveSnapshotDoc,
   toSessionDoc,
   eventDocId,
   buildEventQueryPlan,
   FIRESTORE_IN_MAX_VALUES,
 } from "./firestore/LiveRaceRepository";
+
+// 폴러 워커 (docs/16-poller-worker.md). Cloud Functions 번들이 사용한다.
+export { SessionActivityReason } from "./worker/SessionActivityReason";
+export type {
+  SessionActivity,
+  SessionActivityOptions,
+} from "./worker/SessionActivity";
+export {
+  resolveSessionActivity,
+  SESSION_PRE_ROLL_MS,
+  SESSION_GRACE_MS,
+  SESSION_MAX_DURATION_MS,
+} from "./worker/SessionActivity";
+export type {
+  EventWriteCursor,
+  UnwrittenEventSelection,
+} from "./worker/EventWriteCursor";
+export {
+  selectUnwrittenEvents,
+  parseEventWriteCursor,
+  EMPTY_EVENT_WRITE_CURSOR,
+  MAX_TRACKED_EVENT_KEYS,
+} from "./worker/EventWriteCursor";
+export type { WorkerLease } from "./worker/WorkerLease";
+export {
+  buildWorkerLease,
+  parseWorkerLease,
+  isLeaseHeld,
+  WORKER_LEASE_TTL_MS,
+} from "./worker/WorkerLease";
+export type {
+  PublishState,
+  PublishDecision,
+  PublishDecisionOptions,
+} from "./worker/PublishDecision";
+export {
+  decidePublish,
+  EMPTY_PUBLISH_STATE,
+  SNAPSHOT_HEARTBEAT_MS,
+} from "./worker/PublishDecision";

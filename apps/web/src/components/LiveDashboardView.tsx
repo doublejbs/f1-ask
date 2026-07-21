@@ -1,7 +1,9 @@
 "use client";
 
 import { AmbientWashView } from "@/components/AmbientWashView";
+import { ArchiveTabView } from "@/components/ArchiveTabView";
 import { AskAiTabView } from "@/components/AskAiTabView";
+import { NoLiveSessionView } from "@/components/NoLiveSessionView";
 import { RaceTabView } from "@/components/RaceTabView";
 import { SettingsSheetView } from "@/components/SettingsSheetView";
 import { StatusBarView } from "@/components/StatusBarView";
@@ -15,6 +17,7 @@ import { useRaceCommentary } from "@/hooks/UseRaceCommentary";
 import { useRaceSummary } from "@/hooks/UseRaceSummary";
 import { getDictionary } from "@/i18n/Messages";
 import { DashboardTab } from "@/lib/DashboardTab";
+import { LiveRaceStatus } from "@/lib/LiveRaceStatus";
 import { cn } from "@/lib/Utils";
 import { LiveDriverState, SupportedLocale } from "@f1/domain";
 import { useState } from "react";
@@ -24,13 +27,15 @@ type Props = {
 };
 
 // 라이브 경기 대시보드 조립 컴포넌트.
-// 모바일: 상태바 + 활성 탭(경기 / AI) + 하단 탭바.
-// 데스크톱(lg): 탭바 없이 2컬럼[순위|AI]. 가운데 이벤트 피드 컬럼은 피드를 분해하며
+// 모바일: 상태바 + 활성 탭(경기 / 기록 / AI) + 하단 탭바.
+// 데스크톱(lg): 경기·AI 는 2컬럼[순위|AI]으로 함께 보이고, 기록은 전체 폭을 쓰는
+// 별도 화면이라 탭 전환으로만 연다. 가운데 이벤트 피드 컬럼은 피드를 분해하며
 // 사라졌다 (docs/14-event-placement.md).
-// 비활성 탭은 언마운트하지 않고 display 로만 숨겨 AskAiView 대화 상태를 보존한다.
+// 비활성 탭은 언마운트하지 않고 display 로만 숨겨 AskAiView 대화 상태와
+// 기록 탭의 목록·선택 상태를 보존한다.
 export const LiveDashboardView = ({ locale }: Props) => {
   const dictionary = getDictionary(locale);
-  const race = useLiveRace();
+  const { status, race } = useLiveRace();
   const { level: explanationLevel, setLevel: setExplanationLevel } =
     useExplanationLevel();
   const commentary = useRaceCommentary(race, locale, explanationLevel);
@@ -53,11 +58,15 @@ export const LiveDashboardView = ({ locale }: Props) => {
 
   const handleAskDriver = (driver: LiveDriverState) => handleAskCode(driver.code);
 
-  if (race === null) {
+  const handleOpenArchive = () => handleChangeTab(DashboardTab.Archive);
+
+  // 연결 중에만 로딩 문구를 보여 준다. 세션이 없는 상태는 아래에서 설명한다 —
+  // 두 상태를 합치면 고장 난 것처럼 보인다 (docs/17-race-archive.md §배경).
+  if (status === LiveRaceStatus.Connecting) {
     return (
       <main className="container flex min-h-[100dvh] items-center justify-center py-8">
         <p className="animate-pulse text-sm text-muted-foreground">
-          {dictionary.tagline}…
+          {dictionary.noSession.connecting}
         </p>
       </main>
     );
@@ -66,48 +75,82 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const handleOpenSettings = () => setIsSettingsOpen(true);
   const handleCloseSettings = () => setIsSettingsOpen(false);
 
-  // 각 탭 래퍼 클래스. 모바일에서는 활성 탭만, 데스크톱(lg)에서는 항상 표시한다.
+  // 경기·AI 탭 래퍼 클래스. 모바일에서는 활성 탭만, 데스크톱(lg)에서는 항상 표시한다.
   const getTabPanelClass = (tab: DashboardTab): string =>
     cn(activeTab === tab ? "block" : "hidden", "lg:block");
+
+  const isArchiveActive = activeTab === DashboardTab.Archive;
 
   // 모바일 하단 패딩은 떠 있는 탭바(알약 약 64px + pb-safe 24px)에 여유를 더해 확보한다.
   return (
     <main className="container flex flex-col gap-4 pb-[7.5rem] lg:gap-5 lg:pb-8">
-      <AmbientWashView snapshot={race.snapshot} />
+      {race === null ? null : <AmbientWashView snapshot={race.snapshot} />}
 
-      <StatusBarView
-        dictionary={dictionary}
-        snapshot={race.snapshot}
-        freshness={race.freshness}
-        onOpenSettings={handleOpenSettings}
-      />
+      {race === null ? null : (
+        <StatusBarView
+          dictionary={dictionary}
+          snapshot={race.snapshot}
+          freshness={race.freshness}
+          onOpenSettings={handleOpenSettings}
+        />
+      )}
 
-      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-5">
+      {/* 기록은 전체 폭을 쓰므로 활성일 때 2컬럼 그리드를 통째로 접는다. */}
+      {/* lg:grid 는 hidden 을 이기므로 두 상태를 한 분기에서 통째로 고른다. */}
+      <div
+        className={
+          isArchiveActive
+            ? "hidden"
+            : "block lg:grid lg:grid-cols-2 lg:items-start lg:gap-5"
+        }
+      >
         <div className={getTabPanelClass(DashboardTab.Race)}>
-          <RaceTabView
-            dictionary={dictionary}
-            locale={locale}
-            snapshot={race.snapshot}
-            summary={summary}
-            allEvents={race.allEvents}
-            commentary={commentary}
-            isFavorite={isFavorite}
-            onToggleFavorite={toggleFavorite}
-            onSelectDriver={handleAskDriver}
-          />
+          {race === null ? (
+            <NoLiveSessionView
+              dictionary={dictionary}
+              onOpenArchive={handleOpenArchive}
+            />
+          ) : (
+            <RaceTabView
+              dictionary={dictionary}
+              locale={locale}
+              snapshot={race.snapshot}
+              summary={summary}
+              allEvents={race.allEvents}
+              commentary={commentary}
+              isFavorite={isFavorite}
+              onToggleFavorite={toggleFavorite}
+              onSelectDriver={handleAskDriver}
+            />
+          )}
         </div>
 
         <div className={getTabPanelClass(DashboardTab.Ask)}>
-          <AskAiTabView
-            dictionary={dictionary}
-            locale={locale}
-            explanationLevel={explanationLevel}
-            snapshot={race.snapshot}
-            events={race.allEvents}
-            favoriteDriverNumbers={Array.from(favorites)}
-            prefill={askPrefill}
-          />
+          {race === null ? (
+            // 세션이 없으면 AI 가 근거로 쓸 경기 데이터도 없다.
+            <p className="max-w-md py-12 text-sm leading-relaxed text-muted-foreground">
+              {dictionary.noSession.askUnavailable}
+            </p>
+          ) : (
+            <AskAiTabView
+              dictionary={dictionary}
+              locale={locale}
+              explanationLevel={explanationLevel}
+              snapshot={race.snapshot}
+              events={race.allEvents}
+              favoriteDriverNumbers={Array.from(favorites)}
+              prefill={askPrefill}
+            />
+          )}
         </div>
+      </div>
+
+      <div className={isArchiveActive ? "block" : "hidden"}>
+        <ArchiveTabView
+          dictionary={dictionary}
+          locale={locale}
+          isActive={isArchiveActive}
+        />
       </div>
 
       <TabBarView
@@ -116,16 +159,18 @@ export const LiveDashboardView = ({ locale }: Props) => {
         onChangeTab={handleChangeTab}
       />
 
-      <SettingsSheetView
-        dictionary={dictionary}
-        locale={locale}
-        snapshot={race.snapshot}
-        explanationLevel={explanationLevel}
-        onChangeExplanationLevel={setExplanationLevel}
-        auth={auth}
-        isOpen={isSettingsOpen}
-        onClose={handleCloseSettings}
-      />
+      {race === null ? null : (
+        <SettingsSheetView
+          dictionary={dictionary}
+          locale={locale}
+          snapshot={race.snapshot}
+          explanationLevel={explanationLevel}
+          onChangeExplanationLevel={setExplanationLevel}
+          auth={auth}
+          isOpen={isSettingsOpen}
+          onClose={handleCloseSettings}
+        />
+      )}
     </main>
   );
 };

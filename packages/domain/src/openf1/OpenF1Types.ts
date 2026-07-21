@@ -9,6 +9,8 @@ export type OpenF1Driver = {
   team_name: string;
   team_colour?: string | null;
   headshot_url?: string | null;
+  // 여러 세션을 한 번에 조회할 때만 의미가 있다(단일 세션 조회에서는 무시한다).
+  session_key?: number;
 };
 
 export type OpenF1Weather = {
@@ -94,10 +96,43 @@ export type OpenF1SessionResult = {
   number_of_laps: number | null;
   points: number | null;
   duration: number | null;
-  gap_to_leader: number | null;
+  // 숫자(초)이거나 "+1 LAP" 같은 문자열, 또는 null 일 수 있다.
+  gap_to_leader: number | string | null;
   dnf: boolean;
   dns: boolean;
   dsq: boolean;
+  // 여러 세션을 한 번에 조회할 때만 의미가 있다(단일 세션 조회에서는 무시한다).
+  session_key?: number;
+};
+
+// sessions 엔드포인트 행. 세션 목록·아카이브 판정의 원본이다.
+export type OpenF1Session = {
+  session_key: number;
+  meeting_key: number;
+  session_name: string;
+  session_type: string;
+  circuit_short_name: string;
+  country_code: string;
+  country_name?: string | null;
+  year: number;
+  // 세션 예정 시각. 워커의 활성 판정과 아카이브의 완료 판정 근거다.
+  date_start?: string | null;
+  date_end?: string | null;
+  // 취소된 세션(예: 2026 바레인·제다)은 기록에서 제외한다.
+  is_cancelled?: boolean | null;
+};
+
+// meetings 엔드포인트 행. 그랑프리명과 라운드 도출에 쓴다.
+export type OpenF1Meeting = {
+  meeting_key: number;
+  meeting_name: string;
+  meeting_official_name?: string | null;
+  country_code: string;
+  country_name?: string | null;
+  circuit_short_name: string;
+  date_start?: string | null;
+  year: number;
+  is_cancelled?: boolean | null;
 };
 
 export type OpenF1SessionMeta = {
@@ -108,6 +143,10 @@ export type OpenF1SessionMeta = {
   sessionType: string;
   circuitName: string;
   countryCode: string;
+  // 세션 예정 시각 (ISO). 워커의 활성 판정에 쓴다.
+  // 과거 fixture 와의 호환을 위해 optional 로 둔다 — 없으면 판정이 비활성으로 닫힌다.
+  dateStart?: string | null;
+  dateEnd?: string | null;
 };
 
 // 한 세션의 OpenF1 원본 데이터 묶음.

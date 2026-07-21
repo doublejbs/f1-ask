@@ -27,3 +27,6 @@ ui-debug.log
 .idea/
 .vscode/
 *.log
+
+# Cloud Functions 번들 산출물
+functions/lib/

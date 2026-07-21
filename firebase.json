@@ -3,6 +3,20 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": {
+    "source": "functions",
+    "codebase": "poller",
+    "runtime": "nodejs20",
+    "predeploy": ["node \"$RESOURCE_DIR/Build.mjs\""],
+    "ignore": [
+      "node_modules",
+      ".git",
+      "src",
+      "Build.mjs",
+      "tsconfig.json",
+      "*.local"
+    ]
+  },
   "emulators": {
     "auth": {
       "host": "0.0.0.0",
@@ -11,6 +25,10 @@
     "firestore": {
       "host": "0.0.0.0",
       "port": 8080
+    },
+    "functions": {
+      "host": "0.0.0.0",
+      "port": 5001
     },
     "ui": {
       "enabled": true,
