@@ -75,7 +75,22 @@ describe("WatchNow 실데이터 회귀 — 2026 벨기에 GP", () => {
     expect(counts.get(WatchNowSignalType.TireAge)).toBe(18);
 
     // B 간격 수렴 (1.0초 · 연속 3회 · SC 억제 켬).
-    expect(counts.get(WatchNowSignalType.GapConvergence)).toBe(93);
+    //
+    // 93 → 92 로 내렸다. 정규화 층에서 **선두의 `intervalToAheadSeconds` 를 `null` 로**
+    // 바꾼 결과다(OpenF1Normalizer). 그전에는 OpenF1 이 선두에게 보내는 `interval: 0` 이
+    // 그대로 흘러 `0 < 1.0` 으로 발화했고 "P1 앞차와 0.0초" 라는 문장이 화면에 떴다.
+    //
+    // 순 감소는 1건이지만 실제로 바뀐 것은 7건이며, 전부 설명된다:
+    //   제거 4건 — 전부 `P1` · `gap=0` 이다(ANT · VER · LEC · NOR). 레이스 중 선두가
+    //     바뀔 때마다, 뒤차로서 이미 armed 상태였던 드라이버가 선두에 오르는 순간
+    //     0 으로 한 번 발화했다. 리드 체인지 횟수만큼 나온 것이지 그 이상이 아니다.
+    //   추가 3건 — 전부 선두가 아니고 실제 간격이 있다(VER P3 0.313 · ANT P5 0.0 ·
+    //     NOR P2 0.568). 발화 시 `gapArmed = false` 로 무장이 풀리므로, 가짜 발화가
+    //     그 드라이버를 disarm 시켜 **뒤로 처진 뒤의 진짜 접전을 가려 왔다.** 이제
+    //     선두 구간에서는 `gap === null` 로 스트릭만 끊기고 무장은 유지되어 되살아난다.
+    //
+    // 즉 감소분은 "선두 1대분"이고, 늘어난 쪽은 원래 나왔어야 할 신호다.
+    expect(counts.get(WatchNowSignalType.GapConvergence)).toBe(92);
 
     // C 언더컷 위협 (2계단). 28회 피트인이 만들어낸 위협 알림 수다.
     expect(counts.get(WatchNowSignalType.UndercutThreat)).toBe(21);
@@ -121,13 +136,19 @@ describe("WatchNow 실데이터 회귀 — 2026 벨기에 GP", () => {
       runDetector({ suppressGapDuringSafetyCar: false }),
     ).get(WatchNowSignalType.GapConvergence);
 
-    expect(suppressed).toBe(93);
-    expect(unsuppressed).toBe(103);
+    // 선두 `null` 화(위 테스트 참고)로 양쪽이 나란히 1건씩 내려갔다: 93 → 92,
+    // 103 → 102. **억제의 순 효과 10건은 그대로다** — 선두는 SC 여부와 무관하게
+    // 빠지므로 억제 축과 직교한다. 두 축이 서로를 오염시키지 않았다는 확인이다.
+    expect(suppressed).toBe(92);
+    expect(unsuppressed).toBe(102);
 
     // 순 감소는 10건이지만, 억제의 진짜 효과는 "몇 건이 사라지는가"가 아니라
-    // "몇 건이 SC 한복판에서 터지는가"다. 억제를 끄면 103건 중 20건(19%)이 SC 구간
+    // "몇 건이 SC 한복판에서 터지는가"다. 억제를 끄면 102건 중 19건(19%)이 SC 구간
     // 안에서 발화한다 — 전 차량이 밀착해 간격이 무의미해진 바로 그 순간이다.
-    // 억제하면 그중 10건은 사라지고 10건은 그린 재개 후 제대로 된 시점으로 밀린다.
+    // 억제하면 그중 10건은 사라지고 9건은 그린 재개 후 제대로 된 시점으로 밀린다.
+    //
+    // 20 → 19 로 준 것도 선두 `null` 화 때문이다. SC 중에는 전 차량이 밀착하므로
+    // 선두의 가짜 0 초도 그 안에서 한 번 발화하고 있었다.
     const safetyCarFrameTimes = new Set(
       snapshots
         .filter(
@@ -145,7 +166,7 @@ describe("WatchNow 실데이터 회귀 — 2026 벨기에 GP", () => {
         safetyCarFrameTimes.has(signal.detectedAt),
     );
 
-    expect(firedDuringSafetyCar).toHaveLength(20);
+    expect(firedDuringSafetyCar).toHaveLength(19);
 
     // 억제를 켜면 SC 구간에서 발화한 간격 신호가 하나도 없어야 한다.
     const suppressedDuringSafetyCar = runDetector().filter(

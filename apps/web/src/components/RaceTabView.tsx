@@ -5,8 +5,10 @@ import { DriverListView } from "@/components/DriverListView";
 import { LatestEventPagerView } from "@/components/LatestEventPagerView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionStatusStripView } from "@/components/SessionStatusStripView";
+import { WatchNowLanesView } from "@/components/WatchNowLanesView";
 import { WeatherChipView } from "@/components/WeatherChipView";
 import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
+import { useWatchNowLanes } from "@/hooks/UseWatchNowLanes";
 import { Dictionary } from "@/i18n/Messages";
 import { expandMultiCarEvents } from "@/lib/ExpandMultiCarEvents";
 import { computeFieldBestSectors } from "@/lib/Format";
@@ -34,6 +36,8 @@ type Props = {
   summary: RaceSummaryResponse | null;
   allEvents: RaceEvent[];
   commentary: AiCommentary[];
+  // "지금 볼 것"의 세 번째 칸(내 드라이버)이 쓴다. 비어 있으면 그 칸이 접힌다.
+  favoriteDriverNumbers: number[];
   isFavorite: (driverNumber: number) => boolean;
   onToggleFavorite: (driverNumber: number) => void;
   // 탭투애스크: AI 탭으로 전환하며 이 드라이버에 대한 질문을 제출한다.
@@ -57,6 +61,7 @@ export const RaceTabView = ({
   summary,
   allEvents,
   commentary,
+  favoriteDriverNumbers,
   isFavorite,
   onToggleFavorite,
   onSelectDriver,
@@ -116,6 +121,13 @@ export const RaceTabView = ({
     () => selectRecentDriverEvents(allEvents, raceClockMs),
     [allEvents, raceClockMs],
   );
+
+  // "지금 볼 것" 칸 3개. 감지기 인스턴스는 훅이 ref 로 붙들고 있으므로 여기서 다시
+  // 만들거나 초기화하지 않는다.
+  const watchNowLanes = useWatchNowLanes({
+    snapshot,
+    favoriteDriverNumbers,
+  });
 
   const selectedRadioClips =
     selectedDriver === null
@@ -179,6 +191,30 @@ export const RaceTabView = ({
           onSelectDriver={setSelectedDriver}
         />
       </div>
+
+      {/* "지금 볼 것" — 고정 헤더 **아래**, 순위표 **위**.
+
+          위치를 이렇게 정한 이유는 셋이다.
+
+          1. 고정 헤더 안에 넣지 않는다. 그 그룹은 상태바와 합쳐 뷰포트 35% 를 넘지 않아야
+             하는데(위 주석) 칸 3개는 그것만으로 예산을 다 쓴다. 스크롤하면 사라져야 하는
+             내용이기도 하다 — 순위를 훑는 동안 화면 위쪽을 계속 점유할 이유가 없다.
+          2. 순위표 위에 둔다. 감지 결과 중 칸에 못 올라간 나머지는 순위표 행 표시로 가므로
+             (docs/19 수용 기준 7) 요약이 먼저 오고 전체가 뒤에 오는 순서가 맞다.
+          3. 최신 이벤트 페이저와 **공존시키되 층을 나눈다.** 둘 다 상단에서 "주목할 것"을
+             말하지만 종류가 다르다 — 페이저는 발표된 사건(플래그 · 페널티 · 리타이어)을
+             되짚는 이력이고, 이 섹션은 아무도 발표하지 않는 진행 중 상황(타이어 · 간격 ·
+             언더컷 · 순위)이다. 합치면 "발표된 것"과 "추론한 것"이 한 줄에 섞여 신뢰도가
+             다른 정보가 같은 무게로 보인다. 게다가 둘의 공백 구간이 서로 어긋난다 —
+             이 섹션은 SC · VSC 중 간격 감지를 억제해 조용해지는데 바로 그때 페이저가
+             가장 시끄럽고, 조용한 그린 플래그 구간에서는 반대가 된다. 서로의 빈 구간을
+             메우므로 하나를 없앨 이유가 없다. */}
+      <WatchNowLanesView
+        dictionary={dictionary}
+        lanes={watchNowLanes}
+        drivers={snapshot.drivers}
+        onSelectDriver={setSelectedDriver}
+      />
 
       {snapshot.weather !== undefined ? (
         <WeatherChipView dictionary={dictionary} weather={snapshot.weather} />

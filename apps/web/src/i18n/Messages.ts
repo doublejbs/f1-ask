@@ -8,6 +8,8 @@ import {
   SessionStatus,
   SupportedLocale,
   TireCompound,
+  WatchNowLane,
+  WatchNowSignalType,
 } from "@f1/domain";
 
 // UI 정적 문자열 사전. locale 별로 완전한 사전을 제공한다.
@@ -219,6 +221,37 @@ export type Dictionary = {
     // 스크린리더용 현재 위치. {current}/{total} 을 치환한다(화면에는 "2/8" 로 압축).
     position: string;
   };
+  // "지금 볼 것" — 역할이 고정된 칸 3개 (docs/19-watch-now.md §화면).
+  watchNow: {
+    // 섹션 헤더 겸 접근성 라벨.
+    title: string;
+    // 섹션이 무엇인지 한 줄로. 최신 이벤트 카드("발표된 것")와 역할을 갈라 준다.
+    subtitle: string;
+    // 칸 이름. enum 을 키로 써서 칸이 늘면 타입 에러로 잡힌다.
+    lane: Record<WatchNowLane, string>;
+    // 후보가 없는 칸에 표시한다. "접힘"(즐겨찾기 미설정)과 다르다.
+    quiet: string;
+    // 감지기 종류 이름. **도메인 enum 을 UI 가 번역한다** — 문자열을 컴포넌트에
+    // 하드코딩하지 않는다(docs/19).
+    signalType: Record<WatchNowSignalType, string>;
+    // 종류별 한 줄 요약 템플릿. 숫자는 전부 스냅샷에 있는 실측값이며 LLM 을 쓰지 않는다.
+    // {code} 드라이버 코드, {laps} 타이어 나이(랩).
+    tireAge: string;
+    // {gap} 앞차와의 간격(초).
+    gapConvergence: string;
+    // {rival} 피트인해 위협이 된 뒤차 코드.
+    undercutThreat: string;
+    // {from} → {to} 순위.
+    positionSwing: string;
+    // 걸린 챔피언십 포인트 배지. {points} 를 치환한다.
+    pointsAtStake: string;
+    // 포인트 배지의 스크린리더 라벨. {points} 를 치환한다.
+    pointsAtStakeLabel: string;
+    // 순위 배지. {position} 을 치환한다.
+    position: string;
+    // 행 탭 힌트. {code} 를 드라이버 코드로 치환한다.
+    openDriver: string;
+  };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
   eventPriority: Record<RaceEventPriority, string>;
@@ -409,6 +442,30 @@ const en: Dictionary = {
     previousEvent: "Newer event",
     nextEvent: "Older event",
     position: "Event {current} of {total}",
+  },
+  watchNow: {
+    title: "Watch now",
+    subtitle: "What the broadcast is not showing",
+    lane: {
+      [WatchNowLane.Leader]: "Podium",
+      [WatchNowLane.Field]: "Field",
+      [WatchNowLane.Favorite]: "My drivers",
+    },
+    quiet: "Quiet right now",
+    signalType: {
+      [WatchNowSignalType.TireAge]: "Tires",
+      [WatchNowSignalType.GapConvergence]: "Closing",
+      [WatchNowSignalType.UndercutThreat]: "Undercut",
+      [WatchNowSignalType.PositionSwing]: "Swing",
+    },
+    tireAge: "{code} on {laps}-lap tires",
+    gapConvergence: "{code} {gap}s to car ahead",
+    undercutThreat: "{code} — {rival} pitted",
+    positionSwing: "{code} P{from} to P{to}",
+    pointsAtStake: "{points}pt",
+    pointsAtStakeLabel: "{points} championship points at stake",
+    position: "P{position}",
+    openDriver: "Open {code} details",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -631,6 +688,30 @@ const ko: Dictionary = {
     nextEvent: "다음(더 이전) 이벤트",
     position: "{total}건 중 {current}번째 이벤트",
   },
+  watchNow: {
+    title: "지금 볼 것",
+    subtitle: "방송이 보여주지 않는 것",
+    lane: {
+      [WatchNowLane.Leader]: "선두권",
+      [WatchNowLane.Field]: "필드",
+      [WatchNowLane.Favorite]: "내 드라이버",
+    },
+    quiet: "지금은 조용함",
+    signalType: {
+      [WatchNowSignalType.TireAge]: "타이어",
+      [WatchNowSignalType.GapConvergence]: "간격",
+      [WatchNowSignalType.UndercutThreat]: "언더컷",
+      [WatchNowSignalType.PositionSwing]: "순위",
+    },
+    tireAge: "{code} 타이어 {laps}랩째",
+    gapConvergence: "{code} 앞차와 {gap}초",
+    undercutThreat: "{code} — {rival} 피트인",
+    positionSwing: "{code} P{from} → P{to}",
+    pointsAtStake: "{points}점",
+    pointsAtStakeLabel: "챔피언십 {points}점이 걸려 있음",
+    position: "P{position}",
+    openDriver: "{code} 상세 열기",
+  },
   status: {
     [SessionStatus.Scheduled]: "예정",
     [SessionStatus.Green]: "그린 플래그",
@@ -851,6 +932,30 @@ const ja: Dictionary = {
     previousEvent: "前(より新しい)のイベント",
     nextEvent: "次(より古い)のイベント",
     position: "{total}件中{current}件目のイベント",
+  },
+  watchNow: {
+    title: "いま見るべき",
+    subtitle: "中継が映していないもの",
+    lane: {
+      [WatchNowLane.Leader]: "トップ争い",
+      [WatchNowLane.Field]: "フィールド",
+      [WatchNowLane.Favorite]: "マイドライバー",
+    },
+    quiet: "いまは静か",
+    signalType: {
+      [WatchNowSignalType.TireAge]: "タイヤ",
+      [WatchNowSignalType.GapConvergence]: "接近",
+      [WatchNowSignalType.UndercutThreat]: "アンダーカット",
+      [WatchNowSignalType.PositionSwing]: "順位変動",
+    },
+    tireAge: "{code} タイヤ{laps}周目",
+    gapConvergence: "{code} 前車と{gap}秒",
+    undercutThreat: "{code} — {rival} ピットイン",
+    positionSwing: "{code} P{from} → P{to}",
+    pointsAtStake: "{points}点",
+    pointsAtStakeLabel: "チャンピオンシップ{points}点がかかっている",
+    position: "P{position}",
+    openDriver: "{code} の詳細を開く",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",

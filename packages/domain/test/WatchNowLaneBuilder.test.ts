@@ -229,6 +229,11 @@ describe("WatchNow 칸 구성", () => {
             [20, 20],
           ]),
         ),
+        // 이 테스트가 보는 것은 **범위**(P15~P20 이 필드 칸에 속하는가)이지 화면 예산이
+        // 아니다. 기본 줄 수(2)로 두면 셋 중 하나가 상한에 걸려 잘려 나가고, 그러면
+        // "범위 밖이라 빠진 것"과 "자리가 없어 밀린 것"을 구분할 수 없다. 상한을 넉넉히
+        // 열어 범위만 검증한다.
+        config: { ...DEFAULT_WATCH_NOW_LANE_CONFIG, maxEntriesPerLane: 10 },
       });
 
       expect(sortedDriversIn(lanes, WatchNowLane.Field)).toEqual([15, 18, 20]);
@@ -530,8 +535,13 @@ describe("WatchNow 칸 구성", () => {
     });
 
     it("칸 줄 수 상한을 넘으면 나머지는 overflow 로 간다", () => {
+      // 상한(현재 2)을 넘기려면 후보가 그보다 많아야 한다. 기대값을 숫자로 박으면
+      // 화면 예산을 조절할 때마다 이 테스트가 무관하게 깨지므로 설정에서 유도한다.
+      const fieldDriverNumbers = [11, 12, 13, 14];
+      const expectedOverflowCount =
+        fieldDriverNumbers.length - DEFAULT_WATCH_NOW_LANE_CONFIG.maxEntriesPerLane;
       const lanes = buildWatchNowLanes({
-        signals: [11, 12, 13, 14].map((driverNumber) =>
+        signals: fieldDriverNumbers.map((driverNumber) =>
           createSignal(WatchNowSignalType.TireAge, driverNumber, {
             detectedAt: new Date(BASE_TIME_MS - driverNumber * 1_000).toISOString(),
           }),
@@ -546,10 +556,11 @@ describe("WatchNow 칸 구성", () => {
         ),
       });
 
+      expect(expectedOverflowCount).toBeGreaterThan(0);
       expect(findLane(lanes, WatchNowLane.Field).entries).toHaveLength(
         DEFAULT_WATCH_NOW_LANE_CONFIG.maxEntriesPerLane,
       );
-      expect(lanes.overflow).toHaveLength(1);
+      expect(lanes.overflow).toHaveLength(expectedOverflowCount);
     });
   });
 

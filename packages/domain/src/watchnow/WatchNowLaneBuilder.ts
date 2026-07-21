@@ -143,8 +143,10 @@ const resolvePointsAtStake = (
   }
 
   if (signal.type === WatchNowSignalType.GapConvergence) {
-    // 선두는 앞차가 없다. 감지기가 발화시키지 않지만, 여기서 P0 을 포인트로 환산해
-    // 25점짜리 배틀을 만들어 내지 않도록 막는다.
+    // 선두는 앞차가 없다. 실제 차단은 정규화 층에서 한다 — 선두의
+    // `intervalToAheadSeconds` 가 `null` 이므로 감지기가 애초에 발화하지 않는다
+    // (OpenF1Normalizer). 여기는 마지막 방어선일 뿐이며, 혹시 신호가 들어오더라도
+    // P0 을 포인트로 환산해 25점짜리 배틀을 만들어 내지 않도록 막는다.
     if (position <= 1) {
       return 0;
     }

@@ -451,3 +451,7 @@ export {
   buildWatchNowLanes,
   selectWatchNowCandidates,
 } from "./watchnow/WatchNowLaneBuilder";
+// 감지 → 후보 축적 → 칸 구성을 묶은 클라이언트용 파이프라인. React 훅이 상태 기계가
+// 되지 않도록 상태를 전부 여기로 올렸다(테스트 가능성).
+export type { WatchNowFeedOptions } from "./watchnow/WatchNowFeed";
+export { WatchNowFeed } from "./watchnow/WatchNowFeed";
