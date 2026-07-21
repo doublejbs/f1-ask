@@ -1,8 +1,9 @@
 import {
   AiConfidence,
   DataFreshnessStatus,
-  DataMode,
   ExplanationLevel,
+  RaceEventPriority,
+  SessionStateSeverity,
   SessionStatus,
   SupportedLocale,
   TireCompound,
@@ -14,42 +15,47 @@ export type Dictionary = {
   tagline: string;
   header: {
     lap: string;
-    lapSeparator: string;
     session: string;
-    connection: string;
-    mode: string;
   };
   table: {
     title: string;
-    position: string;
-    driver: string;
-    team: string;
-    gap: string;
-    interval: string;
     tire: string;
-    tireAge: string;
-    lastLap: string;
-    pit: string;
     favorite: string;
     leader: string;
     inPit: string;
     retired: string;
     lapsUnit: string;
+    // 순위 목록의 가로 스크롤 영역 접근성 라벨.
+    extraColumns: string;
+    // 데이터 열 헤더 라벨. 열 폭이 좁아 driverSheet 의 긴 표기 대신 축약형을 쓴다
+    // (스크린리더에는 sr-only 로 driverSheet 의 긴 표기를 함께 싣는다).
+    columns: {
+      gap: string;
+      lastLap: string;
+      topSpeed: string;
+      pitStops: string;
+      // 섹터 열의 스크린리더 라벨. 화면 라벨은 F1 관례대로 "S1/S2/S3" 를 그대로 쓴다.
+      // {n} 은 섹터 번호(1~3).
+      sector: string;
+    };
   };
+  weather: {
+    rain: string;
+    dry: string;
+  };
+  // 이벤트에 붙는 AI 해설 줄의 접기/펼치기 토글.
+  // 시간순 피드가 사라지며(docs/14-event-placement.md) 나머지 키는 소비자가 없어졌다.
   events: {
-    title: string;
-    empty: string;
+    commentaryExpand: string;
+    commentaryCollapse: string;
   };
-  favoriteCard: {
+  teamRadio: {
     title: string;
-    empty: string;
-    start: string;
-    ahead: string;
-    behind: string;
-    recentPace: string;
-    pitStops: string;
-    recentEvents: string;
-    noEvents: string;
+    // {code} 를 드라이버 코드로 치환하는 재생/일시정지 접근성 라벨.
+    play: string;
+    pause: string;
+    // 최근(2분 이내) 무전 강조 아이콘의 툴팁.
+    recent: string;
   };
   askAi: {
     title: string;
@@ -60,11 +66,11 @@ export type Dictionary = {
     insufficient: string;
     suggestions: string;
     confidenceLabel: string;
+    reset: string;
+    emptyHint: string;
+    // {code} 를 드라이버 코드로 치환하는 탭투애스크 질문 템플릿.
+    driverTapQuestion: string;
     confidence: Record<AiConfidence, string>;
-  };
-  commentary: {
-    title: string;
-    empty: string;
   };
   explanationLevel: {
     label: string;
@@ -79,9 +85,98 @@ export type Dictionary = {
     pitStops: string;
     retirements: string;
   };
+  statusBar: {
+    appShort: string;
+    settings: string;
+  };
+  tabs: {
+    race: string;
+    ask: string;
+  };
+  settings: {
+    title: string;
+    close: string;
+    circuit: string;
+  };
+  // 계정 섹션 (docs/15-google-auth.md §UI). 설정 시트 안에서만 노출한다.
+  account: {
+    title: string;
+    signInWithGoogle: string;
+    syncDescription: string;
+    signOut: string;
+    signInError: string;
+    // 구글 프로필에 표시 이름이 없을 때의 대체 라벨.
+    anonymousName: string;
+  };
+  driverSheet: {
+    favorites: string;
+    leadGap: string;
+    ahead: string;
+    lastLap: string;
+    sectors: string;
+    topSpeed: string;
+    pitStops: string;
+    // {code} 를 드라이버 코드로 치환하는 시트 하단 AI 질문 버튼 라벨.
+    ask: string;
+    close: string;
+    // 이벤트 이력 섹션 제목 (docs/14-event-placement.md).
+    eventHistory: string;
+  };
+  battles: {
+    // 매뉴얼 오버라이드 사정권 소형 라벨. 칩 폭이 좁아 축약어를 쓴다.
+    overtakeLabel: string;
+    // 위 축약 라벨의 풀네임. title / aria-label 로 의미를 전달한다.
+    overtakeTitle: string;
+    // 순위 행 인라인 배틀의 스크린리더 문구. 색 강조만으로 전달되지 않게 보완한다.
+    // {code} 는 상대 드라이버 코드, {gap} 은 소수 1자리 간격(초).
+    chasingDescription: string;
+    aheadDescription: string;
+  };
+  // 상단 활성 세션 상태 스트립 (docs/14-event-placement.md).
+  // 칩 라벨 자체는 params 가 필요해 TranslateSessionState 가 담당하고,
+  // 여기에는 정적 크롬 문구만 둔다.
+  sessionStrip: {
+    // 스트립 전체의 접근성 라벨.
+    title: string;
+    // 칩이 색에만 의존하지 않도록 title/aria-label 에 덧붙이는 심각도 문구.
+    severity: Record<SessionStateSeverity, string>;
+  };
+  // 순위 행의 지속 마커·순간 아이콘 접근성 문구 (docs/14-event-placement.md).
+  // 칩에 보이는 글자(`+5s` / `PEN` / `?`)는 기호라 로케일과 무관하고,
+  // 의미는 여기 문구가 title/aria-label 로 전달한다.
+  rowMarker: {
+    // 페널티 1건. {seconds} 를 초로 치환한다.
+    penalty: string;
+    // 페널티 누적. {count} 건수, {seconds} 합산 초.
+    penaltyMultiple: string;
+    // 초를 알 수 없는 페널티.
+    penaltyUnknown: string;
+    investigation: string;
+    pitStop: string;
+    fastestLap: string;
+    personalBestLap: string;
+    overtake: string;
+    trackLimits: string;
+    strategyNote: string;
+    blueFlag: string;
+  };
+  // 최신 이벤트 카드 (docs/14-event-placement.md).
+  latestEvent: {
+    // 카드 전체의 접근성 라벨.
+    title: string;
+    // 탭 가능한 카드의 힌트. {code} 를 드라이버 코드로 치환한다.
+    openDriver: string;
+    // 위 버튼 — 더 최신 이벤트로.
+    previousEvent: string;
+    // 아래 버튼 — 더 과거 이벤트로.
+    nextEvent: string;
+    // 스크린리더용 현재 위치. {current}/{total} 을 치환한다(화면에는 "2/8" 로 압축).
+    position: string;
+  };
   status: Record<SessionStatus, string>;
+  // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
+  eventPriority: Record<RaceEventPriority, string>;
   freshness: Record<DataFreshnessStatus, string>;
-  mode: Record<DataMode, string>;
   compound: Record<TireCompound, string>;
   localeName: Record<SupportedLocale, string>;
 };
@@ -91,42 +186,38 @@ const en: Dictionary = {
   tagline: "Understand the race in real time",
   header: {
     lap: "Lap",
-    lapSeparator: "of",
     session: "Session",
-    connection: "Connection",
-    mode: "Mode",
   },
   table: {
     title: "Standings",
-    position: "Pos",
-    driver: "Driver",
-    team: "Team",
-    gap: "Gap",
-    interval: "Interval",
     tire: "Tire",
-    tireAge: "Age",
-    lastLap: "Last Lap",
-    pit: "Pit",
     favorite: "Favorite",
     leader: "Leader",
     inPit: "IN PIT",
     retired: "OUT",
     lapsUnit: "L",
+    extraColumns: "Standings with extra timing columns. Scroll horizontally for more.",
+    columns: {
+      gap: "Gap",
+      lastLap: "Last lap",
+      topSpeed: "Speed",
+      pitStops: "Pit",
+      sector: "Sector {n}",
+    },
+  },
+  weather: {
+    rain: "Rain",
+    dry: "Dry",
   },
   events: {
-    title: "Recent Events",
-    empty: "No events yet",
+    commentaryExpand: "More",
+    commentaryCollapse: "Less",
   },
-  favoriteCard: {
-    title: "Favorite Drivers",
-    empty: "Tap the star next to a driver to follow them here.",
-    start: "Start",
-    ahead: "Ahead",
-    behind: "Behind",
-    recentPace: "Recent Pace",
-    pitStops: "Pit Stops",
-    recentEvents: "Recent",
-    noEvents: "No recent events",
+  teamRadio: {
+    title: "Team Radio",
+    play: "Play {code} team radio",
+    pause: "Pause {code} team radio",
+    recent: "New radio",
   },
   askAi: {
     title: "Ask AI",
@@ -137,15 +228,14 @@ const en: Dictionary = {
     insufficient: "Not enough data to answer confidently.",
     suggestions: "Try asking",
     confidenceLabel: "Confidence",
+    reset: "New chat",
+    emptyHint: "Ask a question, or tap a driver or event below.",
+    driverTapQuestion: "How is {code} doing right now?",
     confidence: {
       [AiConfidence.Low]: "Low",
       [AiConfidence.Medium]: "Medium",
       [AiConfidence.High]: "High",
     },
-  },
-  commentary: {
-    title: "AI Commentary",
-    empty: "AI commentary will appear as key moments happen.",
   },
   explanationLevel: {
     label: "Explanation",
@@ -164,6 +254,74 @@ const en: Dictionary = {
     pitStops: "Pit Stops",
     retirements: "Retirements",
   },
+  statusBar: {
+    appShort: "F1 AI",
+    settings: "Settings",
+  },
+  tabs: {
+    race: "Race",
+    ask: "AI",
+  },
+  settings: {
+    title: "Settings",
+    close: "Close",
+    circuit: "Circuit",
+  },
+  account: {
+    title: "Account",
+    signInWithGoogle: "Sign in with Google",
+    syncDescription: "Syncs your favorite drivers across devices.",
+    signOut: "Sign out",
+    signInError: "Sign-in failed. You can keep using the app signed out.",
+    anonymousName: "Signed in",
+  },
+  driverSheet: {
+    favorites: "Favorites",
+    leadGap: "Gap to Leader",
+    ahead: "Interval",
+    lastLap: "Last Lap",
+    sectors: "Sectors",
+    topSpeed: "Top Speed",
+    pitStops: "Pit Stops",
+    ask: "Ask AI about {code}",
+    close: "Close",
+    eventHistory: "Event history",
+  },
+  battles: {
+    overtakeLabel: "OT",
+    overtakeTitle: "Overtake mode available",
+    chasingDescription: "Battling {code} ahead, {gap}s gap",
+    aheadDescription: "Battling {code} behind, {gap}s gap",
+  },
+  sessionStrip: {
+    title: "Active race status",
+    severity: {
+      [SessionStateSeverity.Critical]: "Session stopped",
+      [SessionStateSeverity.High]: "Race neutralised",
+      [SessionStateSeverity.Caution]: "Caution",
+      [SessionStateSeverity.Info]: "Information",
+    },
+  },
+  rowMarker: {
+    penalty: "{seconds}s time penalty",
+    penaltyMultiple: "{count} penalties, {seconds}s total",
+    penaltyUnknown: "Time penalty",
+    investigation: "Under investigation",
+    pitStop: "Just pitted",
+    fastestLap: "Fastest lap",
+    personalBestLap: "Personal best lap",
+    overtake: "Just overtook",
+    trackLimits: "Track limits",
+    strategyNote: "Strategy note",
+    blueFlag: "Blue flag",
+  },
+  latestEvent: {
+    title: "Latest key event",
+    openDriver: "Open {code} details",
+    previousEvent: "Newer event",
+    nextEvent: "Older event",
+    position: "Event {current} of {total}",
+  },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
     [SessionStatus.Green]: "Green Flag",
@@ -175,16 +333,17 @@ const en: Dictionary = {
     [SessionStatus.Finished]: "Finished",
     [SessionStatus.Unknown]: "Unknown",
   },
+  eventPriority: {
+    [RaceEventPriority.Critical]: "Critical",
+    [RaceEventPriority.High]: "High",
+    [RaceEventPriority.Medium]: "Medium",
+    [RaceEventPriority.Low]: "Low",
+  },
   freshness: {
     [DataFreshnessStatus.Live]: "Live",
     [DataFreshnessStatus.Delayed]: "Delayed",
     [DataFreshnessStatus.Stale]: "Stale",
     [DataFreshnessStatus.Unknown]: "Unknown",
-  },
-  mode: {
-    [DataMode.Mock]: "Mock",
-    [DataMode.Replay]: "Replay",
-    [DataMode.Live]: "Live",
   },
   compound: {
     [TireCompound.Soft]: "Soft",
@@ -206,42 +365,38 @@ const ko: Dictionary = {
   tagline: "실시간으로 경기를 이해하세요",
   header: {
     lap: "랩",
-    lapSeparator: "/",
     session: "세션",
-    connection: "연결",
-    mode: "모드",
   },
   table: {
     title: "순위",
-    position: "순위",
-    driver: "드라이버",
-    team: "팀",
-    gap: "선두차",
-    interval: "앞차",
     tire: "타이어",
-    tireAge: "사용",
-    lastLap: "최근 랩",
-    pit: "피트",
     favorite: "관심",
     leader: "선두",
     inPit: "피트인",
     retired: "리타이어",
     lapsUnit: "랩",
+    extraColumns: "추가 기록 열이 있는 순위표입니다. 가로로 스크롤하면 더 볼 수 있습니다.",
+    columns: {
+      gap: "갭",
+      lastLap: "최근 랩",
+      topSpeed: "최고속",
+      pitStops: "피트",
+      sector: "섹터 {n}",
+    },
+  },
+  weather: {
+    rain: "강수",
+    dry: "건조",
   },
   events: {
-    title: "최근 이벤트",
-    empty: "아직 이벤트가 없습니다",
+    commentaryExpand: "더 보기",
+    commentaryCollapse: "접기",
   },
-  favoriteCard: {
-    title: "관심 드라이버",
-    empty: "드라이버 옆의 별을 눌러 여기에 추가하세요.",
-    start: "출발",
-    ahead: "앞차",
-    behind: "뒤차",
-    recentPace: "최근 페이스",
-    pitStops: "피트 횟수",
-    recentEvents: "최근 이벤트",
-    noEvents: "최근 이벤트가 없습니다",
+  teamRadio: {
+    title: "팀 라디오",
+    play: "{code} 팀 라디오 재생",
+    pause: "{code} 팀 라디오 일시정지",
+    recent: "새 무전",
   },
   askAi: {
     title: "AI에게 질문",
@@ -252,15 +407,14 @@ const ko: Dictionary = {
     insufficient: "확실히 답하기에는 데이터가 부족합니다.",
     suggestions: "이렇게 물어보세요",
     confidenceLabel: "신뢰도",
+    reset: "새 대화",
+    emptyHint: "질문을 입력하거나 아래 드라이버·이벤트를 탭해 보세요.",
+    driverTapQuestion: "{code} 지금 상황 어때?",
     confidence: {
       [AiConfidence.Low]: "낮음",
       [AiConfidence.Medium]: "보통",
       [AiConfidence.High]: "높음",
     },
-  },
-  commentary: {
-    title: "AI 해설",
-    empty: "주요 순간이 발생하면 AI 해설이 표시됩니다.",
   },
   explanationLevel: {
     label: "설명 수준",
@@ -279,6 +433,74 @@ const ko: Dictionary = {
     pitStops: "피트스톱",
     retirements: "리타이어",
   },
+  statusBar: {
+    appShort: "F1 AI",
+    settings: "설정",
+  },
+  tabs: {
+    race: "경기",
+    ask: "AI",
+  },
+  settings: {
+    title: "설정",
+    close: "닫기",
+    circuit: "서킷",
+  },
+  account: {
+    title: "계정",
+    signInWithGoogle: "Google로 로그인",
+    syncDescription: "관심 드라이버를 기기 간에 동기화합니다.",
+    signOut: "로그아웃",
+    signInError: "로그인에 실패했습니다. 비로그인 상태로 계속 사용할 수 있습니다.",
+    anonymousName: "로그인됨",
+  },
+  driverSheet: {
+    favorites: "관심 드라이버",
+    leadGap: "선두 갭",
+    ahead: "앞차",
+    lastLap: "최근 랩",
+    sectors: "섹터",
+    topSpeed: "최고속",
+    pitStops: "피트",
+    ask: "{code}에 대해 AI에게 질문",
+    close: "닫기",
+    eventHistory: "이벤트 이력",
+  },
+  battles: {
+    overtakeLabel: "OT",
+    overtakeTitle: "오버테이크 모드 사용 가능",
+    chasingDescription: "앞차 {code}와 {gap}초 차 접전",
+    aheadDescription: "뒤차 {code}와 {gap}초 차 접전",
+  },
+  sessionStrip: {
+    title: "현재 경기 상태",
+    severity: {
+      [SessionStateSeverity.Critical]: "세션 중단",
+      [SessionStateSeverity.High]: "경기 중립화",
+      [SessionStateSeverity.Caution]: "주의",
+      [SessionStateSeverity.Info]: "정보",
+    },
+  },
+  rowMarker: {
+    penalty: "{seconds}초 페널티",
+    penaltyMultiple: "페널티 {count}건, 합계 {seconds}초",
+    penaltyUnknown: "시간 페널티",
+    investigation: "조사 중",
+    pitStop: "방금 피트인",
+    fastestLap: "패스티스트 랩",
+    personalBestLap: "개인 최고 랩",
+    overtake: "방금 추월",
+    trackLimits: "트랙 리밋 위반",
+    strategyNote: "전략 노트",
+    blueFlag: "블루 플래그",
+  },
+  latestEvent: {
+    title: "최신 주요 이벤트",
+    openDriver: "{code} 상세 열기",
+    previousEvent: "이전(더 최신) 이벤트",
+    nextEvent: "다음(더 이전) 이벤트",
+    position: "{total}건 중 {current}번째 이벤트",
+  },
   status: {
     [SessionStatus.Scheduled]: "예정",
     [SessionStatus.Green]: "그린 플래그",
@@ -290,16 +512,17 @@ const ko: Dictionary = {
     [SessionStatus.Finished]: "종료",
     [SessionStatus.Unknown]: "알 수 없음",
   },
+  eventPriority: {
+    [RaceEventPriority.Critical]: "중대",
+    [RaceEventPriority.High]: "높음",
+    [RaceEventPriority.Medium]: "보통",
+    [RaceEventPriority.Low]: "낮음",
+  },
   freshness: {
     [DataFreshnessStatus.Live]: "실시간",
     [DataFreshnessStatus.Delayed]: "지연",
     [DataFreshnessStatus.Stale]: "오래됨",
     [DataFreshnessStatus.Unknown]: "알 수 없음",
-  },
-  mode: {
-    [DataMode.Mock]: "목업",
-    [DataMode.Replay]: "리플레이",
-    [DataMode.Live]: "라이브",
   },
   compound: {
     [TireCompound.Soft]: "소프트",
@@ -321,42 +544,38 @@ const ja: Dictionary = {
   tagline: "レースをリアルタイムで理解する",
   header: {
     lap: "ラップ",
-    lapSeparator: "/",
     session: "セッション",
-    connection: "接続",
-    mode: "モード",
   },
   table: {
     title: "順位",
-    position: "位",
-    driver: "ドライバー",
-    team: "チーム",
-    gap: "トップ差",
-    interval: "前車差",
     tire: "タイヤ",
-    tireAge: "使用",
-    lastLap: "最終ラップ",
-    pit: "ピット",
     favorite: "お気に入り",
     leader: "首位",
     inPit: "ピットイン",
     retired: "リタイア",
     lapsUnit: "周",
+    extraColumns: "追加データ列付きの順位表です。横にスクロールすると続きが見られます。",
+    columns: {
+      gap: "差",
+      lastLap: "最終LAP",
+      topSpeed: "最高速",
+      pitStops: "PIT",
+      sector: "セクター{n}",
+    },
+  },
+  weather: {
+    rain: "降水",
+    dry: "ドライ",
   },
   events: {
-    title: "最近のイベント",
-    empty: "まだイベントがありません",
+    commentaryExpand: "もっと見る",
+    commentaryCollapse: "閉じる",
   },
-  favoriteCard: {
-    title: "お気に入りドライバー",
-    empty: "ドライバー横の星をタップしてここに追加できます。",
-    start: "スタート",
-    ahead: "前車",
-    behind: "後車",
-    recentPace: "最近のペース",
-    pitStops: "ピット回数",
-    recentEvents: "最近のイベント",
-    noEvents: "最近のイベントはありません",
+  teamRadio: {
+    title: "チームラジオ",
+    play: "{code} チームラジオを再生",
+    pause: "{code} チームラジオを一時停止",
+    recent: "新着無線",
   },
   askAi: {
     title: "AIに質問",
@@ -367,15 +586,14 @@ const ja: Dictionary = {
     insufficient: "確実に答えるにはデータが不足しています。",
     suggestions: "質問例",
     confidenceLabel: "信頼度",
+    reset: "新しい会話",
+    emptyHint: "質問を入力するか、下のドライバー・イベントをタップしてください。",
+    driverTapQuestion: "{code} は今どんな状況？",
     confidence: {
       [AiConfidence.Low]: "低",
       [AiConfidence.Medium]: "中",
       [AiConfidence.High]: "高",
     },
-  },
-  commentary: {
-    title: "AI解説",
-    empty: "重要な場面が起きるとAI解説が表示されます。",
   },
   explanationLevel: {
     label: "解説レベル",
@@ -394,6 +612,74 @@ const ja: Dictionary = {
     pitStops: "ピットストップ",
     retirements: "リタイア",
   },
+  statusBar: {
+    appShort: "F1 AI",
+    settings: "設定",
+  },
+  tabs: {
+    race: "レース",
+    ask: "AI",
+  },
+  settings: {
+    title: "設定",
+    close: "閉じる",
+    circuit: "サーキット",
+  },
+  account: {
+    title: "アカウント",
+    signInWithGoogle: "Googleでログイン",
+    syncDescription: "お気に入りドライバーを端末間で同期します。",
+    signOut: "ログアウト",
+    signInError: "ログインに失敗しました。未ログインのまま利用できます。",
+    anonymousName: "ログイン中",
+  },
+  driverSheet: {
+    favorites: "お気に入り",
+    leadGap: "トップ差",
+    ahead: "前車差",
+    lastLap: "最終ラップ",
+    sectors: "セクター",
+    topSpeed: "最高速",
+    pitStops: "ピット回数",
+    ask: "{code} についてAIに質問",
+    close: "閉じる",
+    eventHistory: "イベント履歴",
+  },
+  battles: {
+    overtakeLabel: "OT",
+    overtakeTitle: "オーバーテイクモード使用可能",
+    chasingDescription: "前方の{code}と{gap}秒差の接戦",
+    aheadDescription: "後方の{code}と{gap}秒差の接戦",
+  },
+  sessionStrip: {
+    title: "現在のレース状況",
+    severity: {
+      [SessionStateSeverity.Critical]: "セッション中断",
+      [SessionStateSeverity.High]: "レース中立化",
+      [SessionStateSeverity.Caution]: "注意",
+      [SessionStateSeverity.Info]: "情報",
+    },
+  },
+  rowMarker: {
+    penalty: "{seconds}秒ペナルティ",
+    penaltyMultiple: "ペナルティ{count}件、合計{seconds}秒",
+    penaltyUnknown: "タイムペナルティ",
+    investigation: "調査中",
+    pitStop: "ピットイン直後",
+    fastestLap: "ファステストラップ",
+    personalBestLap: "自己ベストラップ",
+    overtake: "オーバーテイク直後",
+    trackLimits: "トラックリミット違反",
+    strategyNote: "戦略メモ",
+    blueFlag: "ブルーフラッグ",
+  },
+  latestEvent: {
+    title: "最新の重要イベント",
+    openDriver: "{code} の詳細を開く",
+    previousEvent: "前(より新しい)のイベント",
+    nextEvent: "次(より古い)のイベント",
+    position: "{total}件中{current}件目のイベント",
+  },
   status: {
     [SessionStatus.Scheduled]: "予定",
     [SessionStatus.Green]: "グリーンフラッグ",
@@ -405,16 +691,17 @@ const ja: Dictionary = {
     [SessionStatus.Finished]: "終了",
     [SessionStatus.Unknown]: "不明",
   },
+  eventPriority: {
+    [RaceEventPriority.Critical]: "重大",
+    [RaceEventPriority.High]: "高",
+    [RaceEventPriority.Medium]: "中",
+    [RaceEventPriority.Low]: "低",
+  },
   freshness: {
     [DataFreshnessStatus.Live]: "ライブ",
     [DataFreshnessStatus.Delayed]: "遅延",
     [DataFreshnessStatus.Stale]: "古い",
     [DataFreshnessStatus.Unknown]: "不明",
-  },
-  mode: {
-    [DataMode.Mock]: "モック",
-    [DataMode.Replay]: "リプレイ",
-    [DataMode.Live]: "ライブ",
   },
   compound: {
     [TireCompound.Soft]: "ソフト",

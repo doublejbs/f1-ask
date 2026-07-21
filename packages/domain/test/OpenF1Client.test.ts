@@ -5,7 +5,6 @@ import {
   fetchOpenF1Token,
   OpenF1Auth,
   OpenF1FetchImpl,
-  toSessionId,
 } from "../src/openf1/OpenF1Client";
 import { buildOpenF1LiveFrame } from "../src/openf1/OpenF1Recording";
 import { OpenF1SessionData, OpenF1SessionMeta } from "../src/openf1/OpenF1Types";

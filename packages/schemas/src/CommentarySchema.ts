@@ -26,6 +26,7 @@ export const aiCommentarySchema = z.object({
   priority: z.nativeEnum(RaceEventPriority),
   text: z.string().min(1),
   timestamp: z.string(),
+  isMock: z.boolean(),
 }) satisfies z.ZodType<AiCommentary>;
 
 export const parseCommentaryRequest = (value: unknown): CommentaryRequest =>

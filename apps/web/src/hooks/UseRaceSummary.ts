@@ -47,7 +47,8 @@ export const useRaceSummary = (
           body: JSON.stringify({
             locale,
             snapshot: race.snapshot,
-            events: race.events,
+            // AI 컨텍스트는 전체 이벤트를 받는다 (docs/10-race-events.md).
+            events: race.allEvents,
           }),
         });
 

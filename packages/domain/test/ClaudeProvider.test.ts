@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ClaudeFetch, ClaudeProvider } from "../src/ai/ClaudeProvider";
+import { LlmChatRole } from "../src/ai/LlmChatRole";
 import { ExplanationLevel } from "../src/ExplanationLevel";
 import { MockRaceEngine } from "../src/mock/MockRaceEngine";
 import { DEFAULT_MOCK_SCENARIO } from "../src/mock/MockScenario";
@@ -87,6 +88,64 @@ describe("ClaudeProvider.answerQuestion", () => {
     expect(body.system).toContain("Respond in English");
     expect(body.messages[0]?.role).toBe("user");
     expect(body.messages[0]?.content).toContain("NOR");
+  });
+
+  it("이전 대화 턴을 messages 에 앞세우고 현재 질문에만 데이터를 첨부한다", async () => {
+    const { fetchImpl, calls } = makeFetch('{"answer":"ok"}');
+    const provider = new ClaudeProvider({ apiKey: "sk-ant-test", fetchImpl });
+
+    await provider.answerQuestion({
+      question: "그럼 타이어는?",
+      locale: SupportedLocale.Ko,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+      conversationHistory: [
+        { role: LlmChatRole.User, content: "지금 누가 선두야?" },
+        { role: LlmChatRole.Assistant, content: "현재 선두는 VER 입니다." },
+      ],
+    });
+
+    const body = JSON.parse(calls[0]?.body ?? "{}") as {
+      messages: { role: string; content: string }[];
+    };
+
+    // 히스토리 2턴 + 현재 질문 = 3개, 순서 유지.
+    expect(body.messages).toHaveLength(3);
+    expect(body.messages[0]?.role).toBe("user");
+    expect(body.messages[0]?.content).toBe("지금 누가 선두야?");
+    expect(body.messages[1]?.role).toBe("assistant");
+    // 히스토리에는 데이터 JSON 이 첨부되지 않는다.
+    expect(body.messages[1]?.content).not.toContain("Current race data");
+    // 현재 질문(마지막)에만 데이터가 첨부된다.
+    expect(body.messages[2]?.role).toBe("user");
+    expect(body.messages[2]?.content).toContain("그럼 타이어는?");
+    expect(body.messages[2]?.content).toContain("Current race data");
+  });
+
+  it("context 에 날씨·섹터·스피드 트랩이 포함된다", async () => {
+    const { fetchImpl, calls } = makeFetch('{"answer":"ok"}');
+    const provider = new ClaudeProvider({ apiKey: "sk-ant-test", fetchImpl });
+
+    await provider.answerQuestion({
+      question: "날씨 어때?",
+      locale: SupportedLocale.Ko,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+    });
+
+    const body = JSON.parse(calls[0]?.body ?? "{}") as {
+      messages: { content: string }[];
+    };
+    const userContent = body.messages.at(-1)?.content ?? "";
+
+    // 확장 컨텍스트 키가 직렬화되어 포함된다.
+    expect(userContent).toContain("topSpeedKph");
+    expect(userContent).toContain("sectors");
+    expect(userContent).toContain("weather");
   });
 
   it("모델 override 를 반영한다", async () => {

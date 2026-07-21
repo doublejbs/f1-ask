@@ -2,34 +2,173 @@
 @tailwind components;
 @tailwind utilities;
 
-/* shadcn/ui 테마 토큰. 기본 다크 테마 (Second Screen 은 야간 시청 환경 가정). */
+/* 다크 전용 테마. 순수 검정 베이스 + 컨텍스트 앰비언트 워시 + 애플 글래스모피즘. */
+/* 주의: 이 레포의 css-loader 는 멀티라인 값을 파싱하지 못한다. 모든 선언 값은 한 줄로 작성한다. */
 :root {
-  --background: 222 47% 8%;
-  --foreground: 210 40% 96%;
-  --card: 222 40% 11%;
-  --card-foreground: 210 40% 96%;
-  --primary: 0 72% 51%;
+  --background: 0 0% 0%;
+  --foreground: 0 0% 98%;
+  --card: 0 0% 8%;
+  --card-foreground: 0 0% 98%;
+  --primary: 0 84% 55%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 217 33% 20%;
-  --secondary-foreground: 210 40% 96%;
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 20%;
-  --accent-foreground: 210 40% 96%;
-  --destructive: 0 72% 51%;
+  --secondary: 0 0% 16%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 0 0% 65%;
+  --accent: 0 0% 18%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 84% 55%;
   --destructive-foreground: 0 0% 100%;
-  --border: 217 33% 22%;
-  --input: 217 33% 22%;
-  --ring: 0 72% 51%;
-  --radius: 0.5rem;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
+  --ring: 0 84% 55%;
+  --radius: 1.25rem;
+  /* 고정 상태바(StatusBarView)의 총 높이. 그 아래에 붙는 sticky 레이어의 top 오프셋 기준. */
+  /* pt-safe(최소 1rem) + 알약 높이(설정 버튼 44px + 세로 패딩 12px + 테두리 2px = 58px). */
+  --status-bar-height: calc(max(1rem, env(safe-area-inset-top)) + 58px);
+  /* 앰비언트 워시 기본색. AmbientWashView 가 런타임에 덮어쓴다. */
+  --ambient-color: rgba(38, 48, 62, 0.7);
 }
 
 * {
   border-color: hsl(var(--border));
 }
 
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
 body {
-  background-color: hsl(var(--background));
+  min-height: 100dvh;
   color: hsl(var(--foreground));
-  font-feature-settings: "rlig" 1, "calt" 1;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background-color: hsl(var(--background));
+}
+
+@layer components {
+  /* 앰비언트 워시: 화면 상단 한 개의 큰 라디얼. 아래로 갈수록 검정으로 소멸한다. */
+  /* 색을 background-color 로 두고 마스크로 모양을 만들어야 색 전환이 부드럽게 애니메이션된다. */
+  .ambient-wash {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: var(--ambient-color);
+    -webkit-mask-image: radial-gradient(110% 42% at 50% -8%, hsla(0, 0%, 0%, 1), hsla(0, 0%, 0%, 0.22) 34%, transparent 58%);
+    mask-image: radial-gradient(110% 42% at 50% -8%, hsla(0, 0%, 0%, 1), hsla(0, 0%, 0%, 0.22) 34%, transparent 58%);
+    transition: background-color 1s ease;
+  }
+
+  /* 글래스 계층 1 — 탭바·플로팅 버튼. */
+  .glass-float {
+    position: relative;
+    background: hsla(0, 0%, 100%, 0.07);
+    backdrop-filter: blur(24px) saturate(170%);
+    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.1), 0 12px 32px -16px hsla(0, 0%, 0%, 0.9);
+  }
+
+  /* 글래스 계층 2 — 바텀 시트. */
+  .glass-sheet {
+    position: relative;
+    background: hsla(0, 0%, 100%, 0.09);
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.1), 0 -8px 48px -20px hsla(0, 0%, 0%, 0.95);
+  }
+
+  /* 글래스 계층 3 — pill 버튼·배지. */
+  .glass-chip {
+    position: relative;
+    background: hsla(0, 0%, 100%, 0.06);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.1), 0 6px 18px -12px hsla(0, 0%, 0%, 0.8);
+  }
+
+  /* 레거시 글래스 패널. 신규 팔레트에 맞춰 톤만 조정했다. 신규 코드는 glass-* 계층을 쓴다. */
+  .glass-panel {
+    position: relative;
+    background: hsla(0, 0%, 100%, 0.05);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid hsla(0, 0%, 100%, 0.08);
+    box-shadow: inset 0 1px 0 0 hsla(0, 0%, 100%, 0.1), 0 12px 32px -18px hsla(0, 0%, 0%, 0.9);
+  }
+
+  /* 눌리는 인터랙션에 부드러운 반응. */
+  .press {
+    transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .press:active {
+    transform: scale(0.97);
+  }
+}
+
+@layer utilities {
+  /* 행 구분선. 목록 마지막 행에는 붙이지 않는다. */
+  .hairline {
+    border-bottom: 1px solid hsla(0, 0%, 100%, 0.08);
+  }
+
+  .pt-safe {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
+  .pb-safe {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  /* 가로 스크롤 막대를 숨긴다. 순위 목록처럼 컨테이너가 아주 긴(1600px+) 경우
+     막대가 목록 맨 아래에만 그려져 어포던스 구실을 못 하면서 높이만 먹는다.
+     스크롤 가능하다는 신호는 얼린 열 경계의 페이드와 우측에 잘려 보이는 열이 맡는다. */
+  .scrollbar-hidden {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scroll-slim::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+
+  .scroll-slim::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .press:active {
+    transform: none;
+  }
+
+  .ambient-wash {
+    transition: none;
+  }
 }

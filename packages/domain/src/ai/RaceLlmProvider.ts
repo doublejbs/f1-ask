@@ -4,6 +4,13 @@ import { RaceEvent } from "../RaceEvent";
 import { RaceSummaryData } from "../RaceSummary";
 import { SupportedLocale } from "../SupportedLocale";
 import { AiConfidence } from "./AiConfidence";
+import { LlmChatRole } from "./LlmChatRole";
+
+// 멀티턴 대화의 한 발화. content 는 원문 텍스트만 담는다(데이터 JSON 은 제외).
+export type LlmChatMessage = {
+  role: LlmChatRole;
+  content: string;
+};
 
 // AI 질문 요청. 특정 provider(OpenAI 등)에 종속되지 않는 내부 모델이다.
 // (docs/02-architecture.md §2.6 Provider Independence)
@@ -14,6 +21,8 @@ export type LlmQuestionRequest = {
   snapshot: LiveRaceSnapshot;
   recentEvents: RaceEvent[];
   favoriteDriverNumbers: number[];
+  // 이전 대화 턴(원문 Q&A 텍스트만). 현재 데이터는 이번 질문에만 첨부된다.
+  conversationHistory?: LlmChatMessage[];
 };
 
 // AI 답변 + metadata (docs/02-architecture.md §42.3 AiQuestionResponse).
@@ -39,6 +48,9 @@ export type LlmCommentaryRequest = {
 export type LlmCommentary = {
   sourceEventId: string;
   text: string;
+  // 결정론적 Mock provider 가 만든 간이 해설이면 true.
+  // FallbackLlmProvider 로 폴백된 경우에도 Mock 자신이 표시하므로 별도 처리가 필요 없다.
+  isMock?: boolean;
 };
 
 // 경기 종료 요약 서술 요청. 사실(RaceSummaryData)은 도메인이 계산한 값이다.

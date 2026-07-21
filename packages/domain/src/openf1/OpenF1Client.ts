@@ -2,12 +2,16 @@ import {
   OpenF1Driver,
   OpenF1Interval,
   OpenF1Lap,
+  OpenF1Overtake,
   OpenF1Pit,
   OpenF1Position,
   OpenF1RaceControl,
   OpenF1SessionData,
   OpenF1SessionMeta,
+  OpenF1SessionResult,
   OpenF1Stint,
+  OpenF1TeamRadio,
+  OpenF1Weather,
 } from "./OpenF1Types";
 
 // OpenF1 API 클라이언트 (외부 provider).
@@ -194,6 +198,22 @@ const fetchEndpoint = async <T>(
   throw new Error(`OpenF1 ${endpoint} failed after retries`);
 };
 
+// 선택적 엔드포인트 조회. 세션 진행 중에만 비어 있는 데이터(session_result 등)는
+// 404 뿐 아니라 "No results found" 계열 오류로도 응답할 수 있다.
+// 이런 실패가 전체 폴링을 중단시키면 안 되므로 빈 배열로 흡수한다.
+const fetchOptionalEndpoint = async <T>(
+  endpoint: string,
+  queryKey: string,
+  queryValue: string | number,
+  options: OpenF1ClientOptions,
+): Promise<T[]> => {
+  try {
+    return await fetchEndpoint<T>(endpoint, queryKey, queryValue, options);
+  } catch {
+    return [];
+  }
+};
+
 type OpenF1SessionRow = {
   session_key: number;
   meeting_key: number;
@@ -258,6 +278,28 @@ export const fetchOpenF1SessionData = async (
   const pits = await fetchEndpoint<OpenF1Pit>("pit", "session_key", key, options);
   await sleep(gap);
   const raceControl = await fetchEndpoint<OpenF1RaceControl>("race_control", "session_key", key, options);
+  await sleep(gap);
+  const weather = await fetchEndpoint<OpenF1Weather>("weather", "session_key", key, options);
+  await sleep(gap);
+  const overtakes = await fetchEndpoint<OpenF1Overtake>("overtakes", "session_key", key, options);
+  await sleep(gap);
+  const teamRadio = await fetchEndpoint<OpenF1TeamRadio>("team_radio", "session_key", key, options);
+  await sleep(gap);
+  // 세션 종료 후에만 채워진다. 진행 중에는 빈 배열이거나 조회가 실패할 수 있다.
+  const sessionResults = await fetchOptionalEndpoint<OpenF1SessionResult>("session_result", "session_key", key, options);
 
-  return { meta, drivers, positions, intervals, stints, laps, pits, raceControl };
+  return {
+    meta,
+    drivers,
+    positions,
+    intervals,
+    stints,
+    laps,
+    pits,
+    raceControl,
+    weather,
+    overtakes,
+    teamRadio,
+    sessionResults,
+  };
 };

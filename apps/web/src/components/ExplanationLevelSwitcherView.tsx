@@ -15,10 +15,10 @@ export const ExplanationLevelSwitcherView = ({
   onChangeLevel,
 }: Props) => (
   <div className="flex items-center gap-2">
-    <span className="text-xs uppercase tracking-wide text-muted-foreground">
+    <span className="hidden text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground sm:inline">
       {dictionary.explanationLevel.label}
     </span>
-    <div className="flex rounded-md border border-border p-0.5">
+    <div className="flex rounded-full border border-white/10 bg-black/20 p-0.5 backdrop-blur-md">
       {EXPLANATION_LEVELS.map((candidate) => (
         <button
           key={candidate}
@@ -26,9 +26,9 @@ export const ExplanationLevelSwitcherView = ({
           onClick={() => onChangeLevel(candidate)}
           aria-pressed={candidate === level}
           className={cn(
-            "rounded px-2 py-0.5 text-xs font-medium transition-colors",
+            "press rounded-full px-3 py-1 text-[13px] font-semibold transition-colors",
             candidate === level
-              ? "bg-primary text-primary-foreground"
+              ? "bg-primary text-primary-foreground shadow-[inset_0_1px_0_0_hsl(0_0%_100%/0.25)]"
               : "text-muted-foreground hover:text-foreground",
           )}
         >

@@ -4,6 +4,15 @@ export { SessionStatus } from "./SessionStatus";
 export { TireCompound } from "./TireCompound";
 export { RaceEventType } from "./RaceEventType";
 export { RaceEventPriority } from "./RaceEventPriority";
+export {
+  PRIMARY_EVENT_PRIORITIES,
+  isPrimaryRaceEvent,
+} from "./PrimaryEventPriorities";
+// 이벤트 params 에 담기는 값 키 (UI 가 로케일별로 번역한다).
+export { RetirementReason } from "./RetirementReason";
+export { TrackHazardKind } from "./TrackHazardKind";
+export { RaceIncidentReason } from "./RaceIncidentReason";
+export { InvestigationStatus } from "./InvestigationStatus";
 export { DataFreshnessStatus } from "./DataFreshnessStatus";
 export { DataMode } from "./DataMode";
 export {
@@ -20,6 +29,7 @@ export {
 } from "./SupportedLocale";
 
 export type { WeatherState } from "./WeatherState";
+export type { TeamRadioClip } from "./TeamRadioClip";
 export type { LiveDriverState } from "./LiveDriverState";
 export type { LiveRaceSnapshot } from "./LiveRaceSnapshot";
 export type {
@@ -72,8 +82,12 @@ export type {
   OpenF1Lap,
   OpenF1Pit,
   OpenF1RaceControl,
+  OpenF1Weather,
+  OpenF1Overtake,
+  OpenF1TeamRadio,
   OpenF1SessionMeta,
   OpenF1SessionData,
+  OpenF1SessionResult,
 } from "./openf1/OpenF1Types";
 export { scheduledRaceLaps } from "./openf1/RaceLapCounts";
 export type { OpenF1Index } from "./openf1/OpenF1Normalizer";
@@ -119,10 +133,53 @@ export {
   DEFAULT_FAVORITE_EVENT_LIMIT,
 } from "./FavoriteDriverDetail";
 
+export {
+  filterEventsByDriver,
+  matchesDriverEvent,
+} from "./DriverEventFilter";
+
+export { RaceEventScope } from "./RaceEventScope";
+export {
+  RACE_EVENT_SCOPES,
+  getRaceEventScope,
+} from "./RaceEventScopeMap";
+export { SessionStateSeverity } from "./SessionStateSeverity";
+export type { ActiveSessionState } from "./SessionStateSelector";
+export {
+  selectActiveSessionStates,
+  getSessionStateSeverity,
+} from "./SessionStateSelector";
+export { DriverStateMarkerKind } from "./DriverStateMarkerKind";
+export type { DriverStateMarker } from "./DriverStateMarkerSelector";
+export { selectDriverStateMarkers } from "./DriverStateMarkerSelector";
+export {
+  selectRecentDriverEvents,
+  RECENT_DRIVER_EVENT_TYPES,
+  DEFAULT_RECENT_DRIVER_EVENT_WINDOW_MS,
+} from "./RecentDriverEventSelector";
+export {
+  selectLatestPriorityEvents,
+  LATEST_PRIORITY_EVENT_LIMIT,
+} from "./LatestPriorityEventSelector";
+export {
+  resolveLatestEventIndex,
+  resolveLatestEventCursorId,
+  LATEST_EVENT_INDEX,
+} from "./LatestEventCursor";
+
+export type { Battle } from "./Battle";
+export {
+  selectBattles,
+  BATTLE_GAP_THRESHOLD_SECONDS,
+  OVERRIDE_RANGE_THRESHOLD_SECONDS,
+} from "./BattleSelector";
+
 export { AiConfidence } from "./ai/AiConfidence";
+export { LlmChatRole } from "./ai/LlmChatRole";
 export type {
   RaceLlmProvider,
   LlmQuestionRequest,
+  LlmChatMessage,
   LlmAnswer,
   LlmCommentaryRequest,
   LlmCommentary,
@@ -142,8 +199,9 @@ export type {
 } from "./ai/ClaudeProvider";
 export { FallbackLlmProvider } from "./ai/FallbackLlmProvider";
 export type { LlmFailureHandler } from "./ai/FallbackLlmProvider";
-export type { AiCommentary } from "./ai/AiCommentary";
+export type { AiCommentary, CommentedRaceEvent } from "./ai/AiCommentary";
 export {
+  attachCommentary,
   isCommentaryEligible,
   selectCommentaryEvents,
   toAiCommentary,
@@ -156,9 +214,21 @@ export {
   DEFAULT_KEY_MOMENT_LIMIT,
 } from "./RaceSummary";
 
+export type { FavoriteDriverDiff } from "./FavoriteDriverSync";
+export {
+  favoriteDriverPaths,
+  isFavoriteDriverNumber,
+  toFavoriteDriverDocId,
+  parseFavoriteDriverDocId,
+  normalizeFavoriteDrivers,
+  mergeFavoriteDrivers,
+  diffFavoriteDrivers,
+} from "./FavoriteDriverSync";
+
 export type {
   LiveRaceReadRepository,
   Unsubscribe,
+  EventQueryPlan,
 } from "./firestore/LiveRaceRepository";
 export {
   firestorePaths,
@@ -166,4 +236,6 @@ export {
   toLiveSnapshotDoc,
   toSessionDoc,
   eventDocId,
+  buildEventQueryPlan,
+  FIRESTORE_IN_MAX_VALUES,
 } from "./firestore/LiveRaceRepository";

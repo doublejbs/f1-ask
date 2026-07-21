@@ -2,6 +2,7 @@ import {
   LiveDriverState,
   LiveRaceSnapshot,
   SessionStatus,
+  TeamRadioClip,
   TireCompound,
   WeatherState,
 } from "@f1/domain";
@@ -15,6 +16,7 @@ export const weatherStateSchema = z.object({
   trackTemperatureCelsius: z.number().nullable(),
   humidityPercent: z.number().nullable(),
   rainfall: z.boolean(),
+  windSpeedMps: z.number().nullable().optional(),
 }) satisfies z.ZodType<WeatherState>;
 
 export const liveDriverStateSchema = z.object({
@@ -36,7 +38,18 @@ export const liveDriverStateSchema = z.object({
   inPit: z.boolean(),
   retired: z.boolean(),
   recentLapTimesSeconds: z.array(z.number()),
+  teamColour: z.string().nullable().optional(),
+  headshotUrl: z.string().nullable().optional(),
+  lastSectorsSeconds: z.array(z.number().nullable()).optional(),
+  topSpeedKph: z.number().nullable().optional(),
 }) satisfies z.ZodType<LiveDriverState>;
+
+export const teamRadioClipSchema = z.object({
+  driverNumber: z.number().int(),
+  driverCode: z.string().min(1),
+  recordingUrl: z.string().url(),
+  timestamp: z.string(),
+}) satisfies z.ZodType<TeamRadioClip>;
 
 export const liveRaceSnapshotSchema = z.object({
   schemaVersion: z.number().int().positive(),
@@ -52,6 +65,7 @@ export const liveRaceSnapshotSchema = z.object({
   totalLaps: z.number().int().nullable(),
   drivers: z.array(liveDriverStateSchema),
   weather: weatherStateSchema.optional(),
+  teamRadios: z.array(teamRadioClipSchema).optional(),
   generatedAt: z.string().datetime(),
   sourceUpdatedAt: z.string().datetime(),
   version: z.number().int().nonnegative(),

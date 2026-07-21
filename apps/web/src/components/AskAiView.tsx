@@ -5,15 +5,23 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { useAskAi } from "@/hooks/UseAskAi";
 import { Dictionary } from "@/i18n/Messages";
+import { cn } from "@/lib/Utils";
 import {
   AiConfidence,
   ExplanationLevel,
   LiveRaceSnapshot,
+  LlmChatRole,
   RaceEvent,
   SupportedLocale,
 } from "@f1/domain";
-import { Sparkles } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { RotateCcw, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+
+// 드라이버/이벤트 탭 시 부모가 전달하는 프리필 신호. nonce 변화로 매 탭을 감지한다.
+export type AskAiPrefill = {
+  text: string;
+  nonce: number;
+};
 
 type Props = {
   dictionary: Dictionary;
@@ -22,6 +30,7 @@ type Props = {
   snapshot: LiveRaceSnapshot;
   events: RaceEvent[];
   favoriteDriverNumbers: number[];
+  prefill?: AskAiPrefill;
 };
 
 const FALLBACK_SUGGESTIONS: Record<SupportedLocale, string[]> = {
@@ -47,7 +56,8 @@ const confidenceVariant = (
   }
 };
 
-// Ask AI (PRD §8.1). 질문을 서버 AI Gateway 로 보내 현재 데이터 기반 답변을 받는다.
+// Ask AI (PRD §8.1). 멀티턴 대화형: 스레드를 유지하며 서버 AI Gateway 로 질문을 보낸다.
+// 드라이버/이벤트 탭(prefill)으로 질문을 자동 제출할 수 있다.
 export const AskAiView = ({
   dictionary,
   locale,
@@ -55,9 +65,14 @@ export const AskAiView = ({
   snapshot,
   events,
   favoriteDriverNumbers,
+  prefill,
 }: Props) => {
-  const { state, ask } = useAskAi();
+  const { state, ask, reset } = useAskAi();
   const [input, setInput] = useState("");
+  const threadEndRef = useRef<HTMLDivElement>(null);
+  const lastPrefillNonce = useRef<number | null>(null);
+
+  const isLoading = state.status === "loading";
 
   const submit = (question: string) => {
     void ask({
@@ -70,24 +85,113 @@ export const AskAiView = ({
     });
   };
 
+  // 탭투애스크: nonce 가 바뀌면 해당 질문을 자동 제출한다.
+  useEffect(() => {
+    if (prefill === undefined || prefill.nonce === lastPrefillNonce.current) {
+      return;
+    }
+
+    lastPrefillNonce.current = prefill.nonce;
+    setInput("");
+    submit(prefill.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill?.nonce]);
+
+  // 새 턴이 추가되면 스레드 하단으로 스크롤한다.
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: "end" });
+  }, [state.turns.length, isLoading]);
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     submit(input);
+    setInput("");
   };
 
+  const lastAnswer = state.turns
+    .filter((turn) => turn.role === LlmChatRole.Assistant)
+    .at(-1)?.answer;
   const suggestions =
-    state.answer?.suggestedQuestions ?? FALLBACK_SUGGESTIONS[locale];
-  const isLoading = state.status === "loading";
+    lastAnswer?.suggestedQuestions ?? FALLBACK_SUGGESTIONS[locale];
+  const hasThread = state.turns.length > 0;
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle className="flex items-center gap-1.5">
           <Sparkles className="h-4 w-4 text-primary" />
           {dictionary.askAi.title}
         </CardTitle>
+        {hasThread ? (
+          <button
+            type="button"
+            onClick={reset}
+            className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <RotateCcw className="h-3 w-3" />
+            {dictionary.askAi.reset}
+          </button>
+        ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3 pt-0">
+        {hasThread ? (
+          <div className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1">
+            {state.turns.map((turn, index) => (
+              <div
+                key={index}
+                className={cn(
+                  "flex",
+                  turn.role === LlmChatRole.User
+                    ? "justify-end"
+                    : "justify-start",
+                )}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed",
+                    turn.role === LlmChatRole.User
+                      ? "rounded-br-sm bg-primary text-primary-foreground"
+                      : "rounded-bl-sm border border-border bg-muted/40",
+                  )}
+                >
+                  <p>{turn.content}</p>
+                  {turn.role === LlmChatRole.Assistant && turn.answer ? (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <Badge variant={confidenceVariant(turn.answer.confidence)}>
+                        {dictionary.askAi.confidenceLabel}:{" "}
+                        {dictionary.askAi.confidence[turn.answer.confidence]}
+                      </Badge>
+                      {turn.answer.insufficientData ? (
+                        <span className="text-xs text-muted-foreground">
+                          {dictionary.askAi.insufficient}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            {isLoading ? (
+              <div className="flex justify-start">
+                <div className="rounded-2xl rounded-bl-sm border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  <span className="animate-pulse">
+                    {dictionary.askAi.thinking}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+            <div ref={threadEndRef} />
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {dictionary.askAi.emptyHint}
+          </p>
+        )}
+
+        {state.status === "error" ? (
+          <p className="text-sm text-red-400">{dictionary.askAi.error}</p>
+        ) : null}
+
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             value={input}
@@ -107,37 +211,13 @@ export const AskAiView = ({
               key={suggestion}
               type="button"
               disabled={isLoading}
-              onClick={() => {
-                setInput(suggestion);
-                submit(suggestion);
-              }}
+              onClick={() => submit(suggestion)}
               className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
             >
               {suggestion}
             </button>
           ))}
         </div>
-
-        {state.status === "error" ? (
-          <p className="text-sm text-red-400">{dictionary.askAi.error}</p>
-        ) : null}
-
-        {state.status === "success" && state.answer !== null ? (
-          <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/40 p-3">
-            <p className="text-sm leading-relaxed">{state.answer.answer}</p>
-            <div className="flex items-center gap-2">
-              <Badge variant={confidenceVariant(state.answer.confidence)}>
-                {dictionary.askAi.confidenceLabel}:{" "}
-                {dictionary.askAi.confidence[state.answer.confidence]}
-              </Badge>
-              {state.answer.insufficientData ? (
-                <span className="text-xs text-muted-foreground">
-                  {dictionary.askAi.insufficient}
-                </span>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

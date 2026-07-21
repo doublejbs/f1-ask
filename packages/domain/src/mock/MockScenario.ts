@@ -9,7 +9,7 @@ export type MockScenarioStep =
   | { atSecond: number; kind: "pit_stop"; driverNumber: number; newCompound: TireCompound }
   | { atSecond: number; kind: "fastest_lap"; driverNumber: number; lapTimeSeconds: number }
   | { atSecond: number; kind: "personal_best"; driverNumber: number; lapTimeSeconds: number }
-  | { atSecond: number; kind: "drs_range"; driverNumber: number; targetDriverNumber: number }
+  | { atSecond: number; kind: "override_range"; driverNumber: number; targetDriverNumber: number }
   | { atSecond: number; kind: "gap_change"; driverNumber: number; deltaSeconds: number }
   | { atSecond: number; kind: "retirement"; driverNumber: number }
   | { atSecond: number; kind: "strategy_note"; driverNumber: number; noteKey: string };
@@ -50,7 +50,7 @@ export const DEFAULT_MOCK_SCENARIO: MockScenario = {
     { atSecond: 12, kind: "gap_change", driverNumber: 4, deltaSeconds: -0.6 },
     { atSecond: 16, kind: "personal_best", driverNumber: 16, lapTimeSeconds: 91.842 },
     { atSecond: 20, kind: "fastest_lap", driverNumber: 16, lapTimeSeconds: 91.203 },
-    { atSecond: 24, kind: "drs_range", driverNumber: 4, targetDriverNumber: 1 },
+    { atSecond: 24, kind: "override_range", driverNumber: 4, targetDriverNumber: 1 },
     { atSecond: 30, kind: "pit_stop", driverNumber: 44, newCompound: TireCompound.Hard },
     { atSecond: 34, kind: "pit_stop", driverNumber: 63, newCompound: TireCompound.Medium },
     { atSecond: 40, kind: "overtake", driverNumber: 16, targetDriverNumber: 4 },

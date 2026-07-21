@@ -203,9 +203,9 @@ export class MockRaceEngine implements RaceDataSource {
 
         return { status, greenSeen, event };
       }
-      case "drs_range": {
+      case "override_range": {
         const event = this.buildEvent(
-          RaceEventType.DrsRangeEntered,
+          RaceEventType.OverrideRangeEntered,
           RaceEventPriority.Medium,
           step.atSecond,
           lapAtStep,

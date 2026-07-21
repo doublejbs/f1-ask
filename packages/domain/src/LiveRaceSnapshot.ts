@@ -1,5 +1,6 @@
 import { LiveDriverState } from "./LiveDriverState";
 import { SessionStatus } from "./SessionStatus";
+import { TeamRadioClip } from "./TeamRadioClip";
 import { WeatherState } from "./WeatherState";
 
 // 화면용 경기 스냅샷 (docs/02-architecture.md §8.1)
@@ -18,6 +19,7 @@ export type LiveRaceSnapshot = {
   totalLaps: number | null;
   drivers: LiveDriverState[];
   weather?: WeatherState;
+  teamRadios?: TeamRadioClip[];
   generatedAt: string;
   sourceUpdatedAt: string;
   version: number;

@@ -64,6 +64,10 @@ const data: OpenF1SessionData = {
     { date: at(120), category: "SafetyCar", flag: null, scope: "Track", message: "SAFETY CAR DEPLOYED" },
     { date: at(200), category: "Flag", flag: "CHEQUERED", scope: "Track", message: "CHEQUERED FLAG" },
   ],
+  teamRadio: [
+    { date: at(50), driver_number: 1, recording_url: "https://example.com/ver_50.mp3" },
+    { date: at(100), driver_number: 44, recording_url: "https://example.com/ham_100.mp3" },
+  ],
 };
 
 describe("mapCompound", () => {
@@ -86,6 +90,18 @@ describe("normalizeOpenF1SnapshotAt", () => {
     expect(ver?.position).toBe(1);
     expect(ver?.compound).toBe(TireCompound.Medium);
     expect(snapshot.drivers).toHaveLength(3);
+  });
+
+  it("팀 라디오는 atMs 이전 클립을 최신순으로 담고 드라이버 코드를 매핑한다", () => {
+    // t=70s: VER(50s) 클립만 존재.
+    const early = normalizeOpenF1SnapshotAt(index, T0 + 70_000, 0);
+    expect(early.teamRadios).toHaveLength(1);
+    expect(early.teamRadios?.[0]?.driverCode).toBe("VER");
+    expect(early.teamRadios?.[0]?.recordingUrl).toBe("https://example.com/ver_50.mp3");
+
+    // t=120s: HAM(100s)·VER(50s) 두 클립, 최신(HAM)이 먼저.
+    const later = normalizeOpenF1SnapshotAt(index, T0 + 120_000, 0);
+    expect(later.teamRadios?.map((c) => c.driverCode)).toEqual(["HAM", "VER"]);
   });
 
   it("추월 후 순위가 갱신된다", () => {

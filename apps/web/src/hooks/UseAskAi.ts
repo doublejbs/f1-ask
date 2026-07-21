@@ -4,18 +4,25 @@ import {
   ExplanationLevel,
   LiveRaceSnapshot,
   LlmAnswer,
+  LlmChatRole,
   RaceEvent,
   SupportedLocale,
 } from "@f1/domain";
 import { parseLlmAnswer } from "@f1/schemas";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export type AskAiStatus = "idle" | "loading" | "success" | "error";
 
+// 대화 스레드의 한 턴. user 는 질문 텍스트, assistant 는 답변 텍스트 + metadata.
+export type ChatTurn = {
+  role: LlmChatRole;
+  content: string;
+  answer?: LlmAnswer;
+};
+
 export type AskAiState = {
   status: AskAiStatus;
-  question: string;
-  answer: LlmAnswer | null;
+  turns: ChatTurn[];
 };
 
 export type AskAiInput = {
@@ -35,14 +42,19 @@ export type AskAiController = {
 
 const INITIAL_STATE: AskAiState = {
   status: "idle",
-  question: "",
-  answer: null,
+  turns: [],
 };
 
-// Ask AI 클라이언트 컨트롤러.
-// 질문을 서버 AI Gateway(/api/ask)로 보내고 응답을 검증해 상태로 노출한다.
+// 서버로 보낼 최대 히스토리 턴 수(토큰 절약). 3 왕복 = 6 턴.
+const HISTORY_TURN_LIMIT = 6;
+
+// Ask AI 멀티턴 대화 컨트롤러.
+// 스레드를 유지하며 이전 Q&A 텍스트를 서버(/api/ask)로 함께 보낸다.
+// 현재 경기 데이터는 서버가 이번 질문에만 첨부하므로, 히스토리는 원문 텍스트만 담는다.
 export const useAskAi = (): AskAiController => {
   const [state, setState] = useState<AskAiState>(INITIAL_STATE);
+  // 클로저 안에서 최신 스레드를 읽기 위한 mirror.
+  const turnsRef = useRef<ChatTurn[]>([]);
 
   const ask = useCallback(async (input: AskAiInput) => {
     const question = input.question.trim();
@@ -51,13 +63,38 @@ export const useAskAi = (): AskAiController => {
       return;
     }
 
-    setState({ status: "loading", question, answer: null });
+    // 히스토리는 assistant 로 끝나야 한다(직전 실패로 남은 user 턴은 제외).
+    const prior = turnsRef.current;
+    let end = prior.length;
+
+    while (end > 0 && prior[end - 1]?.role === LlmChatRole.User) {
+      end -= 1;
+    }
+
+    const history = prior
+      .slice(0, end)
+      .slice(-HISTORY_TURN_LIMIT)
+      .map((turn) => ({ role: turn.role, content: turn.content }));
+
+    const userTurn: ChatTurn = { role: LlmChatRole.User, content: question };
+    const optimistic = [...prior, userTurn];
+
+    turnsRef.current = optimistic;
+    setState({ status: "loading", turns: optimistic });
 
     try {
       const response = await fetch("/api/ask", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...input, question }),
+        body: JSON.stringify({
+          question,
+          locale: input.locale,
+          explanationLevel: input.explanationLevel,
+          snapshot: input.snapshot,
+          recentEvents: input.recentEvents,
+          favoriteDriverNumbers: input.favoriteDriverNumbers,
+          conversationHistory: history,
+        }),
       });
 
       if (!response.ok) {
@@ -65,14 +102,28 @@ export const useAskAi = (): AskAiController => {
       }
 
       const answer = parseLlmAnswer(await response.json());
+      const assistantTurn: ChatTurn = {
+        role: LlmChatRole.Assistant,
+        content: answer.answer,
+        answer,
+      };
+      const withAnswer = [...turnsRef.current, assistantTurn];
 
-      setState({ status: "success", question, answer });
+      turnsRef.current = withAnswer;
+      setState({ status: "success", turns: withAnswer });
     } catch {
-      setState({ status: "error", question, answer: null });
+      // 실패 시 낙관적으로 추가한 user 턴을 되돌려 스레드를 깨끗하게 유지한다.
+      const rolledBack = turnsRef.current.slice(0, -1);
+
+      turnsRef.current = rolledBack;
+      setState({ status: "error", turns: rolledBack });
     }
   }, []);
 
-  const reset = useCallback(() => setState(INITIAL_STATE), []);
+  const reset = useCallback(() => {
+    turnsRef.current = [];
+    setState(INITIAL_STATE);
+  }, []);
 
   return { state, ask, reset };
 };

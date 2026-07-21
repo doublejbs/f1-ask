@@ -21,4 +21,9 @@ export type LiveDriverState = {
   inPit: boolean;
   retired: boolean;
   recentLapTimesSeconds: number[];
+  // OpenF1 확장 필드 (Mock/Replay 에서는 없을 수 있어 optional).
+  teamColour?: string | null; // 팀 컬러 hex (# 없이), 예: "FF8000"
+  headshotUrl?: string | null; // 드라이버 사진 URL
+  lastSectorsSeconds?: (number | null)[]; // 마지막 랩 섹터 S1/S2/S3
+  topSpeedKph?: number | null; // 스피드 트랩 최고속
 };

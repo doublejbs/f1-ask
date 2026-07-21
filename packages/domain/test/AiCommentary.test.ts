@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachCommentary,
   isCommentaryEligible,
   selectCommentaryEvents,
   toAiCommentary,
@@ -122,5 +123,86 @@ describe("toAiCommentary", () => {
     expect(commentary.sourceEventId).toBe(event.id);
     expect(commentary.id).toBe(`commentary:${event.id}`);
     expect(commentary.text).toBe("hello");
+  });
+});
+
+describe("attachCommentary", () => {
+  const events = frame.events.slice(0, 3);
+  const [first, second, third] = events;
+
+  it("sourceEventId 가 일치하는 해설을 이벤트에 붙인다", () => {
+    const attached = attachCommentary(events, [
+      toAiCommentary(second!, "second commentary"),
+    ]);
+
+    expect(attached).toHaveLength(3);
+    expect(attached[1]!.event.id).toBe(second!.id);
+    expect(attached[1]!.commentary?.text).toBe("second commentary");
+  });
+
+  it("해설이 없는 이벤트도 commentary: null 로 포함한다", () => {
+    const attached = attachCommentary(events, [
+      toAiCommentary(second!, "second commentary"),
+    ]);
+
+    expect(attached[0]!.commentary).toBeNull();
+    expect(attached[2]!.commentary).toBeNull();
+    expect(attached.map((item) => item.event.id)).toEqual([
+      first!.id,
+      second!.id,
+      third!.id,
+    ]);
+  });
+
+  it("대응하는 이벤트가 없는 해설은 무시한다", () => {
+    const orphan = toAiCommentary(
+      { ...first!, id: "event:does-not-exist" },
+      "orphan",
+    );
+    const attached = attachCommentary(events, [orphan]);
+
+    expect(attached).toHaveLength(3);
+    expect(attached.every((item) => item.commentary === null)).toBe(true);
+  });
+
+  it("빈 배열을 안전하게 처리한다", () => {
+    expect(attachCommentary([], [])).toEqual([]);
+    expect(attachCommentary([], [toAiCommentary(first!, "x")])).toEqual([]);
+    expect(attachCommentary(events, []).every((i) => i.commentary === null)).toBe(
+      true,
+    );
+  });
+
+  it("이벤트 순서를 보존한다", () => {
+    const attached = attachCommentary(events, [
+      toAiCommentary(third!, "c"),
+      toAiCommentary(first!, "a"),
+    ]);
+
+    expect(attached.map((item) => item.commentary?.text ?? null)).toEqual([
+      "a",
+      null,
+      "c",
+    ]);
+  });
+});
+
+describe("toAiCommentary isMock", () => {
+  it("기본값은 false 이고 명시하면 true 가 된다", () => {
+    const event = frame.events[0]!;
+
+    expect(toAiCommentary(event, "hello").isMock).toBe(false);
+    expect(toAiCommentary(event, "hello", true).isMock).toBe(true);
+  });
+
+  it("MockLlmProvider 해설은 isMock 을 표시한다", async () => {
+    const commentary = await provider.generateCommentary({
+      event: frame.events[0]!,
+      locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+    });
+
+    expect(commentary.isMock).toBe(true);
   });
 });
