@@ -98,6 +98,16 @@ export type Dictionary = {
     close: string;
     circuit: string;
   };
+  // 계정 섹션 (docs/15-google-auth.md §UI). 설정 시트 안에서만 노출한다.
+  account: {
+    title: string;
+    signInWithGoogle: string;
+    syncDescription: string;
+    signOut: string;
+    signInError: string;
+    // 구글 프로필에 표시 이름이 없을 때의 대체 라벨.
+    anonymousName: string;
+  };
   driverSheet: {
     favorites: string;
     leadGap: string;
@@ -256,6 +266,14 @@ const en: Dictionary = {
     title: "Settings",
     close: "Close",
     circuit: "Circuit",
+  },
+  account: {
+    title: "Account",
+    signInWithGoogle: "Sign in with Google",
+    syncDescription: "Syncs your favorite drivers across devices.",
+    signOut: "Sign out",
+    signInError: "Sign-in failed. You can keep using the app signed out.",
+    anonymousName: "Signed in",
   },
   driverSheet: {
     favorites: "Favorites",
@@ -428,6 +446,14 @@ const ko: Dictionary = {
     close: "닫기",
     circuit: "서킷",
   },
+  account: {
+    title: "계정",
+    signInWithGoogle: "Google로 로그인",
+    syncDescription: "관심 드라이버를 기기 간에 동기화합니다.",
+    signOut: "로그아웃",
+    signInError: "로그인에 실패했습니다. 비로그인 상태로 계속 사용할 수 있습니다.",
+    anonymousName: "로그인됨",
+  },
   driverSheet: {
     favorites: "관심 드라이버",
     leadGap: "선두 갭",
@@ -598,6 +624,14 @@ const ja: Dictionary = {
     title: "設定",
     close: "閉じる",
     circuit: "サーキット",
+  },
+  account: {
+    title: "アカウント",
+    signInWithGoogle: "Googleでログイン",
+    syncDescription: "お気に入りドライバーを端末間で同期します。",
+    signOut: "ログアウト",
+    signInError: "ログインに失敗しました。未ログインのまま利用できます。",
+    anonymousName: "ログイン中",
   },
   driverSheet: {
     favorites: "お気に入り",

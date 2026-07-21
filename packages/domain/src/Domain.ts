@@ -214,6 +214,17 @@ export {
   DEFAULT_KEY_MOMENT_LIMIT,
 } from "./RaceSummary";
 
+export type { FavoriteDriverDiff } from "./FavoriteDriverSync";
+export {
+  favoriteDriverPaths,
+  isFavoriteDriverNumber,
+  toFavoriteDriverDocId,
+  parseFavoriteDriverDocId,
+  normalizeFavoriteDrivers,
+  mergeFavoriteDrivers,
+  diffFavoriteDrivers,
+} from "./FavoriteDriverSync";
+
 export type {
   LiveRaceReadRepository,
   Unsubscribe,

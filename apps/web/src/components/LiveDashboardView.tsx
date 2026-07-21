@@ -9,6 +9,7 @@ import { TabBarView } from "@/components/TabBarView";
 import { useDashboardTabState } from "@/hooks/UseDashboardTabState";
 import { useExplanationLevel } from "@/hooks/UseExplanationLevel";
 import { useFavoriteDrivers } from "@/hooks/UseFavoriteDrivers";
+import { useFirebaseAuth } from "@/hooks/UseFirebaseAuth";
 import { useLiveRace } from "@/hooks/UseLiveRace";
 import { useRaceCommentary } from "@/hooks/UseRaceCommentary";
 import { useRaceSummary } from "@/hooks/UseRaceSummary";
@@ -34,7 +35,11 @@ export const LiveDashboardView = ({ locale }: Props) => {
     useExplanationLevel();
   const commentary = useRaceCommentary(race, locale, explanationLevel);
   const summary = useRaceSummary(race, locale);
-  const { favorites, isFavorite, toggleFavorite } = useFavoriteDrivers();
+  // 로그인은 선택이다 — 인증 상태와 무관하게 아래 경기 데이터는 그대로 렌더링된다.
+  const auth = useFirebaseAuth();
+  const { favorites, isFavorite, toggleFavorite } = useFavoriteDrivers(
+    auth.user?.uid ?? null,
+  );
   const { activeTab, handleChangeTab, askPrefill, switchToAskWithQuestion } =
     useDashboardTabState();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -117,6 +122,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
         snapshot={race.snapshot}
         explanationLevel={explanationLevel}
         onChangeExplanationLevel={setExplanationLevel}
+        auth={auth}
         isOpen={isSettingsOpen}
         onClose={handleCloseSettings}
       />

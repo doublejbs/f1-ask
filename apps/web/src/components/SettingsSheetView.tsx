@@ -1,8 +1,10 @@
 "use client";
 
+import { AccountSectionView } from "@/components/AccountSectionView";
 import { BottomSheetView } from "@/components/BottomSheetView";
 import { ExplanationLevelSwitcherView } from "@/components/ExplanationLevelSwitcherView";
 import { LocaleSwitcherView } from "@/components/LocaleSwitcherView";
+import { type FirebaseAuthController } from "@/hooks/UseFirebaseAuth";
 import { Dictionary } from "@/i18n/Messages";
 import { cn } from "@/lib/Utils";
 import { ExplanationLevel, LiveRaceSnapshot, SupportedLocale } from "@f1/domain";
@@ -14,6 +16,7 @@ type Props = {
   snapshot: LiveRaceSnapshot;
   explanationLevel: ExplanationLevel;
   onChangeExplanationLevel: (level: ExplanationLevel) => void;
+  auth: FirebaseAuthController;
   isOpen: boolean;
   onClose: () => void;
 };
@@ -48,6 +51,7 @@ export const SettingsSheetView = ({
   snapshot,
   explanationLevel,
   onChangeExplanationLevel,
+  auth,
   isOpen,
   onClose,
 }: Props) => (
@@ -67,6 +71,8 @@ export const SettingsSheetView = ({
     </div>
 
     <div className="flex flex-col">
+      <AccountSectionView dictionary={dictionary} auth={auth} />
+
       <Row label={dictionary.localeName[locale]}>
         <LocaleSwitcherView dictionary={dictionary} currentLocale={locale} />
       </Row>
