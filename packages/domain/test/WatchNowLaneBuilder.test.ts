@@ -610,6 +610,72 @@ describe("WatchNow 칸 구성", () => {
     });
   });
 
+  // 행 표시(docs/19 수용 기준 7)가 성립하려면 overflow 가 두 가지를 만족해야 한다.
+  // **행 표시는 이 두 성질에 전적으로 의존한다** — 칸과 겹치면 같은 신호가 화면에 두 번
+  // 나오고, 빠지면 "나머지는 행에서 볼 수 있다"는 약속이 다시 거짓이 된다.
+  describe("overflow 와 칸의 관계", () => {
+    // 칸 3개 × 2줄 = 최대 6건이므로 넉넉히 넘기려면 후보가 그보다 훨씬 많아야 한다.
+    const createCrowdedInput = () => {
+      const positions = new Map<number, number | null>();
+
+      for (let driverNumber = 1; driverNumber <= 20; driverNumber += 1) {
+        positions.set(driverNumber, driverNumber);
+      }
+
+      // 종류를 섞는다 — 상대역이 있는 종류(간격 수렴)가 다양성 캡에 걸려 밀려나는
+      // 경로까지 함께 덮는다.
+      const signals = [...positions.keys()].map((driverNumber) =>
+        createSignal(
+          driverNumber % 2 === 0
+            ? WatchNowSignalType.GapConvergence
+            : WatchNowSignalType.TireAge,
+          driverNumber,
+        ),
+      );
+
+      return { signals, snapshot: createSnapshot(positions) };
+    };
+
+    it("칸에 오른 신호는 overflow 에 없다", () => {
+      const { signals, snapshot } = createCrowdedInput();
+      const lanes = buildWatchNowLanes({
+        signals,
+        snapshot,
+        favoriteDriverNumbers: [7],
+      });
+
+      const placed = lanes.lanes.flatMap((group) =>
+        group.entries.map((entry) => entry.signal),
+      );
+
+      expect(placed.length).toBeGreaterThan(0);
+      expect(lanes.overflow.length).toBeGreaterThan(0);
+
+      for (const entry of lanes.overflow) {
+        expect(placed).not.toContain(entry.signal);
+      }
+    });
+
+    it("후보는 칸 아니면 overflow 로 가고, 버려지지 않는다", () => {
+      const { signals, snapshot } = createCrowdedInput();
+      const lanes = buildWatchNowLanes({
+        signals,
+        snapshot,
+        favoriteDriverNumbers: [7],
+      });
+
+      const seen = [
+        ...lanes.lanes.flatMap((group) =>
+          group.entries.map((entry) => entry.signal),
+        ),
+        ...lanes.overflow.map((entry) => entry.signal),
+      ];
+
+      expect(seen).toHaveLength(signals.length);
+      expect(new Set(seen).size).toBe(signals.length);
+    });
+  });
+
   describe("빈 입력", () => {
     it("후보가 없어도 칸 구조는 그대로 나온다", () => {
       const lanes = buildWatchNowLanes({

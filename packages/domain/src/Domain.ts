@@ -270,6 +270,7 @@ export {
   attachCommentary,
   isCommentaryEligible,
   selectCommentaryEvents,
+  selectKeyMomentEvents,
   toAiCommentary,
   AI_COMMENTARY_ID_PREFIX,
   DEFAULT_COMMENTARY_LIMIT,

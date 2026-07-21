@@ -18,7 +18,12 @@ type DriverDetectorState = {
   // A. 스틴트 교체 판정용 — 타이어 나이가 줄면 새 스틴트다.
   lastTireAgeLaps: number | null;
   // C. 직전 관측의 피트 횟수 — 증가분이 곧 "방금 피트인했다"는 뜻이다.
-  lastPitStopCount: number;
+  //
+  // null 은 "아직 이 드라이버를 한 번도 관측하지 않았다"는 뜻이며 0(관측했고 피트가
+  // 없었다)과 반드시 구분해야 한다. 0 으로 시작하면 레이스 중간에 합류한 첫 프레임에서
+  // **이미 피트한 드라이버 전원이 "방금 피트인했다"로 잡힌다.** 세컨드 스크린은 레이스
+  // 도중에 켜는 것이 정상 사용 경로이므로 이 오발화가 곧 첫 화면이 된다.
+  lastPitStopCount: number | null;
   // B. 간격이 임계 아래로 유지된 연속 관측 횟수.
   gapConsecutiveCount: number;
   // B. 발화 후 재무장 전까지 다시 발화하지 않는다.
@@ -30,7 +35,7 @@ type DriverDetectorState = {
 const createDriverState = (): DriverDetectorState => ({
   tireFiredForStint: false,
   lastTireAgeLaps: null,
-  lastPitStopCount: 0,
+  lastPitStopCount: null,
   gapConsecutiveCount: 0,
   gapArmed: true,
   positionBaseline: null,
@@ -233,8 +238,17 @@ export class WatchNowDetector {
     const signals: WatchNowSignal[] = [];
 
     for (const pitter of ranked) {
+      // `?? null` 이 두 가지("상태 자체가 없다" · "상태는 있는데 아직 관측 전이다")를
+      // 하나로 모은다. 어느 쪽이든 비교할 직전 값이 없다는 뜻이다.
       const previousPitCount =
-        this.stateByDriver.get(pitter.driverNumber)?.lastPitStopCount ?? 0;
+        this.stateByDriver.get(pitter.driverNumber)?.lastPitStopCount ?? null;
+
+      // 첫 관측에서는 기준선만 잡고 넘어간다. A(lastTireAgeLaps) · D(positionBaseline) 가
+      // null 로 첫 프레임을 막는 것과 같은 모양이다 — 여기만 예외를 두면 레이스 중간
+      // 합류 시 이미 피트한 드라이버가 전부 언더컷 위협으로 오발화한다.
+      if (previousPitCount === null) {
+        continue;
+      }
 
       // 이번 프레임에 피트 횟수가 늘어난 드라이버만이 "방금 피트인했다".
       if (pitter.pitStopCount <= previousPitCount) {

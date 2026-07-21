@@ -12,6 +12,7 @@ import { useWatchNowLanes } from "@/hooks/UseWatchNowLanes";
 import { Dictionary } from "@/i18n/Messages";
 import { expandMultiCarEvents } from "@/lib/ExpandMultiCarEvents";
 import { computeFieldBestSectors } from "@/lib/Format";
+import { groupWatchNowOverflowByDriver } from "@/lib/GroupWatchNowOverflow";
 import { groupTeamRadiosByDriver, parseTimestampMs } from "@/lib/TeamRadio";
 import {
   AiCommentary,
@@ -129,6 +130,14 @@ export const RaceTabView = ({
     favoriteDriverNumbers,
   });
 
+  // 칸에 못 올라간 신호는 버리지 않고 순위표 행 표시로 내려보낸다(docs/19 수용 기준 7).
+  // 칸당 2줄이라는 좁은 예산의 근거가 "나머지는 행에서 볼 수 있다" 이므로, 이 연결이
+  // 없으면 감지 결과의 상당수가 그냥 사라진다(실측상 프레임의 44.6% 에서 발생한다).
+  const watchNowOverflowByDriver = useMemo(
+    () => groupWatchNowOverflowByDriver(watchNowLanes),
+    [watchNowLanes],
+  );
+
   const selectedRadioClips =
     selectedDriver === null
       ? EMPTY_RADIO_CLIPS
@@ -231,6 +240,7 @@ export const RaceTabView = ({
         playingRadioUrl={playingUrl}
         markersByDriver={markersByDriver}
         recentEventsByDriver={recentEventsByDriver}
+        watchNowOverflowByDriver={watchNowOverflowByDriver}
         isFavorite={isFavorite}
         onToggleFavorite={onToggleFavorite}
         onToggleRadio={togglePlay}

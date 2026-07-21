@@ -3,9 +3,9 @@ import { WatchNowSignalType } from "./WatchNowSignalType";
 // 감지기가 낸 한 건의 신호. LLM 을 거치지 않은 순수 계산 결과다
 // (docs/19-watch-now.md §원칙: 결정론적 코어, 확률적 엣지).
 //
-// 필드를 optional 이 아니라 전부 `| null` 로 둔 이유: 주목도 랭킹(Task 2)이 종류를
-// 가리지 않고 균일하게 읽어야 하는데, optional 은 `noUncheckedIndexedAccess` 아래에서
-// 읽는 쪽마다 분기를 강요한다. 종류별로 어떤 필드가 채워지는지는 아래 주석에 고정한다.
+// 필드를 optional 이 아니라 전부 `| null` 로 둔 이유: optional 은
+// `noUncheckedIndexedAccess` 아래에서 읽는 쪽마다 분기를 강요한다.
+// 종류별로 어떤 필드가 채워지는지는 아래 주석에 고정한다.
 export type WatchNowSignal = {
   type: WatchNowSignalType;
   // 신호의 주체 — 알림을 받아야 할 드라이버다.

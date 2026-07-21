@@ -322,6 +322,71 @@ describe("WatchNowDetector — C 언더컷 위협", () => {
   });
 });
 
+// 레이스 중간 합류(콜드 스타트).
+//
+// **벨기에 GP 회귀 테스트가 이 축을 못 잡는다.** 픽스처는 첫 랩부터 재생하므로 프레임 1의
+// pitStopCount 가 전원 0 이고, "이미 피트한 드라이버로 시작하는 첫 스냅샷" 이 존재하지
+// 않는다. 세컨드 스크린은 레이스 도중에 켜는 것이 정상 사용 경로이므로 여기서 고정한다.
+describe("WatchNowDetector — 레이스 중간 합류", () => {
+  // 리뷰어가 재현한 그대로 — P1~P4 가 각각 1/2/1/2 회 피트한 상태로 합류한다.
+  const buildMidRaceField = (): LiveDriverState[] =>
+    [
+      { driverNumber: 1, pitStopCount: 1 },
+      { driverNumber: 2, pitStopCount: 2 },
+      { driverNumber: 3, pitStopCount: 1 },
+      { driverNumber: 4, pitStopCount: 2 },
+    ].map((driver) =>
+      makeDriver({ ...driver, position: driver.driverNumber }),
+    );
+
+  it("이미 피트한 드라이버로 시작해도 첫 프레임에 언더컷이 발화하지 않는다", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = detector
+      .observe(makeSnapshot(buildMidRaceField()))
+      .filter((signal) => signal.type === WatchNowSignalType.UndercutThreat);
+
+    expect(signals).toHaveLength(0);
+  });
+
+  it("합류 후 실제로 피트 횟수가 늘면 발화한다", () => {
+    const detector = new WatchNowDetector();
+
+    detector.observe(makeSnapshot(buildMidRaceField()));
+
+    // P3 이 2번째 스톱을 마쳤다. P1(1회) · P2(2회) 중 나보다 적게 들어간 P1 만 위협받는다.
+    const advanced = buildMidRaceField().map((driver) =>
+      driver.driverNumber === 3 ? { ...driver, pitStopCount: 2 } : driver,
+    );
+    const signals = detector
+      .observe(makeSnapshot(advanced))
+      .filter((signal) => signal.type === WatchNowSignalType.UndercutThreat);
+
+    expect(signals.map((signal) => signal.driverNumber)).toEqual([1]);
+    expect(signals[0]?.rivalDriverNumber).toBe(3);
+  });
+
+  it("첫 프레임에 뒤늦게 나타난 드라이버도 기준선만 잡는다", () => {
+    const detector = new WatchNowDetector();
+
+    detector.observe(
+      makeSnapshot([makeDriver({ driverNumber: 1, position: 1, pitStopCount: 1 })]),
+    );
+
+    // P2 가 이번 프레임에 처음 보인다. 피트 2회지만 직전 값이 없으므로 발화하면 안 된다.
+    const signals = detector
+      .observe(
+        makeSnapshot([
+          makeDriver({ driverNumber: 1, position: 1, pitStopCount: 1 }),
+          makeDriver({ driverNumber: 2, position: 2, pitStopCount: 2 }),
+        ]),
+      )
+      .filter((signal) => signal.type === WatchNowSignalType.UndercutThreat);
+
+    expect(signals).toHaveLength(0);
+  });
+});
+
 describe("WatchNowDetector — D 순위 급변", () => {
   it("기준점 대비 3계단 이상 변하면 발화한다", () => {
     const detector = new WatchNowDetector();

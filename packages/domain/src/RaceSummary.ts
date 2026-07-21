@@ -1,4 +1,4 @@
-import { selectCommentaryEvents } from "./ai/AiCommentary";
+import { selectKeyMomentEvents } from "./ai/AiCommentary";
 import { LiveRaceSnapshot } from "./LiveRaceSnapshot";
 import { RaceEvent } from "./RaceEvent";
 import { RaceEventType } from "./RaceEventType";
@@ -74,6 +74,6 @@ export const selectRaceSummaryData = (
     retiredDriverNumbers: snapshot.drivers
       .filter((driver) => driver.retired)
       .map((driver) => driver.driverNumber),
-    keyMoments: selectCommentaryEvents(events, keyMomentLimit),
+    keyMoments: selectKeyMomentEvents(events, keyMomentLimit),
   };
 };

@@ -214,7 +214,7 @@ describe("리플레이 하네스 해설 배선", () => {
     const events = [
       buildEvent("e1", 0, RaceEventType.Overtake),
       buildEvent("e2", 10, RaceEventType.PitStop),
-      buildEvent("e3", 20, RaceEventType.SafetyCar),
+      buildEvent("e3", 20, RaceEventType.Penalty),
     ];
     const fake = buildFakeLlm((request) => succeedWith(request, "해설"));
 
@@ -226,6 +226,31 @@ describe("리플레이 하네스 해설 배선", () => {
     expect(report.plan.totalEvents).toBe(3);
     expect(report.plan.eligibleEvents).toBe(1);
     expect(report.llmCalls).toBe(1);
+  });
+
+  // Session 범위 이벤트의 해설은 폐기됐다 (docs/19-watch-now.md §폐기한다, 수용 기준 6).
+  // SC · VSC · 재개 · 플래그는 방송이 가장 잘하는 영역이고, 실측에서 나온 무가치한 문장이
+  // 전부 여기였다. **이전 버전의 이 파일은 SafetyCar 해설이 생성되는 것을 성공으로
+  // 단언해 폐기 대상 동작을 못박아 놨다.** 이제 반대를 고정한다.
+  it("Session 범위 이벤트는 해설이 생성되지 않는다", async () => {
+    const events = [
+      buildEvent("e1", 0, RaceEventType.SafetyCar),
+      buildEvent("e2", 10, RaceEventType.VirtualSafetyCar),
+      buildEvent("e3", 20, RaceEventType.SessionRestarted),
+      buildEvent("e4", 30, RaceEventType.TrackHazard),
+    ];
+    const fake = buildFakeLlm((request) => succeedWith(request, "해설"));
+
+    const report = await runReplayCommentary(
+      buildOptions(events, [KO_VARIANT], 60),
+      fake.deps,
+    );
+
+    expect(report.plan.totalEvents).toBe(4);
+    expect(report.plan.eligibleEvents).toBe(0);
+    expect(report.llmCalls).toBe(0);
+    expect(fake.saved).toHaveLength(0);
+    expect(report.entries).toHaveLength(0);
   });
 
   it("실패를 실패로 표시하고 사유를 남긴다", async () => {
@@ -351,10 +376,11 @@ describe("리플레이 하네스 해설 배선", () => {
     expect(plan.retryExhausted).toBe(1);
   });
 
+  // 해설 대상이 Driver 범위뿐이므로 기록 한 줄도 Driver 범위로 확인한다.
   it("기록 한 줄에 범위 · 변형 · 문장이 모두 담긴다", async () => {
-    const events = [buildEvent("e1", 0, RaceEventType.SafetyCar)];
+    const events = [buildEvent("e1", 0, RaceEventType.Retirement)];
     const fake = buildFakeLlm((request) =>
-      succeedWith(request, "세이프티카가 투입된다."),
+      succeedWith(request, "RUS 의 리타이어로 포디움 다툼이 다시 열린다."),
     );
 
     const report = await runReplayCommentary(
@@ -364,12 +390,12 @@ describe("리플레이 하네스 해설 배선", () => {
     const entry = report.entries[0];
     const line = formatReplayCommentaryEntry(entry!, 0);
 
-    expect(entry?.scope).toBe(RaceEventScope.Session);
+    expect(entry?.scope).toBe(RaceEventScope.Driver);
     expect(line).toContain("OK");
-    expect(line).toContain(RaceEventType.SafetyCar);
-    expect(line).toContain(RaceEventScope.Session);
+    expect(line).toContain(RaceEventType.Retirement);
+    expect(line).toContain(RaceEventScope.Driver);
     expect(line).toContain("ko:standard");
-    expect(line).toContain("세이프티카가 투입된다.");
+    expect(line).toContain("RUS 의 리타이어로 포디움 다툼이 다시 열린다.");
   });
 
   it("요약이 호출 수와 상한 도달을 알린다", async () => {

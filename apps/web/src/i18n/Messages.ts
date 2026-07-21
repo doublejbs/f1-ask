@@ -207,6 +207,10 @@ export type Dictionary = {
     trackLimits: string;
     strategyNote: string;
     blueFlag: string;
+    // 칸에 못 올라간 "지금 볼 것" 신호의 행 표시 (docs/19 수용 기준 7).
+    // 점 하나는 뜻을 전달하지 못하므로 실제 내용은 이 문구가 title/aria-label 로 옮긴다.
+    // {signals} 에 신호 요약 문장들이 " · " 로 이어져 들어간다.
+    watchNow: string;
   };
   // 최신 이벤트 카드 (docs/14-event-placement.md).
   latestEvent: {
@@ -435,6 +439,7 @@ const en: Dictionary = {
     trackLimits: "Track limits",
     strategyNote: "Strategy note",
     blueFlag: "Blue flag",
+    watchNow: "Also worth watching — {signals}",
   },
   latestEvent: {
     title: "Latest key event",
@@ -680,6 +685,7 @@ const ko: Dictionary = {
     trackLimits: "트랙 리밋 위반",
     strategyNote: "전략 노트",
     blueFlag: "블루 플래그",
+    watchNow: "이것도 볼 만하다 — {signals}",
   },
   latestEvent: {
     title: "최신 주요 이벤트",
@@ -925,6 +931,7 @@ const ja: Dictionary = {
     trackLimits: "トラックリミット違反",
     strategyNote: "戦略メモ",
     blueFlag: "ブルーフラッグ",
+    watchNow: "こちらも注目 — {signals}",
   },
   latestEvent: {
     title: "最新の重要イベント",

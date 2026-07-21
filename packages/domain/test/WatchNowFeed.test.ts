@@ -248,4 +248,63 @@ describe("WatchNowFeed", () => {
       findLane(feed.buildLanes(snapshot).lanes, WatchNowLane.Field).entries,
     ).toHaveLength(1);
   });
+
+  // reset() 은 감지기를 새로 만들므로 콜드 스타트 보장이 여기서도 그대로 성립해야 한다.
+  // 세션 전환에서 자동으로 불리는 경로라, 여기가 깨지면 세션이 바뀔 때마다 가짜 언더컷이
+  // 화면을 채운다.
+  it("reset 후 첫 프레임에서도 이미 피트한 드라이버가 언더컷으로 잡히지 않는다", () => {
+    const feed = new WatchNowFeed();
+    const midRaceField = [
+      createDriver(1, 1, { pitStopCount: 1 }),
+      createDriver(2, 2, { pitStopCount: 2 }),
+      createDriver(3, 3, { pitStopCount: 1 }),
+      createDriver(4, 4, { pitStopCount: 2 }),
+    ];
+
+    feed.observe(createSnapshot(midRaceField, { version: 1 }));
+    feed.reset();
+    feed.observe(createSnapshot(midRaceField, { version: 1 }));
+
+    const lanes = feed.buildLanes(createSnapshot(midRaceField, { version: 1 }));
+    const undercuts = lanes.lanes
+      .flatMap((group) => group.entries)
+      .concat(lanes.overflow)
+      .filter(
+        (entry) => entry.signal.type === WatchNowSignalType.UndercutThreat,
+      );
+
+    expect(undercuts).toHaveLength(0);
+  });
+
+  // 세션 전환은 reset() 을 자동으로 부른다. 새 세션의 첫 프레임은 기준선만 잡아야 한다.
+  it("세션이 바뀐 뒤 첫 프레임도 기준선만 잡는다", () => {
+    const feed = new WatchNowFeed();
+    const previousField = [
+      createDriver(1, 1, { pitStopCount: 0 }),
+      createDriver(2, 2, { pitStopCount: 0 }),
+    ];
+    const nextField = [
+      createDriver(1, 1, { pitStopCount: 1 }),
+      createDriver(2, 2, { pitStopCount: 2 }),
+    ];
+
+    feed.observe(createSnapshot(previousField, { version: 1 }));
+
+    const nextSnapshot = createSnapshot(nextField, {
+      version: 1,
+      sessionId: "session:b",
+    });
+
+    feed.observe(nextSnapshot);
+
+    const lanes = feed.buildLanes(nextSnapshot);
+    const undercuts = lanes.lanes
+      .flatMap((group) => group.entries)
+      .concat(lanes.overflow)
+      .filter(
+        (entry) => entry.signal.type === WatchNowSignalType.UndercutThreat,
+      );
+
+    expect(undercuts).toHaveLength(0);
+  });
 });

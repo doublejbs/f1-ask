@@ -18,7 +18,7 @@ export type LaneWatchNowSignal = {
   signal: WatchNowSignal;
   // 실제로 올라간 칸. overflow 항목은 구조상 속했을 칸(선두권 · 필드)을 그대로 들고 있다.
   lane: WatchNowLane;
-  // 랭킹 시점 스냅샷 기준 주체 드라이버의 순위. 스냅샷에 없으면 null.
+  // 칸 구성 시점 스냅샷 기준 주체 드라이버의 순위. 스냅샷에 없으면 null.
   position: number | null;
   // 상대역의 순위 — 언더컷은 피트인한 뒤차, 간격 수렴은 앞차. 없으면 null.
   rivalPosition: number | null;
@@ -41,6 +41,15 @@ export type WatchNowLanes = {
   // 화면 표시 순서 — 선두권 · 필드 · 내 드라이버.
   lanes: WatchNowLaneGroup[];
   // 칸에 올라가지 못한 나머지. 버려지지 않고 순위표 행 표시로 간다(docs/19 수용 기준 7).
+  //
+  // **소비처가 실재한다** — `GroupWatchNowOverflow.ts` 가 드라이버별로 묶고
+  // `DriverRowMarkerView` 가 행에 점으로 그린다. 칸당 줄 수를 좁게 잡은 근거가
+  // "나머지는 행에서 볼 수 있다" 이므로 **이 배열을 아무도 읽지 않게 되면 그 근거가
+  // 무너진다.** 소비처를 지우려거든 칸 줄 수부터 다시 정하라.
+  //
+  // 여기에는 칸에 오른 신호가 들어가지 않는다(아래 `placed` 로 걸러진다). 행 표시가
+  // 칸과 중복되지 않는 것이 이 성질에 걸려 있어 테스트로 고정돼 있다
+  // (WatchNowLaneBuilder.test.ts §overflow 와 칸의 관계).
   overflow: LaneWatchNowSignal[];
 };
 
