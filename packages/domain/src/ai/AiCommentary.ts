@@ -34,13 +34,17 @@ export const selectCommentaryEvents = (
   limit: number = DEFAULT_COMMENTARY_LIMIT,
 ): RaceEvent[] => events.filter(isCommentaryEligible).slice(-limit);
 
+// 해설 id 접두사. 저장 문서에서 복원할 때도 같은 규칙을 써야 하므로 상수로 둔다
+// (firestore/CommentaryDocument.ts).
+export const AI_COMMENTARY_ID_PREFIX = "commentary:";
+
 // 이벤트 + 생성된 텍스트 → 해설 아이템. id 는 원본 이벤트 기준으로 결정론적.
 export const toAiCommentary = (
   event: RaceEvent,
   text: string,
   isMock: boolean = false,
 ): AiCommentary => ({
-  id: `commentary:${event.id}`,
+  id: `${AI_COMMENTARY_ID_PREFIX}${event.id}`,
   sourceEventId: event.id,
   sourceEventType: event.type,
   priority: event.priority,

@@ -253,18 +253,45 @@ export type {
 export { GeminiChatRole } from "./ai/GeminiChatRole";
 export { FallbackLlmProvider } from "./ai/FallbackLlmProvider";
 export type { LlmFailureHandler } from "./ai/FallbackLlmProvider";
+export type {
+  LlmEnvReader,
+  SelectedLlmProvider,
+} from "./ai/LlmProviderSelection";
+export {
+  createRaceLlmProvider,
+  createProcessEnvReader,
+  selectPrimaryLlmProvider,
+  normalizeEnvValue,
+  MOCK_LLM_PROVIDER_NAME,
+} from "./ai/LlmProviderSelection";
 export type { AiCommentary, CommentedRaceEvent } from "./ai/AiCommentary";
 export {
   attachCommentary,
   isCommentaryEligible,
   selectCommentaryEvents,
   toAiCommentary,
+  AI_COMMENTARY_ID_PREFIX,
   DEFAULT_COMMENTARY_LIMIT,
 } from "./ai/AiCommentary";
 export {
   COMMENTARY_ELIGIBLE_EVENT_TYPES,
   isCommentaryEligibleType,
 } from "./ai/CommentaryEventAllowlist";
+export type {
+  CommentaryContext,
+  CommentaryStandingsRow,
+} from "./ai/CommentaryContext";
+export {
+  buildCommentaryContext,
+  RECENT_COMMENTARY_LIMIT,
+} from "./ai/CommentaryContext";
+export { buildCommentarySystemRules } from "./ai/CommentaryPrompt";
+export type { LlmRequestTimeoutOptions } from "./ai/LlmRequestTimeout";
+export {
+  withLlmRequestTimeout,
+  LLM_REQUEST_TIMEOUT_MS,
+  LLM_TIMEOUT_ERROR_PREFIX,
+} from "./ai/LlmRequestTimeout";
 
 export type { RaceSummaryData } from "./RaceSummary";
 export {
@@ -285,19 +312,32 @@ export {
 
 export type {
   LiveRaceReadRepository,
+  CommentaryReadRepository,
   Unsubscribe,
   EventQueryPlan,
+  CommentaryQueryPlan,
 } from "./firestore/LiveRaceRepository";
 export {
   firestorePaths,
   LIVE_CURRENT_DOC_ID,
   EVENT_CURSOR_DOC_ID,
+  COMMENTARY_CONTEXT_DOC_ID,
   toLiveSnapshotDoc,
   toSessionDoc,
   eventDocId,
   buildEventQueryPlan,
+  buildCommentaryQueryPlan,
   FIRESTORE_IN_MAX_VALUES,
 } from "./firestore/LiveRaceRepository";
+
+export type { CommentaryDocument } from "./firestore/CommentaryDocument";
+export {
+  toCommentaryDocId,
+  toCommentaryDocument,
+  toAiCommentaryFromDocument,
+  COMMENTARY_SCHEMA_VERSION,
+  MAX_FIRESTORE_DOC_ID_BYTES,
+} from "./firestore/CommentaryDocument";
 
 // 폴러 워커 (docs/16-poller-worker.md). Cloud Functions 번들이 사용한다.
 export { SessionActivityReason } from "./worker/SessionActivityReason";
@@ -326,6 +366,7 @@ export {
   buildWorkerLease,
   parseWorkerLease,
   isLeaseHeld,
+  isLeaseOwnedBy,
   WORKER_LEASE_TTL_MS,
 } from "./worker/WorkerLease";
 export type {
@@ -338,3 +379,34 @@ export {
   EMPTY_PUBLISH_STATE,
   SNAPSHOT_HEARTBEAT_MS,
 } from "./worker/PublishDecision";
+
+// 워커의 AI 해설 생성 (docs/18-ai-commentary-worker.md).
+export type { CommentaryVariant } from "./worker/CommentaryVariant";
+export {
+  parseCommentaryVariants,
+  toCommentaryVariantKey,
+  DEFAULT_COMMENTARY_VARIANTS,
+} from "./worker/CommentaryVariant";
+export type { CommentaryRunContext } from "./worker/CommentaryRunContext";
+export {
+  parseCommentaryRunContext,
+  appendCommentaryToRunContext,
+  recordCommentaryFailure,
+  getRecentCommentary,
+  hasGeneratedCommentary,
+  hasExhaustedCommentaryRetries,
+  EMPTY_COMMENTARY_RUN_CONTEXT,
+  MAX_TRACKED_COMMENTARY_KEYS,
+  MAX_COMMENTARY_ATTEMPTS,
+} from "./worker/CommentaryRunContext";
+export type {
+  CommentaryTask,
+  CommentaryTaskSelection,
+  CommentaryGenerationDeps,
+  CommentaryGenerationOptions,
+  CommentaryGenerationResult,
+} from "./worker/CommentaryGeneration";
+export {
+  generateCommentaryForEvents,
+  selectPendingCommentaryTasks,
+} from "./worker/CommentaryGeneration";

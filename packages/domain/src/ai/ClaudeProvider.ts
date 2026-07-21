@@ -1,11 +1,16 @@
-import { ExplanationLevel } from "../ExplanationLevel";
 import { LiveDriverState } from "../LiveDriverState";
 import { LiveRaceSnapshot } from "../LiveRaceSnapshot";
 import { RaceEvent } from "../RaceEvent";
 import { RaceSummaryData } from "../RaceSummary";
 import { SupportedLocale } from "../SupportedLocale";
 import { AiConfidence } from "./AiConfidence";
+import { buildCommentaryPrompt } from "./CommentaryPrompt";
 import { LlmChatRole } from "./LlmChatRole";
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  withLlmRequestTimeout,
+} from "./LlmRequestTimeout";
+import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
 import {
   LlmAnswer,
   LlmCommentary,
@@ -21,7 +26,12 @@ type ChatMessage = { role: LlmChatRole; content: string };
 // 주입 가능한 fetch (네트워크 없이 단위 테스트).
 export type ClaudeFetch = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body: string },
+  init: {
+    method: string;
+    headers: Record<string, string>;
+    body: string;
+    signal: AbortSignal;
+  },
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 export type ClaudeProviderOptions = {
@@ -29,28 +39,16 @@ export type ClaudeProviderOptions = {
   model?: string;
   fetchImpl?: ClaudeFetch;
   baseUrl?: string;
+  // 요청 1회의 상한. 기본값은 워커의 해설 예산과 같은 출처다(LlmRequestTimeout.ts).
+  timeoutMs?: number;
 };
 
 // skill 지침: 사용자가 다른 모델을 명시하지 않으면 claude-opus-4-8 을 사용한다.
-const DEFAULT_MODEL = "claude-opus-4-8";
+export const CLAUDE_DEFAULT_MODEL = "claude-opus-4-8";
 const DEFAULT_BASE_URL = "https://api.anthropic.com/v1";
 const ANTHROPIC_VERSION = "2023-06-01";
 const CONTEXT_DRIVER_LIMIT = 20;
 const RECENT_EVENT_LIMIT = 8;
-
-const LOCALE_LANGUAGE: Record<SupportedLocale, string> = {
-  [SupportedLocale.En]: "English",
-  [SupportedLocale.Ko]: "Korean",
-  [SupportedLocale.Ja]: "Japanese",
-};
-
-const LEVEL_GUIDANCE: Record<ExplanationLevel, string> = {
-  [ExplanationLevel.Beginner]:
-    "The reader is a beginner: briefly define any jargon you use in plain words.",
-  [ExplanationLevel.Standard]: "The reader knows the basics of F1.",
-  [ExplanationLevel.Expert]:
-    "The reader is an expert: you may add one concise strategic nuance.",
-};
 
 // AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다.
 const SYSTEM_RULES = [
@@ -170,14 +168,16 @@ export class ClaudeProvider implements RaceLlmProvider {
   private readonly model: string;
   private readonly baseUrl: string;
   private readonly fetchImpl: ClaudeFetch;
+  private readonly timeoutMs: number;
 
   constructor(options: ClaudeProviderOptions) {
     this.apiKey = options.apiKey;
-    this.model = options.model ?? DEFAULT_MODEL;
+    this.model = options.model ?? CLAUDE_DEFAULT_MODEL;
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.fetchImpl =
       options.fetchImpl ??
       ((url, init) => fetch(url, init) as unknown as ReturnType<ClaudeFetch>);
+    this.timeoutMs = options.timeoutMs ?? LLM_REQUEST_TIMEOUT_MS;
   }
 
   async answerQuestion(request: LlmQuestionRequest): Promise<LlmAnswer> {
@@ -229,18 +229,9 @@ export class ClaudeProvider implements RaceLlmProvider {
   async generateCommentary(
     request: LlmCommentaryRequest,
   ): Promise<LlmCommentary> {
-    const system = [
-      SYSTEM_RULES,
-      `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
-      LEVEL_GUIDANCE[request.explanationLevel],
-      "Explain the strategic meaning of this single event in one short sentence. Do not replace TV commentary. Reply with only the sentence.",
-    ].join("\n");
-
-    const user = `Event (type + params): ${JSON.stringify({
-      type: request.event.type,
-      driverNumber: request.event.driverNumber ?? null,
-      params: request.event.params,
-    })}\n\nSession status: ${request.snapshot.status}, lap ${request.snapshot.currentLap ?? "?"}/${request.snapshot.totalLaps ?? "?"}.`;
+    // 조립은 세 provider 공용이다. 여기서 따로 만들면 문구가 갈라진다
+    // (CommentaryPrompt.ts 주석 참고).
+    const { system, user } = buildCommentaryPrompt(request);
 
     const text = await this.message(
       system,
@@ -303,29 +294,41 @@ export class ClaudeProvider implements RaceLlmProvider {
       messages,
     };
 
-    const response = await this.fetchImpl(`${this.baseUrl}/messages`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": this.apiKey,
-        "anthropic-version": ANTHROPIC_VERSION,
-      },
-      body: JSON.stringify(body),
-    });
+    // 응답 본문 읽기까지 한 덩어리로 타임아웃에 넣는다. 헤더만 온 뒤 본문이 멈춰도
+    // 예산을 넘기면 안 되기 때문이다.
+    const requestOnce = async (signal: AbortSignal): Promise<string> => {
+      const response = await this.fetchImpl(`${this.baseUrl}/messages`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": this.apiKey,
+          "anthropic-version": ANTHROPIC_VERSION,
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
 
-    if (!response.ok) {
-      throw new Error(`Claude request failed: ${response.status}`);
-    }
+      if (!response.ok) {
+        throw new Error(`Claude request failed: ${response.status}`);
+      }
 
-    const data = (await response.json()) as {
-      content?: { type: string; text?: string }[];
+      const data = (await response.json()) as {
+        content?: { type: string; text?: string }[];
+      };
+
+      // content[] 배열에서 text 블록을 합친다.
+      return (data.content ?? [])
+        .filter(
+          (block) => block.type === "text" && typeof block.text === "string",
+        )
+        .map((block) => block.text ?? "")
+        .join("");
     };
 
-    // content[] 배열에서 text 블록을 합친다.
-    return (data.content ?? [])
-      .filter((block) => block.type === "text" && typeof block.text === "string")
-      .map((block) => block.text ?? "")
-      .join("");
+    return withLlmRequestTimeout(requestOnce, {
+      timeoutMs: this.timeoutMs,
+      label: `Claude (model: ${this.model})`,
+    });
   }
 
   private safeJson(

@@ -29,8 +29,10 @@ export {
 export {
   commentaryRequestSchema,
   aiCommentarySchema,
+  commentaryDocumentSchema,
   parseCommentaryRequest,
   parseAiCommentaryList,
+  parseCommentaryDocument,
 } from "./CommentarySchema";
 export type { CommentaryRequest } from "./CommentarySchema";
 

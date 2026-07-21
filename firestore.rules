@@ -32,6 +32,8 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // 워커가 생성한 AI 해설 (docs/18-ai-commentary-worker.md §저장).
+      // 이벤트와 함께 화면에 뜨는 공개 읽기 데이터라 events 와 같은 형태다.
       match /aiCommentary/{commentaryId} {
         allow read: if true;
         allow write: if false;

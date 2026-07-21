@@ -74,6 +74,53 @@ AI 기능이 목 응답이 된다. 앱은 정상 동작한다.
 - 프리뷰 배포까지 쓰려면 해당 도메인도 추가한다
 - 로컬 LAN 테스트용 IP(예: `172.30.1.95`)도 여기에 추가한다 — `localhost` 만 기본 포함이다
 
+## 폴러 워커 (Cloud Functions)
+
+폴러와 AI 해설 생성은 Vercel 이 아니라 Firebase Cloud Functions 에서 돈다
+([16-poller-worker.md](16-poller-worker.md) · [18-ai-commentary-worker.md](18-ai-commentary-worker.md)).
+설정이 두 갈래다 — **비밀값은 Secret Manager, 나머지는 일반 환경변수**다.
+
+### 시크릿 등록
+
+`functions/src/PollerFunction.ts` 가 `defineSecret` 으로 선언한 것들이다. 배포 전에
+등록되어 있어야 한다(값은 프롬프트로 입력한다 — 명령줄이나 문서에 남기지 않는다).
+
+```bash
+firebase functions:secrets:set OPENF1_USERNAME
+firebase functions:secrets:set OPENF1_PASSWORD
+firebase functions:secrets:set GEMINI_API_KEY
+```
+
+`GEMINI_API_KEY` 가 없거나 바인딩되지 않으면 해설 생성이 `MockLlmProvider` 로 폴백한다.
+mock 텍스트는 Firestore 에 저장되지 않으므로(docs/18 §폴백) **해설만 비고 이벤트는
+정상 노출된다.** 폴링 자체는 죽지 않는다.
+
+등록된 시크릿 이름 확인:
+
+```bash
+firebase functions:secrets:access GEMINI_API_KEY   # 값 확인 (주의: 평문 출력)
+```
+
+### 일반 환경변수 (`functions/.env`)
+
+비밀이 아닌 값은 `functions/.env` 에 둔다. firebase-tools 가 배포 시 이 파일을 읽어
+함수 런타임 환경변수로 넣는다. **코드를 고치지 않고 바꿀 수 있는 것은 이 파일뿐이다.**
+`functions/.env.example` 을 복사해 시작한다.
+
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `COMMENTARY_VARIANTS` | `ko:standard` | 생성할 해설 변형. `"ko:standard,en:beginner"` 형식 |
+| `GEMINI_MODEL` | `gemini-3.5-flash` | 해설·Q&A 모델 |
+| `GEMINI_BASE_URL` | Google 기본 | 프록시를 쓸 때만 |
+
+`COMMENTARY_VARIANTS` 는 **변형 하나당 이벤트마다 LLM 호출과 Firestore 쓰기가
+곱해진다.** 레이스당 이벤트가 약 47건이므로 9 변형이면 423 회다. Gemini 무료 티어
+한도와 지출 상한을 확인하고 늘린다. 오타가 섞인 항목은 무시되고, 유효한 항목이
+하나도 없으면 기본값(`ko:standard`)으로 되돌아간다 — 오타 하나로 해설이 통째로
+멈추지는 않지만, 의도한 변형이 도는지 배포 후 로그로 확인한다.
+
+`functions/.env` 는 `.gitignore` 대상이다. 커밋하지 않는다.
+
 ## 첫 배포 시 주의
 
 Firestore 에 아직 세션 데이터가 없으면 `NEXT_PUBLIC_DATA_MODE=live` 로 배포한 앱은
