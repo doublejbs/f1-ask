@@ -36,10 +36,16 @@ export type GeminiProviderOptions = {
   baseUrl?: string;
 };
 
-// 무료 티어에서 쓸 수 있는 안정(stable) Flash 모델.
-// 해설/답변은 1~2문장으로 짧아 Flash 급으로 충분하다.
-const DEFAULT_MODEL = "gemini-2.5-flash";
+// 현행 Flash 계열 모델. 해설/답변은 1~2문장으로 짧아 Flash 급으로 충분하다.
+// 되돌리지 말 것: 이전 기본값이던 gemini-2.5-flash 는 ListModels 에는 계속 보이지만
+// generateContent 는 신규 사용자에게 닫혀 404 ("no longer available to new users") 를 반환한다.
+const DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+// Gemini 3.x 는 사고(thinking)가 기본 활성이고 사고 토큰이 maxOutputTokens 예산을 함께 잠식한다.
+// (실측: 사고 설정 없이 예산 200 → thoughtsTokenCount 188, 본문은 "\n" 1토큰.
+//  thinkingLevel "low" + 예산 120 → 사고 115, finishReason MAX_TOKENS, 본문 없음.)
+// 이 provider 는 1~2문장만 생성하므로 사고가 필요 없다 — 꺼야 현재 예산(300/120/200)으로 본문이 나온다.
+const THINKING_BUDGET_DISABLED = 0;
 const CONTEXT_DRIVER_LIMIT = 20;
 const RECENT_EVENT_LIMIT = 8;
 
@@ -146,6 +152,47 @@ const buildQuestionContext = (
   });
 };
 
+// 환경변수로 주입된 모델 값을 정규화한다.
+// GEMINI_MODEL 에 "models/gemini-2.5-flash" 처럼 접두사가 붙어 오면
+// URL 이 /models/models/... 가 되어 404 가 난다 — 맨 앞의 "models/" 한 번만 제거한다.
+const normalizeModel = (model: string): string => {
+  const trimmed = model.trim();
+
+  return trimmed.replace(/^models\//, "");
+};
+
+// baseUrl 의 후행 슬래시를 제거한다 (".../v1beta/" 가 "//models" 를 만들지 않도록).
+const normalizeBaseUrl = (baseUrl: string): string => {
+  return baseUrl.trim().replace(/\/+$/, "");
+};
+
+// 오류 응답 본문에서 Google 의 에러 메시지를 뽑아낸다.
+// 본문이 JSON 이 아니거나 읽기 자체가 실패할 수 있으므로 절대 throw 하지 않는다.
+const readErrorMessage = async (response: {
+  json: () => Promise<unknown>;
+}): Promise<string | null> => {
+  try {
+    const body = (await response.json()) as {
+      error?: { message?: unknown; status?: unknown };
+    };
+    const message = body?.error?.message;
+
+    if (typeof message !== "string" || message.length === 0) {
+      return null;
+    }
+
+    const status = body?.error?.status;
+
+    if (typeof status === "string" && status.length > 0) {
+      return `${status}: ${message}`;
+    }
+
+    return message;
+  } catch {
+    return null;
+  }
+};
+
 const parseConfidence = (value: unknown): AiConfidence => {
   if (value === AiConfidence.High || value === AiConfidence.Low) {
     return value;
@@ -192,8 +239,8 @@ export class GeminiProvider implements RaceLlmProvider {
 
   constructor(options: GeminiProviderOptions) {
     this.apiKey = options.apiKey;
-    this.model = options.model ?? DEFAULT_MODEL;
-    this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
+    this.model = normalizeModel(options.model ?? DEFAULT_MODEL);
+    this.baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
     this.fetchImpl =
       options.fetchImpl ??
       ((url, init) => fetch(url, init) as unknown as ReturnType<GeminiFetch>);
@@ -322,6 +369,8 @@ export class GeminiProvider implements RaceLlmProvider {
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens,
+        // 사고를 끈다 — 켜두면 사고 토큰이 예산을 다 써 본문이 비어 나온다 (상수 주석 참고).
+        thinkingConfig: { thinkingBudget: THINKING_BUDGET_DISABLED },
       },
     };
     // 모델은 REST 경로 파라미터(models/{model})로만 전달한다.
@@ -340,7 +389,14 @@ export class GeminiProvider implements RaceLlmProvider {
     );
 
     if (!response.ok) {
-      throw new Error(`Gemini request failed: ${response.status}`);
+      // 진단에 필요한 것은 상태 코드·모델 이름·Google 이 준 사유다.
+      // API 키가 새지 않도록 전체 URL 은 넣지 않고 모델 이름만 남긴다.
+      const detail = await readErrorMessage(response);
+      const suffix = detail === null ? "" : ` - ${detail}`;
+
+      throw new Error(
+        `Gemini request failed: ${response.status} (model: ${this.model})${suffix}`,
+      );
     }
 
     const data = (await response.json()) as {
