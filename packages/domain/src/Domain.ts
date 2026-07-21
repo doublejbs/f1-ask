@@ -245,6 +245,12 @@ export type {
   ClaudeFetch,
   ClaudeProviderOptions,
 } from "./ai/ClaudeProvider";
+export { GeminiProvider } from "./ai/GeminiProvider";
+export type {
+  GeminiFetch,
+  GeminiProviderOptions,
+} from "./ai/GeminiProvider";
+export { GeminiChatRole } from "./ai/GeminiChatRole";
 export { FallbackLlmProvider } from "./ai/FallbackLlmProvider";
 export type { LlmFailureHandler } from "./ai/FallbackLlmProvider";
 export type { AiCommentary, CommentedRaceEvent } from "./ai/AiCommentary";
@@ -255,6 +261,10 @@ export {
   toAiCommentary,
   DEFAULT_COMMENTARY_LIMIT,
 } from "./ai/AiCommentary";
+export {
+  COMMENTARY_ELIGIBLE_EVENT_TYPES,
+  isCommentaryEligibleType,
+} from "./ai/CommentaryEventAllowlist";
 
 export type { RaceSummaryData } from "./RaceSummary";
 export {

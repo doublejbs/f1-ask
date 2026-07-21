@@ -1,6 +1,7 @@
 import { RaceEvent } from "../RaceEvent";
 import { RaceEventPriority } from "../RaceEventPriority";
 import { RaceEventType } from "../RaceEventType";
+import { isCommentaryEligibleType } from "./CommentaryEventAllowlist";
 
 // AI 자동 해설 아이템 (docs/02-architecture.md §44, PRD §8.2).
 // RaceEvent 와 달리 LLM 이 생성한 자유 문장(text)을 담는다.
@@ -16,10 +17,14 @@ export type AiCommentary = {
   isMock: boolean;
 };
 
-// 자동 해설 대상 여부. 모든 이벤트가 아니라 중요 이벤트(high/critical)만 해설한다.
+// 자동 해설 대상 여부.
+//
+// 우선순위(high/critical)가 아니라 이벤트 타입 allowlist 로 판정한다.
+// 추월·피트스톱은 high/critical 의 88% 를 차지하면서도 도메인 결정론 문장이 사실을
+// 이미 다 전달해 해설이 동어반복이었다. 판정 근거와 타입별 이유는
+// CommentaryEventAllowlist.ts 주석 참고.
 export const isCommentaryEligible = (event: RaceEvent): boolean =>
-  event.priority === RaceEventPriority.High ||
-  event.priority === RaceEventPriority.Critical;
+  isCommentaryEligibleType(event.type);
 
 export const DEFAULT_COMMENTARY_LIMIT = 8;
 
