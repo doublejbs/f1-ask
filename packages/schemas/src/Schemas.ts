@@ -42,3 +42,15 @@ export {
   parseRaceSummaryResponse,
 } from "./SummarySchema";
 export type { SummaryRequest, RaceSummaryResponse } from "./SummarySchema";
+
+export {
+  archiveRaceSessionSchema,
+  archivePodiumEntrySchema,
+  archiveRaceListItemSchema,
+  archiveRaceListResponseSchema,
+  archiveResultRowSchema,
+  archiveRaceDetailSchema,
+  parseArchiveRaceListResponse,
+  parseArchiveRaceDetail,
+} from "./ArchiveSchema";
+export type { ArchiveRaceListResponse } from "./ArchiveSchema";

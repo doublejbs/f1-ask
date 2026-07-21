@@ -76,6 +76,8 @@ export {
 
 export type {
   OpenF1Driver,
+  OpenF1Session,
+  OpenF1Meeting,
   OpenF1Position,
   OpenF1Interval,
   OpenF1Stint,
@@ -121,10 +123,56 @@ export type {
 export {
   fetchLatestOpenF1Meta,
   fetchOpenF1SessionData,
+  fetchOpenF1SessionByKey,
+  fetchOpenF1RaceSessions,
+  fetchOpenF1Meetings,
+  fetchOpenF1PodiumResults,
+  fetchOpenF1SeasonDrivers,
   fetchOpenF1Token,
   OpenF1Auth,
   toSessionId,
+  toOpenF1SessionMeta,
 } from "./openf1/OpenF1Client";
+
+// 지난 레이스 기록 (docs/17-race-archive.md).
+export { ArchiveResultStatus } from "./archive/ArchiveResultStatus";
+export type {
+  ArchiveRaceSession,
+  ArchivePodiumEntry,
+  ArchiveRaceListItem,
+  ArchiveResultRow,
+  ArchiveRaceDetail,
+} from "./archive/ArchiveRaceTypes";
+export {
+  ARCHIVE_RACE_SESSION_TYPE,
+  ARCHIVE_SETTLE_MARGIN_MS,
+  buildMeetingRounds,
+  selectCompletedRaceSessions,
+  isArchivableSession,
+} from "./archive/ArchiveSessionSelector";
+export {
+  ARCHIVE_PODIUM_SIZE,
+  resolveArchiveResultStatus,
+  buildArchiveResultRows,
+  selectArchivePodium,
+} from "./archive/ArchiveResultBuilder";
+export type { ArchiveSessionWindow } from "./archive/ArchiveSessionWindow";
+export {
+  resolveArchiveSessionWindow,
+  ARCHIVE_FALLBACK_SESSION_MS,
+} from "./archive/ArchiveSessionWindow";
+export type {
+  ArchiveLoadOptions,
+  ArchiveDetailLoadOptions,
+} from "./archive/ArchiveLoader";
+export {
+  loadArchiveRaceList,
+  loadArchiveRaceDetail,
+  selectArchiveTimelineEvents,
+  ARCHIVE_TIMELINE_EVENT_LIMIT,
+  ARCHIVE_TIMELINE_EXCLUDED_TYPES,
+  ARCHIVE_KEY_MOMENT_LIMIT,
+} from "./archive/ArchiveLoader";
 
 export type { FavoriteDriverDetail } from "./FavoriteDriverDetail";
 export {

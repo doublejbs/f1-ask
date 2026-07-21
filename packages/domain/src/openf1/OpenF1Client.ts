@@ -2,10 +2,12 @@ import {
   OpenF1Driver,
   OpenF1Interval,
   OpenF1Lap,
+  OpenF1Meeting,
   OpenF1Overtake,
   OpenF1Pit,
   OpenF1Position,
   OpenF1RaceControl,
+  OpenF1Session,
   OpenF1SessionData,
   OpenF1SessionMeta,
   OpenF1SessionResult,
@@ -150,15 +152,16 @@ const authHeaders = async (
   return {};
 };
 
-// 단일 엔드포인트 조회 (429 백오프 재시도, 401 시 토큰 강제 갱신 후 1회 재시도).
-const fetchEndpoint = async <T>(
+// 임의 쿼리 문자열로 엔드포인트를 조회한다 (429 백오프 재시도, 401 시 토큰
+// 강제 갱신 후 1회 재시도). 아카이브는 `year=2026&session_type=Race` 처럼
+// 복수 조건과 `session_key>=11234` 같은 비교 연산자를 쓴다.
+const fetchEndpointWithQuery = async <T>(
   endpoint: string,
-  queryKey: string,
-  queryValue: string | number,
+  query: string,
   options: OpenF1ClientOptions,
 ): Promise<T[]> => {
   const base = options.baseUrl ?? DEFAULT_BASE_URL;
-  const url = `${base}/${endpoint}?${queryKey}=${queryValue}`;
+  const url = `${base}/${endpoint}?${query}`;
   const retryBase = options.retryBaseMs ?? 2000;
   const doFetch = resolveFetch(options);
   let refreshedOn401 = false;
@@ -198,6 +201,15 @@ const fetchEndpoint = async <T>(
   throw new Error(`OpenF1 ${endpoint} failed after retries`);
 };
 
+// 단일 조건 조회 (기존 폴러 경로).
+const fetchEndpoint = async <T>(
+  endpoint: string,
+  queryKey: string,
+  queryValue: string | number,
+  options: OpenF1ClientOptions,
+): Promise<T[]> =>
+  fetchEndpointWithQuery<T>(endpoint, `${queryKey}=${queryValue}`, options);
+
 // 선택적 엔드포인트 조회. 세션 진행 중에만 비어 있는 데이터(session_result 등)는
 // 404 뿐 아니라 "No results found" 계열 오류로도 응답할 수 있다.
 // 이런 실패가 전체 폴링을 중단시키면 안 되므로 빈 배열로 흡수한다.
@@ -214,30 +226,32 @@ const fetchOptionalEndpoint = async <T>(
   }
 };
 
-type OpenF1SessionRow = {
-  session_key: number;
-  meeting_key: number;
-  session_name: string;
-  session_type: string;
-  circuit_short_name: string;
-  country_code: string;
-  year: number;
-  // 세션 예정 시각. 워커가 활성 여부를 판정하는 근거다.
-  date_start?: string | null;
-  date_end?: string | null;
-};
-
 // 안정적인 세션 ID 슬러그 (예: "2026-sgp-race").
-export const toSessionId = (session: OpenF1SessionRow): string =>
+export const toSessionId = (session: OpenF1Session): string =>
   `${session.year}-${session.country_code.toLowerCase()}-${session.session_type
     .toLowerCase()
     .replace(/\s+/g, "-")}`;
+
+// sessions 행 → 내부 세션 메타.
+export const toOpenF1SessionMeta = (
+  session: OpenF1Session,
+): OpenF1SessionMeta => ({
+  sessionId: toSessionId(session),
+  sessionKey: session.session_key,
+  meetingKey: session.meeting_key,
+  sessionName: session.session_name,
+  sessionType: session.session_type,
+  circuitName: session.circuit_short_name,
+  countryCode: session.country_code,
+  dateStart: session.date_start ?? null,
+  dateEnd: session.date_end ?? null,
+});
 
 // 최신 세션 메타 조회 (session_key=latest).
 export const fetchLatestOpenF1Meta = async (
   options: OpenF1ClientOptions = {},
 ): Promise<OpenF1SessionMeta> => {
-  const rows = await fetchEndpoint<OpenF1SessionRow>(
+  const rows = await fetchEndpoint<OpenF1Session>(
     "sessions",
     "session_key",
     "latest",
@@ -249,18 +263,65 @@ export const fetchLatestOpenF1Meta = async (
     throw new Error("OpenF1 returned no latest session");
   }
 
-  return {
-    sessionId: toSessionId(session),
-    sessionKey: session.session_key,
-    meetingKey: session.meeting_key,
-    sessionName: session.session_name,
-    sessionType: session.session_type,
-    circuitName: session.circuit_short_name,
-    countryCode: session.country_code,
-    dateStart: session.date_start ?? null,
-    dateEnd: session.date_end ?? null,
-  };
+  return toOpenF1SessionMeta(session);
 };
+
+// 특정 세션의 메타 조회 (아카이브 상세가 session_key 로 진입한다).
+export const fetchOpenF1SessionByKey = async (
+  sessionKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Session | null> => {
+  const rows = await fetchEndpoint<OpenF1Session>(
+    "sessions",
+    "session_key",
+    sessionKey,
+    options,
+  );
+
+  return rows[0] ?? null;
+};
+
+// 한 시즌의 레이스(결승 + 스프린트) 세션 목록.
+export const fetchOpenF1RaceSessions = async (
+  year: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Session[]> =>
+  fetchEndpointWithQuery<OpenF1Session>(
+    "sessions",
+    `year=${year}&session_type=Race`,
+    options,
+  );
+
+// 한 시즌의 미팅(그랑프리) 목록. 그랑프리명·라운드 도출에 쓴다.
+export const fetchOpenF1Meetings = async (
+  year: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Meeting[]> =>
+  fetchEndpointWithQuery<OpenF1Meeting>("meetings", `year=${year}`, options);
+
+// 시즌 전체 포디움을 한 번에 가져온다. session_key 별 조회를 세션 수만큼
+// 반복하면 목록 한 번에 수십 요청이 되므로 비교 연산자로 한 방에 받는다.
+export const fetchOpenF1PodiumResults = async (
+  minSessionKey: number,
+  podiumSize: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1SessionResult[]> =>
+  fetchEndpointWithQuery<OpenF1SessionResult>(
+    "session_result",
+    `session_key>=${minSessionKey}&position<=${podiumSize}`,
+    options,
+  );
+
+// 시즌 전체 드라이버 로스터. 행마다 session_key 가 있어 세션별로 좁힐 수 있다.
+export const fetchOpenF1SeasonDrivers = async (
+  minSessionKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Driver[]> =>
+  fetchEndpointWithQuery<OpenF1Driver>(
+    "drivers",
+    `session_key>=${minSessionKey}`,
+    options,
+  );
 
 // 세션의 원본 데이터 묶음 조회 (순차 + rate-limit 대비).
 export const fetchOpenF1SessionData = async (

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Dictionary } from "@/i18n/Messages";
 import { translateRaceEvent } from "@/i18n/TranslateRaceEvent";
+import { getPriorityDotColor } from "@/lib/EventPriorityColor";
 import { cn } from "@/lib/Utils";
 import {
   formatGap,
@@ -27,7 +28,6 @@ import {
   AiCommentary,
   LiveDriverState,
   RaceEvent,
-  RaceEventPriority,
   SupportedLocale,
   TeamRadioClip,
   attachCommentary,
@@ -114,20 +114,6 @@ type StatRowProps = {
 // 상세 시트에 표시할 드라이버 이벤트 상한. 시트가 무한정 길어지면 하단의
 // "AI에게 질문" 버튼까지 스크롤이 멀어지므로 최근 몇 건만 남긴다.
 const MAX_EVENTS_IN_DRIVER_SHEET = 6;
-
-// 우선순위 점 색. Tailwind 퍼지 때문에 리터럴 클래스만 사용한다.
-const getPriorityDotColor = (priority: RaceEventPriority): string => {
-  switch (priority) {
-    case RaceEventPriority.Critical:
-      return "bg-red-400";
-    case RaceEventPriority.High:
-      return "bg-amber-400";
-    case RaceEventPriority.Medium:
-      return "bg-sky-400";
-    default:
-      return "bg-white/30";
-  }
-};
 
 // 이 드라이버와 연관된 이벤트를 최신순으로 골라 상한만큼 자른다.
 //

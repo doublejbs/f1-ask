@@ -1,14 +1,22 @@
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Dictionary } from "@/i18n/Messages";
-import { LiveDriverState } from "@f1/domain";
-import { RaceSummaryResponse } from "@f1/schemas";
+import { RaceSummaryData } from "@f1/domain";
 import { Trophy } from "lucide-react";
+
+// 코드 조회에 필요한 최소 형태. LiveDriverState 도 그대로 들어맞고, 스냅샷이 없는
+// 아카이브 상세는 최종 순위 행에서 만들어 넘긴다.
+export type SummaryDriverRef = {
+  driverNumber: number;
+  code: string;
+};
 
 type Props = {
   dictionary: Dictionary;
-  summary: RaceSummaryResponse;
-  drivers: LiveDriverState[];
+  data: RaceSummaryData;
+  // AI 서술. 아카이브 상세처럼 LLM 을 태우지 않는 화면은 null 을 넘긴다.
+  narrative: string | null;
+  drivers: readonly SummaryDriverRef[];
 };
 
 type StatProps = {
@@ -26,7 +34,12 @@ const Stat = ({ label, value }: StatProps) => (
 );
 
 // 경기 종료 요약 카드 (PRD §6). 결정론적 사실 + AI 서술.
-export const RaceSummaryView = ({ dictionary, summary, drivers }: Props) => {
+export const RaceSummaryView = ({
+  dictionary,
+  data,
+  narrative,
+  drivers,
+}: Props) => {
   const codeOf = (driverNumber: number | null): string => {
     if (driverNumber === null) {
       return "—";
@@ -36,8 +49,6 @@ export const RaceSummaryView = ({ dictionary, summary, drivers }: Props) => {
       drivers.find((driver) => driver.driverNumber === driverNumber)?.code ?? "—"
     );
   };
-
-  const { data } = summary;
 
   return (
     <Card className="border-primary/40 bg-primary/5">
@@ -74,7 +85,9 @@ export const RaceSummaryView = ({ dictionary, summary, drivers }: Props) => {
           </div>
         </div>
 
-        <p className="text-sm leading-relaxed">{summary.narrative}</p>
+        {narrative === null ? null : (
+          <p className="text-sm leading-relaxed">{narrative}</p>
+        )}
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Stat
