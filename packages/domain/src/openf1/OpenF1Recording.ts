@@ -14,12 +14,6 @@ import {
 import { buildRaceControlEvents } from "./OpenF1RaceControlEvents";
 import { OpenF1RaceControl, OpenF1SessionData } from "./OpenF1Types";
 
-// 볼륨 상한. 드라이버 자기 최속·팀 라디오·간격 축소는 그대로 두면 피드를 덮어버린다.
-const MAX_PERSONAL_BEST_PER_DRIVER = 3;
-const MAX_TEAM_RADIO_PER_DRIVER = 5;
-const MAX_GAP_CLOSING_PER_DRIVER = 5;
-const MAX_OVERRIDE_RANGE_PER_DRIVER = 5;
-const MAX_STRATEGY_NOTE_PER_DRIVER = 3;
 const GAP_CLOSING_THRESHOLD_SECONDS = 1;
 const GAP_CLOSING_COOLDOWN_MS = 60_000;
 // 필드 다수 컴파운드를 논하려면 최소 이만큼의 표본이 필요하다.
@@ -155,13 +149,20 @@ export const buildEvents = (
     push(timed.atMs, timed.event);
   }
 
-  // 드라이버당 최근 N건만 남기고 시간 창 안의 것만 발행한다.
-  const pushLatestPerDriver = (
-    byDriver: Map<number, TimedRaceEvent[]>,
-    limit: number,
-  ): void => {
+  // 드라이버별로 모아둔 이벤트를 시간 창 안의 것만 발행한다.
+  //
+  // 여기에 "드라이버당 최근 N건" 상한을 걸면 안 된다. 폴러는 6초마다 전체 데이터로
+  // 재계산하므로 창의 끝(endMs)이 계속 뒤로 밀리고, "최근 N건"은 그때마다 **다른**
+  // 이벤트를 고른다. 키 자체는 발생 시점 기준으로 고정되어 있지만 발행 여부가
+  // 시점마다 뒤집히면서, 한 번 쓰인 문서가 이후 계산에서 빠졌다가 다시 들어오기를
+  // 반복해 누적 문서 수가 1회 계산값을 넘어선다 (docs/16-poller-worker.md "쓰기 증폭 정리").
+  //
+  // 표시 볼륨은 읽기 쪽에서 이미 제한한다 — 구독 쿼리가 timestamp 내림차순 + limit 이고
+  // (LiveRaceRepository.buildEventQueryPlan), 행 마커는 30초 창(RecentDriverEventSelector),
+  // 이벤트 카드는 Critical/High 최근 10건(LatestPriorityEventSelector)만 본다.
+  const pushAllPerDriver = (byDriver: Map<number, TimedRaceEvent[]>): void => {
     for (const entries of byDriver.values()) {
-      for (const entry of entries.slice(-limit)) {
+      for (const entry of entries) {
         push(entry.atMs, entry.event);
       }
     }
@@ -223,7 +224,7 @@ export const buildEvents = (
     personalBests.set(lap.driver_number, entries);
   }
 
-  pushLatestPerDriver(personalBests, MAX_PERSONAL_BEST_PER_DRIVER);
+  pushAllPerDriver(personalBests);
 
   // 팀 라디오 게시
   const teamRadios = new Map<number, TimedRaceEvent[]>();
@@ -257,7 +258,7 @@ export const buildEvents = (
     teamRadios.set(radio.driver_number, entries);
   }
 
-  pushLatestPerDriver(teamRadios, MAX_TEAM_RADIO_PER_DRIVER);
+  pushAllPerDriver(teamRadios);
 
   // 앞차와의 간격이 1.0초 미만으로 "진입"하는 순간만 이벤트로 만든다.
   //
@@ -403,8 +404,8 @@ export const buildEvents = (
     bucket.set(driverNumber, entries);
   }
 
-  pushLatestPerDriver(gapClosings, MAX_GAP_CLOSING_PER_DRIVER);
-  pushLatestPerDriver(overrideRangeEntries, MAX_OVERRIDE_RANGE_PER_DRIVER);
+  pushAllPerDriver(gapClosings);
+  pushAllPerDriver(overrideRangeEntries);
 
   // 컴파운드 전략 갈림. 피트 후 새 스틴트를 시작한 드라이버가 같은 랩 기준으로
   // 필드 과반과 다른 컴파운드를 골랐을 때만 발행한다.
@@ -505,7 +506,7 @@ export const buildEvents = (
     strategyNotes.set(stint.driver_number, entries);
   }
 
-  pushLatestPerDriver(strategyNotes, MAX_STRATEGY_NOTE_PER_DRIVER);
+  pushAllPerDriver(strategyNotes);
 
   // 리타이어 확정 (session_result). 세션 진행 중에는 없으므로 건너뛴다.
   const lastLapMsByDriver = new Map<number, number>();
