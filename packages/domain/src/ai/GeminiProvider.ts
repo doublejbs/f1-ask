@@ -1,12 +1,17 @@
-import { ExplanationLevel } from "../ExplanationLevel";
 import { LiveDriverState } from "../LiveDriverState";
 import { LiveRaceSnapshot } from "../LiveRaceSnapshot";
 import { RaceEvent } from "../RaceEvent";
 import { RaceSummaryData } from "../RaceSummary";
 import { SupportedLocale } from "../SupportedLocale";
 import { AiConfidence } from "./AiConfidence";
+import { buildCommentaryPrompt } from "./CommentaryPrompt";
 import { GeminiChatRole } from "./GeminiChatRole";
 import { LlmChatRole } from "./LlmChatRole";
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  withLlmRequestTimeout,
+} from "./LlmRequestTimeout";
+import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
 import {
   LlmAnswer,
   LlmCommentary,
@@ -26,7 +31,12 @@ type GeminiContent = {
 // 주입 가능한 fetch (네트워크 없이 단위 테스트).
 export type GeminiFetch = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body: string },
+  init: {
+    method: string;
+    headers: Record<string, string>;
+    body: string;
+    signal: AbortSignal;
+  },
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 export type GeminiProviderOptions = {
@@ -34,12 +44,14 @@ export type GeminiProviderOptions = {
   model?: string;
   fetchImpl?: GeminiFetch;
   baseUrl?: string;
+  // 요청 1회의 상한. 기본값은 워커의 해설 예산과 같은 출처다(LlmRequestTimeout.ts).
+  timeoutMs?: number;
 };
 
 // 현행 Flash 계열 모델. 해설/답변은 1~2문장으로 짧아 Flash 급으로 충분하다.
 // 되돌리지 말 것: 이전 기본값이던 gemini-2.5-flash 는 ListModels 에는 계속 보이지만
 // generateContent 는 신규 사용자에게 닫혀 404 ("no longer available to new users") 를 반환한다.
-const DEFAULT_MODEL = "gemini-3.5-flash";
+export const GEMINI_DEFAULT_MODEL = "gemini-3.5-flash";
 const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 // Gemini 3.x 는 사고(thinking)가 기본 활성이고 사고 토큰이 maxOutputTokens 예산을 함께 잠식한다.
 // (실측: 사고 설정 없이 예산 200 → thoughtsTokenCount 188, 본문은 "\n" 1토큰.
@@ -48,20 +60,6 @@ const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const THINKING_BUDGET_DISABLED = 0;
 const CONTEXT_DRIVER_LIMIT = 20;
 const RECENT_EVENT_LIMIT = 8;
-
-const LOCALE_LANGUAGE: Record<SupportedLocale, string> = {
-  [SupportedLocale.En]: "English",
-  [SupportedLocale.Ko]: "Korean",
-  [SupportedLocale.Ja]: "Japanese",
-};
-
-const LEVEL_GUIDANCE: Record<ExplanationLevel, string> = {
-  [ExplanationLevel.Beginner]:
-    "The reader is a beginner: briefly define any jargon you use in plain words.",
-  [ExplanationLevel.Standard]: "The reader knows the basics of F1.",
-  [ExplanationLevel.Expert]:
-    "The reader is an expert: you may add one concise strategic nuance.",
-};
 
 // AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다. ClaudeProvider 와 동일한 문구를 유지한다.
 const SYSTEM_RULES = [
@@ -236,14 +234,16 @@ export class GeminiProvider implements RaceLlmProvider {
   private readonly model: string;
   private readonly baseUrl: string;
   private readonly fetchImpl: GeminiFetch;
+  private readonly timeoutMs: number;
 
   constructor(options: GeminiProviderOptions) {
     this.apiKey = options.apiKey;
-    this.model = normalizeModel(options.model ?? DEFAULT_MODEL);
+    this.model = normalizeModel(options.model ?? GEMINI_DEFAULT_MODEL);
     this.baseUrl = normalizeBaseUrl(options.baseUrl ?? DEFAULT_BASE_URL);
     this.fetchImpl =
       options.fetchImpl ??
       ((url, init) => fetch(url, init) as unknown as ReturnType<GeminiFetch>);
+    this.timeoutMs = options.timeoutMs ?? LLM_REQUEST_TIMEOUT_MS;
   }
 
   async answerQuestion(request: LlmQuestionRequest): Promise<LlmAnswer> {
@@ -295,18 +295,9 @@ export class GeminiProvider implements RaceLlmProvider {
   async generateCommentary(
     request: LlmCommentaryRequest,
   ): Promise<LlmCommentary> {
-    const system = [
-      SYSTEM_RULES,
-      `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
-      LEVEL_GUIDANCE[request.explanationLevel],
-      "Explain the strategic meaning of this single event in one short sentence. Do not replace TV commentary. Reply with only the sentence.",
-    ].join("\n");
-
-    const user = `Event (type + params): ${JSON.stringify({
-      type: request.event.type,
-      driverNumber: request.event.driverNumber ?? null,
-      params: request.event.params,
-    })}\n\nSession status: ${request.snapshot.status}, lap ${request.snapshot.currentLap ?? "?"}/${request.snapshot.totalLaps ?? "?"}.`;
+    // 조립은 세 provider 공용이다. 여기서 따로 만들면 문구가 갈라진다
+    // (CommentaryPrompt.ts 주석 참고).
+    const { system, user } = buildCommentaryPrompt(request);
 
     const text = await this.generate(
       system,
@@ -376,58 +367,70 @@ export class GeminiProvider implements RaceLlmProvider {
     // 모델은 REST 경로 파라미터(models/{model})로만 전달한다.
     // GenerateContentRequest 본문에는 model 필드가 없어 넣으면 400 이 난다.
 
-    const response = await this.fetchImpl(
-      `${this.baseUrl}/models/${this.model}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-goog-api-key": this.apiKey,
+    // 응답 본문 읽기까지 한 덩어리로 타임아웃에 넣는다. 헤더만 온 뒤 본문이 멈춰도
+    // 예산을 넘기면 안 되기 때문이다.
+    const requestOnce = async (signal: AbortSignal): Promise<string> => {
+      const response = await this.fetchImpl(
+        `${this.baseUrl}/models/${this.model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-goog-api-key": this.apiKey,
+          },
+          body: JSON.stringify(body),
+          signal,
         },
-        body: JSON.stringify(body),
-      },
-    );
-
-    if (!response.ok) {
-      // 진단에 필요한 것은 상태 코드·모델 이름·Google 이 준 사유다.
-      // API 키가 새지 않도록 전체 URL 은 넣지 않고 모델 이름만 남긴다.
-      const detail = await readErrorMessage(response);
-      const suffix = detail === null ? "" : ` - ${detail}`;
-
-      throw new Error(
-        `Gemini request failed: ${response.status} (model: ${this.model})${suffix}`,
       );
-    }
 
-    const data = (await response.json()) as {
-      candidates?: {
-        content?: { parts?: { text?: string }[] };
-      }[];
+      if (!response.ok) {
+        // 진단에 필요한 것은 상태 코드·모델 이름·Google 이 준 사유다.
+        // API 키가 새지 않도록 전체 URL 은 넣지 않고 모델 이름만 남긴다.
+        const detail = await readErrorMessage(response);
+        const suffix = detail === null ? "" : ` - ${detail}`;
+
+        throw new Error(
+          `Gemini request failed: ${response.status} (model: ${this.model})${suffix}`,
+        );
+      }
+
+      const data = (await response.json()) as {
+        candidates?: {
+          content?: { parts?: { text?: string }[] };
+        }[];
+      };
+
+      const candidate = data.candidates?.[0];
+
+      if (candidate === undefined) {
+        throw new Error("Gemini response has no candidates");
+      }
+
+      const parts = candidate.content?.parts;
+
+      if (!Array.isArray(parts)) {
+        throw new Error("Gemini candidate has no content parts");
+      }
+
+      // parts[] 의 text 조각을 합친다.
+      const text = parts
+        .filter(
+          (part): part is { text: string } => typeof part.text === "string",
+        )
+        .map((part) => part.text)
+        .join("");
+
+      if (text.length === 0) {
+        throw new Error("Gemini response has no text part");
+      }
+
+      return text;
     };
 
-    const candidate = data.candidates?.[0];
-
-    if (candidate === undefined) {
-      throw new Error("Gemini response has no candidates");
-    }
-
-    const parts = candidate.content?.parts;
-
-    if (!Array.isArray(parts)) {
-      throw new Error("Gemini candidate has no content parts");
-    }
-
-    // parts[] 의 text 조각을 합친다.
-    const text = parts
-      .filter((part): part is { text: string } => typeof part.text === "string")
-      .map((part) => part.text)
-      .join("");
-
-    if (text.length === 0) {
-      throw new Error("Gemini response has no text part");
-    }
-
-    return text;
+    return withLlmRequestTimeout(requestOnce, {
+      timeoutMs: this.timeoutMs,
+      label: `Gemini (model: ${this.model})`,
+    });
   }
 
   private safeJson(

@@ -1,10 +1,15 @@
-import { ExplanationLevel } from "../ExplanationLevel";
 import { LiveDriverState } from "../LiveDriverState";
 import { LiveRaceSnapshot } from "../LiveRaceSnapshot";
 import { RaceEvent } from "../RaceEvent";
 import { RaceSummaryData } from "../RaceSummary";
 import { SupportedLocale } from "../SupportedLocale";
 import { AiConfidence } from "./AiConfidence";
+import { buildCommentaryPrompt } from "./CommentaryPrompt";
+import {
+  LLM_REQUEST_TIMEOUT_MS,
+  withLlmRequestTimeout,
+} from "./LlmRequestTimeout";
+import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
 import {
   LlmAnswer,
   LlmCommentary,
@@ -18,7 +23,12 @@ import {
 // 주입 가능한 fetch (네트워크 없이 단위 테스트).
 export type OpenAiFetch = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body: string },
+  init: {
+    method: string;
+    headers: Record<string, string>;
+    body: string;
+    signal: AbortSignal;
+  },
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 export type OpenAiProviderOptions = {
@@ -26,26 +36,14 @@ export type OpenAiProviderOptions = {
   model?: string;
   fetchImpl?: OpenAiFetch;
   baseUrl?: string;
+  // 요청 1회의 상한. 기본값은 워커의 해설 예산과 같은 출처다(LlmRequestTimeout.ts).
+  timeoutMs?: number;
 };
 
-const DEFAULT_MODEL = "gpt-4o-mini";
+export const OPENAI_DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 const CONTEXT_DRIVER_LIMIT = 20;
 const RECENT_EVENT_LIMIT = 8;
-
-const LOCALE_LANGUAGE: Record<SupportedLocale, string> = {
-  [SupportedLocale.En]: "English",
-  [SupportedLocale.Ko]: "Korean",
-  [SupportedLocale.Ja]: "Japanese",
-};
-
-const LEVEL_GUIDANCE: Record<ExplanationLevel, string> = {
-  [ExplanationLevel.Beginner]:
-    "The reader is a beginner: briefly define any jargon you use in plain words.",
-  [ExplanationLevel.Standard]: "The reader knows the basics of F1.",
-  [ExplanationLevel.Expert]:
-    "The reader is an expert: you may add one concise strategic nuance.",
-};
 
 // AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다.
 const SYSTEM_RULES = [
@@ -149,14 +147,16 @@ export class OpenAiProvider implements RaceLlmProvider {
   private readonly model: string;
   private readonly baseUrl: string;
   private readonly fetchImpl: OpenAiFetch;
+  private readonly timeoutMs: number;
 
   constructor(options: OpenAiProviderOptions) {
     this.apiKey = options.apiKey;
-    this.model = options.model ?? DEFAULT_MODEL;
+    this.model = options.model ?? OPENAI_DEFAULT_MODEL;
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.fetchImpl =
       options.fetchImpl ??
       ((url, init) => fetch(url, init) as unknown as ReturnType<OpenAiFetch>);
+    this.timeoutMs = options.timeoutMs ?? LLM_REQUEST_TIMEOUT_MS;
   }
 
   async answerQuestion(request: LlmQuestionRequest): Promise<LlmAnswer> {
@@ -198,18 +198,9 @@ export class OpenAiProvider implements RaceLlmProvider {
   async generateCommentary(
     request: LlmCommentaryRequest,
   ): Promise<LlmCommentary> {
-    const system = [
-      SYSTEM_RULES,
-      `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
-      LEVEL_GUIDANCE[request.explanationLevel],
-      "Explain the strategic meaning of this single event in one short sentence. Do not replace TV commentary.",
-    ].join("\n");
-
-    const user = `Event (type + params): ${JSON.stringify({
-      type: request.event.type,
-      driverNumber: request.event.driverNumber ?? null,
-      params: request.event.params,
-    })}\n\nSession status: ${request.snapshot.status}, lap ${request.snapshot.currentLap ?? "?"}/${request.snapshot.totalLaps ?? "?"}.`;
+    // 조립은 세 provider 공용이다. 여기서 따로 만들면 문구가 갈라진다
+    // (CommentaryPrompt.ts 주석 참고).
+    const { system, user } = buildCommentaryPrompt(request);
 
     const text = await this.chat(system, user, { json: false, maxTokens: 120 });
 
@@ -269,24 +260,34 @@ export class OpenAiProvider implements RaceLlmProvider {
       body.response_format = { type: "json_object" };
     }
 
-    const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    // 응답 본문 읽기까지 한 덩어리로 타임아웃에 넣는다. 헤더만 온 뒤 본문이 멈춰도
+    // 예산을 넘기면 안 되기 때문이다.
+    const requestOnce = async (signal: AbortSignal): Promise<string> => {
+      const response = await this.fetchImpl(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI request failed: ${response.status}`);
-    }
+      if (!response.ok) {
+        throw new Error(`OpenAI request failed: ${response.status}`);
+      }
 
-    const data = (await response.json()) as {
-      choices?: { message?: { content?: string } }[];
+      const data = (await response.json()) as {
+        choices?: { message?: { content?: string } }[];
+      };
+
+      return data.choices?.[0]?.message?.content ?? "";
     };
 
-    return data.choices?.[0]?.message?.content ?? "";
+    return withLlmRequestTimeout(requestOnce, {
+      timeoutMs: this.timeoutMs,
+      label: `OpenAI (model: ${this.model})`,
+    });
   }
 
   private safeJson(

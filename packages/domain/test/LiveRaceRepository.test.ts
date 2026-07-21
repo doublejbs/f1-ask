@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCommentaryQueryPlan,
   buildEventQueryPlan,
   eventDocId,
   FIRESTORE_IN_MAX_VALUES,
@@ -7,6 +8,8 @@ import {
   toLiveSnapshotDoc,
   toSessionDoc,
 } from "../src/firestore/LiveRaceRepository";
+import { ExplanationLevel } from "../src/ExplanationLevel";
+import { SupportedLocale } from "../src/SupportedLocale";
 import { MockRaceEngine } from "../src/mock/MockRaceEngine";
 import { DEFAULT_MOCK_SCENARIO } from "../src/mock/MockScenario";
 import {
@@ -94,6 +97,56 @@ describe("buildEventQueryPlan", () => {
     );
 
     expect(() => buildEventQueryPlan("s1", 20, tooMany)).toThrow();
+  });
+});
+
+describe("buildCommentaryQueryPlan", () => {
+  it("해설 컬렉션을 변형(locale × 설명수준)으로 좁혀 최신순 조회한다", () => {
+    const plan = buildCommentaryQueryPlan(
+      "s1",
+      SupportedLocale.Ko,
+      ExplanationLevel.Standard,
+      60,
+    );
+
+    expect(plan.collectionPath).toBe("sessions/s1/aiCommentary");
+    expect(plan.locale).toBe(SupportedLocale.Ko);
+    expect(plan.explanationLevel).toBe(ExplanationLevel.Standard);
+    expect(plan.orderByField).toBe("timestamp");
+    expect(plan.isDescending).toBe(true);
+    expect(plan.limit).toBe(60);
+  });
+
+  it("이벤트 구독과 같은 정렬 축(timestamp)을 쓴다", () => {
+    const commentaryPlan = buildCommentaryQueryPlan(
+      "s1",
+      SupportedLocale.En,
+      ExplanationLevel.Expert,
+      10,
+    );
+    const eventPlan = buildEventQueryPlan("s1", 10);
+
+    expect(commentaryPlan.orderByField).toBe(eventPlan.orderByField);
+    expect(commentaryPlan.isDescending).toBe(eventPlan.isDescending);
+  });
+
+  it("limit 이 0 이하이거나 정수가 아니면 거부한다", () => {
+    expect(() =>
+      buildCommentaryQueryPlan(
+        "s1",
+        SupportedLocale.Ko,
+        ExplanationLevel.Standard,
+        0,
+      ),
+    ).toThrow();
+    expect(() =>
+      buildCommentaryQueryPlan(
+        "s1",
+        SupportedLocale.Ko,
+        ExplanationLevel.Standard,
+        1.5,
+      ),
+    ).toThrow();
   });
 });
 

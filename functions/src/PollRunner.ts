@@ -2,24 +2,36 @@ import { Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import {
   buildOpenF1LiveFrame,
+  CommentaryRunContext,
+  CommentaryVariant,
   decidePublish,
   EMPTY_PUBLISH_STATE,
   EventWriteCursor,
   fetchOpenF1SessionData,
+  generateCommentaryForEvents,
+  LiveRaceSnapshot,
   OpenF1ClientOptions,
   OpenF1SessionData,
   OpenF1SessionMeta,
   PublishState,
+  RaceEvent,
+  SelectedLlmProvider,
   selectUnwrittenEvents,
 } from "@f1/domain";
 import {
+  readCommentaryRunContext,
   readEventWriteCursor,
+  writeCommentaryDocument,
+  writeCommentaryRunContext,
   writeEvents,
   writeEventWriteCursor,
   writeLiveSnapshot,
   writeSessionDoc,
 } from "./FirestoreWorkerStore";
 import {
+  COMMENTARY_CALL_BUDGET_MS,
+  COMMENTARY_DEADLINE_MARGIN_MS,
+  COMMENTARY_PHASE_END_MS,
   POLL_DEADLINE_MARGIN_MS,
   POLL_INTERVAL_MS,
   POLL_ITERATIONS,
@@ -49,8 +61,13 @@ export type PollRunOptions = {
   sessionId: string;
   meta: OpenF1SessionMeta;
   clientOptions: OpenF1ClientOptions;
+  // 이 기동이 시작한 시각. 리스 만료 기준의 해설 마감을 여기서 잰다.
+  startedAtMs: number;
   // 이 시각을 넘겨 폴링을 시작하지 않는다 (함수 타임아웃 보호).
   deadlineMs: number;
+  // 해설 생성에 쓸 LLM. 키가 없으면 생략해 해설 없이 폴링만 한다.
+  llm?: SelectedLlmProvider;
+  variants: readonly CommentaryVariant[];
 };
 
 export type PollRunResult = {
@@ -58,26 +75,53 @@ export type PollRunResult = {
   eventWrites: number;
   snapshotWrites: number;
   sessionDocWrites: number;
+  commentaryWrites: number;
+  commentaryFailures: number;
+  commentaryMockDropped: number;
+  commentaryDeferred: number;
+  commentaryRetryExhausted: number;
+};
+
+// 마지막 폴링이 계산한 프레임. 해설은 폴링 창이 끝난 뒤 이것으로 만든다.
+type LastFrame = {
+  snapshot: LiveRaceSnapshot;
+  events: RaceEvent[];
 };
 
 // 한 번의 함수 기동이 담당하는 폴링 창.
 //
-// 이벤트 커서는 기동 시작에 한 번 읽고 끝에 한 번 쓴다. 폴링마다 저장하면
-// 커서 문서 자체가 쓰기 폭증이 된다 (docs/16-poller-worker.md).
+// 이벤트 커서와 해설 러닝 컨텍스트는 기동 시작에 한 번 읽고 끝에 한 번 쓴다.
+// 폴링마다 저장하면 그 문서 자체가 쓰기 폭증이 된다 (docs/16-poller-worker.md).
+//
+// 해설은 폴링 루프 안이 아니라 루프가 끝난 뒤에 만든다. 루프 안에서 LLM 을 기다리면
+// 6초 폴링 간격이 밀려 데이터가 성겨진다(docs/18 §생성 주체). 폴링 창(약 60초)이 끝나면
+// 남는 시간이 해설의 몫인데, 그 끝은 함수 타임아웃과 **리스 만료** 중 이른 쪽이다.
+// 리스를 넘겨 쓰면 다음 기동이 만료된 리스를 잡아 아직 살아 있는 이 기동과 겹친다.
 export const runPollWindow = async (
   options: PollRunOptions,
 ): Promise<PollRunResult> => {
   const { db, sessionId, meta, clientOptions } = options;
 
   let cursor: EventWriteCursor = await readEventWriteCursor(db, sessionId);
+  let commentaryContext: CommentaryRunContext = await readCommentaryRunContext(
+    db,
+    sessionId,
+  );
   let publishState: PublishState = EMPTY_PUBLISH_STATE;
   const result: PollRunResult = {
     polls: 0,
     eventWrites: 0,
     snapshotWrites: 0,
     sessionDocWrites: 0,
+    commentaryWrites: 0,
+    commentaryFailures: 0,
+    commentaryMockDropped: 0,
+    commentaryDeferred: 0,
+    commentaryRetryExhausted: 0,
   };
   let hasCursorChanged = false;
+  let hasCommentaryContextChanged = false;
+  let lastFrame: LastFrame | null = null;
 
   try {
     for (let iteration = 0; iteration < POLL_ITERATIONS; iteration += 1) {
@@ -130,6 +174,7 @@ export const runPollWindow = async (
       }
 
       result.polls += 1;
+      lastFrame = { snapshot: liveSnapshot, events };
 
       logger.info("폴링 완료", {
         iteration,
@@ -145,11 +190,112 @@ export const runPollWindow = async (
         await sleep(POLL_INTERVAL_MS);
       }
     }
+
+    // 폴링이 끝난 뒤 남은 시간으로 해설을 만든다.
+    // 해설 실패가 폴링 결과(이벤트·스냅샷)를 되돌리면 안 되므로 여기서 삼킨다.
+    if (lastFrame !== null && options.llm !== undefined) {
+      try {
+        const llm = options.llm;
+        const generation = await generateCommentaryForEvents(
+          {
+            events: lastFrame.events,
+            snapshot: lastFrame.snapshot,
+            variants: options.variants,
+            context: commentaryContext,
+            model: llm.model,
+            // 두 마감 중 이른 쪽을 쓴다. 함수 타임아웃과 리스 만료 어느 것도 넘기면 안 된다.
+            budgetEndMs: Math.min(
+              options.deadlineMs - COMMENTARY_DEADLINE_MARGIN_MS,
+              options.startedAtMs + COMMENTARY_PHASE_END_MS,
+            ),
+            callBudgetMs: COMMENTARY_CALL_BUDGET_MS,
+          },
+          {
+            generate: (request) => llm.provider.generateCommentary(request),
+            save: (docId, document) =>
+              writeCommentaryDocument(db, sessionId, docId, document),
+            nowMs: () => Date.now(),
+            // 키 값은 어떤 경로로도 로그에 남기지 않는다.
+            onFailure: (task, error) => {
+              logger.warn("해설 생성에 실패해 이 이벤트는 건너뛴다", {
+                eventId: task.event.id,
+                eventType: task.event.type,
+                message:
+                  error instanceof Error ? error.message : "unknown error",
+              });
+            },
+            onMockDropped: (task) => {
+              logger.warn("mock 해설이라 저장하지 않는다", {
+                eventId: task.event.id,
+              });
+            },
+            onBudgetExhausted: (remaining) => {
+              logger.info("시간 예산이 모자라 남은 해설은 다음 기동이 이어받는다", {
+                remaining,
+              });
+            },
+          },
+        );
+
+        commentaryContext = generation.nextContext;
+        hasCommentaryContextChanged = generation.hasContextChanged;
+        result.commentaryWrites = generation.generated;
+        result.commentaryFailures = generation.failed;
+        result.commentaryMockDropped = generation.mockDropped;
+        result.commentaryDeferred = generation.deferred;
+        result.commentaryRetryExhausted = generation.retryExhausted;
+
+        if (generation.retryExhausted > 0) {
+          logger.warn("재시도 상한을 넘긴 해설은 영구히 건너뛴다", {
+            count: generation.retryExhausted,
+          });
+        }
+      } catch (error) {
+        logger.error("해설 생성 단계가 통째로 실패했다", {
+          message: error instanceof Error ? error.message : "unknown error",
+        });
+      }
+    }
   } finally {
     // 중간에 실패해도 여기까지 쓴 것은 커서에 남겨야 다음 기동이 다시 쓰지 않는다.
+    //
+    // 두 쓰기는 서로 독립이어야 한다. 순차 await 로 두면 커서 쓰기가 던졌을 때 해설
+    // 컨텍스트 쓰기가 통째로 건너뛰어지고, generatedKeys 가 날아간 다음 기동이 이미
+    // 저장된 해설을 전부 다시 만든다(문서는 안 늘지만 LLM 비용은 다시 나간다).
+    const pendingWrites: { name: string; write: Promise<void> }[] = [];
+
     if (hasCursorChanged) {
-      await writeEventWriteCursor(db, sessionId, cursor);
+      pendingWrites.push({
+        name: "eventCursor",
+        write: writeEventWriteCursor(db, sessionId, cursor),
+      });
     }
+
+    if (hasCommentaryContextChanged) {
+      pendingWrites.push({
+        name: "commentaryContext",
+        write: writeCommentaryRunContext(db, sessionId, commentaryContext),
+      });
+    }
+
+    const settled = await Promise.allSettled(
+      pendingWrites.map((entry) => entry.write),
+    );
+
+    // finally 에서 다시 던지면 원래 예외를 덮어쓴다. 로그로만 남긴다.
+    settled.forEach((outcome, index) => {
+      if (outcome.status !== "rejected") {
+        return;
+      }
+
+      logger.error("기동 마무리 쓰기에 실패했다", {
+        target: pendingWrites[index]?.name,
+        message:
+          outcome.reason instanceof Error
+            ? outcome.reason.message
+            : "unknown error",
+      });
+    });
   }
 
   return result;

@@ -43,6 +43,9 @@ export type LlmCommentaryRequest = {
   locale: SupportedLocale;
   explanationLevel: ExplanationLevel;
   snapshot: LiveRaceSnapshot;
+  // 직전에 생성한 해설 텍스트(오래된 것 → 최근 순). 연속 이벤트가 같은 말을
+  // 되풀이하지 않도록 프롬프트에 넣는다. 러닝 컨텍스트가 없는 호출자도 있어 optional 이다.
+  recentCommentary?: string[];
 };
 
 export type LlmCommentary = {

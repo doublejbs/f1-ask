@@ -1,10 +1,15 @@
 import { FieldValue, Firestore } from "firebase-admin/firestore";
 import {
   buildWorkerLease,
+  CommentaryDocument,
+  CommentaryRunContext,
+  COMMENTARY_CONTEXT_DOC_ID,
   EventWriteCursor,
   EVENT_CURSOR_DOC_ID,
   firestorePaths,
+  parseCommentaryRunContext,
   isLeaseHeld,
+  isLeaseOwnedBy,
   LiveRaceSnapshot,
   parseEventWriteCursor,
   parseWorkerLease,
@@ -44,6 +49,29 @@ export const acquireWorkerLease = async (
   });
 };
 
+// 기동이 정상 종료할 때 리스를 즉시 푼다.
+//
+// TTL 이 한 기동의 최대 실행 시간(100초)에 맞춰져 스케줄 간격(60초)보다 길어졌으므로,
+// 짧게 끝난 기동이 자연 만료를 기다리면 다음 기동까지 함께 막힌다 (WorkerLease.ts 참고).
+// 내 소유일 때만 지운다 — 만료 사이에 다른 인스턴스가 새로 잡았을 수 있다.
+export const releaseWorkerLease = async (
+  db: Firestore,
+  sessionId: string,
+  ownerId: string,
+): Promise<void> => {
+  const ref = db.doc(firestorePaths.workerLease(sessionId));
+
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(ref);
+
+    if (!isLeaseOwnedBy(parseWorkerLease(existing.data()), ownerId)) {
+      return;
+    }
+
+    transaction.delete(ref);
+  });
+};
+
 // 이전 기동이 남긴 "이미 쓴 이벤트 키" 집합을 읽어 온다.
 // 함수는 1분마다 새로 뜨므로 메모리 집합은 인스턴스 간에 유지되지 않는다.
 export const readEventWriteCursor = async (
@@ -66,6 +94,49 @@ export const writeEventWriteCursor = async (
   await db.doc(firestorePaths.runtimeDoc(sessionId, EVENT_CURSOR_DOC_ID)).set({
     writtenKeys: cursor.writtenKeys,
     updatedAt: FieldValue.serverTimestamp(),
+  });
+};
+
+// 직전 해설과 "이미 만든 해설 키"를 이어받는다. 이벤트 커서와 같은 자리·같은 방식이다
+// (docs/18-ai-commentary-worker.md §러닝 컨텍스트의 저장).
+export const readCommentaryRunContext = async (
+  db: Firestore,
+  sessionId: string,
+): Promise<CommentaryRunContext> => {
+  const snapshot = await db
+    .doc(firestorePaths.runtimeDoc(sessionId, COMMENTARY_CONTEXT_DOC_ID))
+    .get();
+
+  return parseCommentaryRunContext(snapshot.data());
+};
+
+// 기동이 끝날 때 한 번만 저장한다. 해설마다 저장하면 이 문서가 쓰기 폭증이 된다.
+export const writeCommentaryRunContext = async (
+  db: Firestore,
+  sessionId: string,
+  context: CommentaryRunContext,
+): Promise<void> => {
+  await db
+    .doc(firestorePaths.runtimeDoc(sessionId, COMMENTARY_CONTEXT_DOC_ID))
+    .set({
+      recentTextsByVariant: context.recentTextsByVariant,
+      generatedKeys: context.generatedKeys,
+      failureCounts: context.failureCounts,
+      generatedCount: context.generatedCount,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+};
+
+// 해설 문서. id 가 `{eventId}:{locale}:{explanationLevel}` 라 재기록이 멱등이다.
+export const writeCommentaryDocument = async (
+  db: Firestore,
+  sessionId: string,
+  docId: string,
+  document: CommentaryDocument,
+): Promise<void> => {
+  await db.doc(firestorePaths.aiCommentaryDoc(sessionId, docId)).set({
+    ...document,
+    persistedAt: FieldValue.serverTimestamp(),
   });
 };
 
