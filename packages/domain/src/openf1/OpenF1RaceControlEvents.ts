@@ -1,6 +1,7 @@
 import { RaceEventParams } from "../RaceEvent";
 import { RaceEventPriority } from "../RaceEventPriority";
 import { RaceEventType } from "../RaceEventType";
+import { SessionStatus } from "../SessionStatus";
 import { TrackHazardKind } from "../TrackHazardKind";
 import {
   makeEvent,
@@ -21,6 +22,7 @@ import {
   parseTurnNumber,
 } from "./OpenF1RaceControlParsing";
 import { OpenF1RaceControlScope } from "./OpenF1RaceControlScope";
+import { classifySafetyCarMessage } from "./OpenF1SafetyCarClassification";
 import { OpenF1RaceControl } from "./OpenF1Types";
 
 // 상태 전이 중복 제거용 키. 같은 키에 같은 값이 연속으로 들어오면 발행하지 않는다.
@@ -157,9 +159,11 @@ export const buildRaceControlEvents = (
     }
 
     if (category === OpenF1RaceControlCategory.SafetyCar) {
-      const virtual = text.includes("VIRTUAL") || text.includes("VSC");
+      // 문구 해석은 공용 판정에만 둔다(OpenF1SafetyCarClassification 주석 참고).
+      // 여기서는 판정 결과를 이벤트 타입으로 옮기기만 한다.
+      const neutralization = classifySafetyCarMessage(message.message);
 
-      if (virtual && text.includes("DEPLOYED")) {
+      if (neutralization === SessionStatus.VirtualSafetyCar) {
         emit({
           stateKey: TRACK_STATE_KEY,
           stateValue: RaceEventType.VirtualSafetyCar,
@@ -169,7 +173,7 @@ export const buildRaceControlEvents = (
           key: `vsc:${atMs}`,
           params: {},
         });
-      } else if (!virtual && text.includes("DEPLOYED")) {
+      } else if (neutralization === SessionStatus.SafetyCar) {
         emit({
           stateKey: TRACK_STATE_KEY,
           stateValue: RaceEventType.SafetyCar,
@@ -179,7 +183,7 @@ export const buildRaceControlEvents = (
           key: `sc:${atMs}`,
           params: {},
         });
-      } else if (text.includes("IN THIS LAP") || text.includes("ENDING")) {
+      } else if (neutralization === SessionStatus.Green) {
         emit({
           stateKey: TRACK_STATE_KEY,
           stateValue: RaceEventType.SessionRestarted,

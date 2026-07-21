@@ -92,6 +92,7 @@ export type {
   OpenF1SessionResult,
 } from "./openf1/OpenF1Types";
 export { scheduledRaceLaps } from "./openf1/RaceLapCounts";
+export { classifySafetyCarMessage } from "./openf1/OpenF1SafetyCarClassification";
 export type { OpenF1Index } from "./openf1/OpenF1Normalizer";
 export {
   buildOpenF1Index,
@@ -410,3 +411,18 @@ export {
   generateCommentaryForEvents,
   selectPendingCommentaryTasks,
 } from "./worker/CommentaryGeneration";
+
+// "지금 볼 것" 결정론적 감지기 (docs/19-watch-now.md).
+export { WatchNowSignalType } from "./watchnow/WatchNowSignalType";
+export type { WatchNowSignal } from "./watchnow/WatchNowSignal";
+export type { WatchNowDetectorConfig } from "./watchnow/WatchNowDetectorConfig";
+export {
+  DEFAULT_WATCH_NOW_DETECTOR_CONFIG,
+  DEFAULT_TIRE_AGE_THRESHOLD_LAPS,
+  DEFAULT_GAP_THRESHOLD_SECONDS,
+  DEFAULT_GAP_CONSECUTIVE_SAMPLES,
+  DEFAULT_GAP_REARM_MULTIPLIER,
+  DEFAULT_UNDERCUT_POSITION_GAP,
+  DEFAULT_POSITION_SWING_THRESHOLD,
+} from "./watchnow/WatchNowDetectorConfig";
+export { WatchNowDetector } from "./watchnow/WatchNowDetector";
