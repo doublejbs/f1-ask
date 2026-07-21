@@ -20,7 +20,7 @@ import { DashboardTab } from "@/lib/DashboardTab";
 import { LiveRaceStatus } from "@/lib/LiveRaceStatus";
 import { cn } from "@/lib/Utils";
 import { LiveDriverState, SupportedLocale } from "@f1/domain";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type Props = {
   locale: SupportedLocale;
@@ -48,6 +48,10 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const { activeTab, handleChangeTab, askPrefill, switchToAskWithQuestion } =
     useDashboardTabState();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Set 을 배열로 편 값. 소비자가 둘이고 둘 다 의존성으로 쓰므로 identity 를 고정한다 —
+  // 매 렌더 새 배열을 만들면 "지금 볼 것" 칸이 프레임과 무관하게 재계산된다.
+  const favoriteDriverNumbers = useMemo(() => Array.from(favorites), [favorites]);
 
   // 탭투애스크: 드라이버/이벤트를 탭하면 AI 탭으로 전환하며 질문을 자동 제출한다.
   const handleAskCode = (code: string) => {
@@ -118,6 +122,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
               summary={summary}
               allEvents={race.allEvents}
               commentary={commentary}
+              favoriteDriverNumbers={favoriteDriverNumbers}
               isFavorite={isFavorite}
               onToggleFavorite={toggleFavorite}
               onSelectDriver={handleAskDriver}
@@ -138,7 +143,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
               explanationLevel={explanationLevel}
               snapshot={race.snapshot}
               events={race.allEvents}
-              favoriteDriverNumbers={Array.from(favorites)}
+              favoriteDriverNumbers={favoriteDriverNumbers}
               prefill={askPrefill}
             />
           )}

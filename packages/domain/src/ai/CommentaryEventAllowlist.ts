@@ -14,6 +14,14 @@ import { RaceEventType } from "../RaceEventType";
 // 타입만 남긴다. 사용자가 늘면 캐시든 사전 생성이든 결국 모든 변형이 생성되므로,
 // 생성 건수 자체를 줄이는 것이 유일한 실질 레버다. (스파 기준 274건 → 47건)
 //
+// **이 표가 최종 판정이 아니다.** 여기서 true 여도 Session 범위(SC · VSC · 재개 · 플래그)는
+// `isCommentaryEligible`(AiCommentary.ts)의 범위 게이트에서 다시 걸러진다 — 방송이 가장
+// 잘하는 영역이라 해설을 폐기했다(docs/19-watch-now.md §폐기한다). 이 표가 답하는 질문은
+// "이 타입은 해석할 여지가 있는가" 뿐이고, "그 해석을 방송이 이미 더 잘하는가" 는 범위가
+// 답한다. 아래에서 SafetyCar 등이 여전히 true 인 것은 누락이 아니라 그 분업의 결과다.
+// (경기 요약의 "주요 순간" 은 방송과 경쟁하지 않으므로 이 표만 쓴다 —
+//  AiCommentary.ts 의 selectKeyMomentEvents 참고.)
+//
 // `Partial` 이나 `Set` 이 아니라 `Record<RaceEventType, boolean>` 로 선언한 것이 핵심이다.
 // RaceEventType 에 멤버가 추가되면 이 객체가 컴파일되지 않아 tsc 가 누락을 잡는다
 // (RaceEventScopeMap.ts 와 같은 패턴).

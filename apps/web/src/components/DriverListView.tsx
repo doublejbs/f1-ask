@@ -20,6 +20,7 @@ import { getTeamShortName } from "@/lib/TeamShortName";
 import {
   Battle,
   DriverStateMarker,
+  LaneWatchNowSignal,
   LiveDriverState,
   RaceEvent,
   TeamRadioClip,
@@ -100,6 +101,10 @@ const FROZEN_HOVER_CLASS = "group-hover:bg-white/[0.03]";
 // 한 열이 넘어가게 한다.
 const COLUMN_SCROLL_STEP_PX = 68;
 
+// 신호가 없는 드라이버가 공유하는 빈 배열. 행마다 `[]` 를 새로 만들면 identity 가
+// 매번 달라져 행이 무의미하게 재조정된다(대부분의 행이 이 경우다).
+const EMPTY_WATCH_NOW_SIGNALS: LaneWatchNowSignal[] = [];
+
 type Props = {
   dictionary: Dictionary;
   drivers: LiveDriverState[];
@@ -116,6 +121,9 @@ type Props = {
   markersByDriver: Map<number, DriverStateMarker[]>;
   // 드라이버 번호 → 경기 시계 창 안의 최신 순간 이벤트.
   recentEventsByDriver: Map<number, RaceEvent>;
+  // 드라이버 번호 → "지금 볼 것" 칸에서 밀려난 신호들 (docs/19 수용 기준 7).
+  // 신호가 없는 드라이버는 담기지 않는다.
+  watchNowOverflowByDriver: Map<number, LaneWatchNowSignal[]>;
   isFavorite: (driverNumber: number) => boolean;
   onToggleFavorite: (driverNumber: number) => void;
   onToggleRadio: (url: string) => void;
@@ -135,6 +143,8 @@ type RowProps = {
   marker: DriverStateMarker | null;
   // 지속 마커가 없을 때만 슬롯에 뜨는 순간 이벤트. 없으면 null.
   recentEvent: RaceEvent | null;
+  // 칸에서 밀려난 "지금 볼 것" 신호들. 마커와 자리를 다투지 않고 슬롯 위에 얹힌다.
+  watchNowSignals: LaneWatchNowSignal[];
   // 목록 마지막 행에는 헤어라인을 붙이지 않는다.
   divided: boolean;
   // 이 드라이버가 "뒤차"인 배틀(= 앞차와의 접전). 간격 수치와 OT 칩은 이 행에 붙는다.
@@ -269,6 +279,7 @@ const DriverRow = ({
   playingRadioUrl,
   marker,
   recentEvent,
+  watchNowSignals,
   divided,
   battleWithAhead,
   battleWithBehind,
@@ -458,6 +469,7 @@ const DriverRow = ({
                   dictionary={dictionary}
                   marker={marker}
                   recentEvent={recentEvent}
+                  watchNowSignals={watchNowSignals}
                 />
               </span>
             </span>
@@ -689,6 +701,7 @@ export const DriverListView = ({
   playingRadioUrl,
   markersByDriver,
   recentEventsByDriver,
+  watchNowOverflowByDriver,
   isFavorite,
   onToggleFavorite,
   onToggleRadio,
@@ -704,6 +717,9 @@ export const DriverListView = ({
 
   const findRecentEvent = (driverNumber: number): RaceEvent | null =>
     recentEventsByDriver.get(driverNumber) ?? null;
+
+  const findWatchNowSignals = (driverNumber: number): LaneWatchNowSignal[] =>
+    watchNowOverflowByDriver.get(driverNumber) ?? EMPTY_WATCH_NOW_SIGNALS;
 
   // 배틀 쌍을 드라이버 번호로 인덱싱한다. 한 드라이버가 앞차이자 뒤차일 수 있으므로 맵을 나눈다.
   const battlesByChasing = new Map<number, Battle>();
@@ -790,6 +806,7 @@ export const DriverListView = ({
                   playingRadioUrl={playingRadioUrl}
                   marker={findMarker(driver.driverNumber)}
                   recentEvent={findRecentEvent(driver.driverNumber)}
+                  watchNowSignals={findWatchNowSignals(driver.driverNumber)}
                   divided={index < favorites.length - 1}
                   // 고정 섹션은 순위가 연속이 아니라 인접 관계가 성립하지 않는다. 배틀 표시를 하지 않는다.
                   battleWithAhead={null}
@@ -817,6 +834,7 @@ export const DriverListView = ({
                 playingRadioUrl={playingRadioUrl}
                 marker={findMarker(driver.driverNumber)}
                 recentEvent={findRecentEvent(driver.driverNumber)}
+                watchNowSignals={findWatchNowSignals(driver.driverNumber)}
                 divided={index < drivers.length - 1}
                 battleWithAhead={battlesByChasing.get(driver.driverNumber) ?? null}
                 battleWithBehind={battlesByAhead.get(driver.driverNumber) ?? null}

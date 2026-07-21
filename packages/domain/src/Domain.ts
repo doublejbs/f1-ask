@@ -92,6 +92,7 @@ export type {
   OpenF1SessionResult,
 } from "./openf1/OpenF1Types";
 export { scheduledRaceLaps } from "./openf1/RaceLapCounts";
+export { classifySafetyCarMessage } from "./openf1/OpenF1SafetyCarClassification";
 export type { OpenF1Index } from "./openf1/OpenF1Normalizer";
 export {
   buildOpenF1Index,
@@ -269,6 +270,7 @@ export {
   attachCommentary,
   isCommentaryEligible,
   selectCommentaryEvents,
+  selectKeyMomentEvents,
   toAiCommentary,
   AI_COMMENTARY_ID_PREFIX,
   DEFAULT_COMMENTARY_LIMIT,
@@ -410,3 +412,47 @@ export {
   generateCommentaryForEvents,
   selectPendingCommentaryTasks,
 } from "./worker/CommentaryGeneration";
+
+// "지금 볼 것" 결정론적 감지기 (docs/19-watch-now.md).
+export { WatchNowSignalType } from "./watchnow/WatchNowSignalType";
+export type { WatchNowSignal } from "./watchnow/WatchNowSignal";
+export type { WatchNowDetectorConfig } from "./watchnow/WatchNowDetectorConfig";
+export {
+  DEFAULT_WATCH_NOW_DETECTOR_CONFIG,
+  DEFAULT_TIRE_AGE_THRESHOLD_LAPS,
+  DEFAULT_GAP_THRESHOLD_SECONDS,
+  DEFAULT_GAP_CONSECUTIVE_SAMPLES,
+  DEFAULT_GAP_REARM_MULTIPLIER,
+  DEFAULT_UNDERCUT_POSITION_GAP,
+  DEFAULT_POSITION_SWING_THRESHOLD,
+} from "./watchnow/WatchNowDetectorConfig";
+export { WatchNowDetector } from "./watchnow/WatchNowDetector";
+// 역할이 고정된 칸 3개. 점수 랭킹(감지기 기본 점수 · 스테이크 등급 · 희소성 · 즐겨찾기
+// 가산점 · 선두권 감점)은 근거 없는 값이라 폐기했다 — WatchNowLaneConfig.ts 머리말 참고.
+export { WatchNowLane } from "./watchnow/WatchNowLane";
+export {
+  F1_RACE_POINTS_BY_POSITION,
+  resolveChampionshipPoints,
+  resolvePointsBetweenPositions,
+} from "./watchnow/WatchNowChampionshipPoints";
+export type { WatchNowLaneConfig } from "./watchnow/WatchNowLaneConfig";
+export {
+  DEFAULT_WATCH_NOW_LANE_CONFIG,
+  WATCH_NOW_LEADER_LANE_MAX_POSITION,
+  WATCH_NOW_CANDIDATE_WINDOW_MS,
+  WATCH_NOW_MAX_ENTRIES_PER_LANE,
+} from "./watchnow/WatchNowLaneConfig";
+export type {
+  LaneWatchNowSignal,
+  WatchNowLaneGroup,
+  WatchNowLanes,
+  BuildWatchNowLanesOptions,
+} from "./watchnow/WatchNowLaneBuilder";
+export {
+  buildWatchNowLanes,
+  selectWatchNowCandidates,
+} from "./watchnow/WatchNowLaneBuilder";
+// 감지 → 후보 축적 → 칸 구성을 묶은 클라이언트용 파이프라인. React 훅이 상태 기계가
+// 되지 않도록 상태를 전부 여기로 올렸다(테스트 가능성).
+export type { WatchNowFeedOptions } from "./watchnow/WatchNowFeed";
+export { WatchNowFeed } from "./watchnow/WatchNowFeed";

@@ -3,9 +3,15 @@ import {
   attachCommentary,
   isCommentaryEligible,
   selectCommentaryEvents,
+  selectKeyMomentEvents,
   toAiCommentary,
 } from "../src/ai/AiCommentary";
-import { COMMENTARY_ELIGIBLE_EVENT_TYPES } from "../src/ai/CommentaryEventAllowlist";
+import {
+  COMMENTARY_ELIGIBLE_EVENT_TYPES,
+  isCommentaryEligibleType,
+} from "../src/ai/CommentaryEventAllowlist";
+import { RaceEventScope } from "../src/RaceEventScope";
+import { getRaceEventScope } from "../src/RaceEventScopeMap";
 import { MockLlmProvider } from "../src/ai/MockLlmProvider";
 import { ExplanationLevel } from "../src/ExplanationLevel";
 import { MockRaceEngine } from "../src/mock/MockRaceEngine";
@@ -23,8 +29,8 @@ const frame = new MockRaceEngine(DEFAULT_MOCK_SCENARIO, START_EPOCH).snapshotAt(
 
 const provider = new MockLlmProvider();
 
-// 해설 대상 타입(allowlist). 이 목록이 바뀌면 테스트도 같이 바뀌어야 한다.
-const ELIGIBLE_TYPES: readonly RaceEventType[] = [
+// 타입 allowlist 를 통과하는 타입. 이 목록이 바뀌면 테스트도 같이 바뀌어야 한다.
+const ALLOWLISTED_TYPES: readonly RaceEventType[] = [
   RaceEventType.Penalty,
   RaceEventType.Investigation,
   RaceEventType.SafetyCar,
@@ -35,6 +41,20 @@ const ELIGIBLE_TYPES: readonly RaceEventType[] = [
   RaceEventType.FastestLap,
   RaceEventType.SessionRestarted,
 ];
+
+// allowlist 를 통과하지만 **Session 범위라 해설이 폐기된** 타입
+// (docs/19-watch-now.md §폐기한다, 수용 기준 6).
+const SESSION_SCOPED_TYPES: readonly RaceEventType[] = [
+  RaceEventType.SafetyCar,
+  RaceEventType.VirtualSafetyCar,
+  RaceEventType.TrackHazard,
+  RaceEventType.SessionRestarted,
+];
+
+// 실제 해설 대상 = allowlist ∩ Driver 범위.
+const ELIGIBLE_TYPES: readonly RaceEventType[] = ALLOWLISTED_TYPES.filter(
+  (type) => !SESSION_SCOPED_TYPES.includes(type),
+);
 
 const buildEvent = (
   type: RaceEventType,
@@ -69,7 +89,7 @@ describe("COMMENTARY_ELIGIBLE_EVENT_TYPES", () => {
       (type) => COMMENTARY_ELIGIBLE_EVENT_TYPES[type],
     );
 
-    expect(eligible.sort()).toEqual([...ELIGIBLE_TYPES].sort());
+    expect(eligible.sort()).toEqual([...ALLOWLISTED_TYPES].sort());
   });
 });
 
@@ -114,6 +134,50 @@ describe("isCommentaryEligible", () => {
         `${type} 는 제외 대상이어야 한다`,
       ).toBe(false);
     }
+  });
+
+  // 방송이 가장 잘하는 영역이라 폐기했다. 실측에서 나온 무가치한 문장
+  // ("41랩에 세이프티 카가 발동되며 트랙 상황이 급변합니다")이 전부 여기였다.
+  it("Session 범위는 allowlist 를 통과해도 해설 대상이 아니다", () => {
+    for (const type of SESSION_SCOPED_TYPES) {
+      expect(
+        isCommentaryEligibleType(type),
+        `${type} 는 타입 allowlist 는 통과해야 한다`,
+      ).toBe(true);
+      expect(
+        getRaceEventScope(type),
+        `${type} 는 Session 범위여야 한다`,
+      ).toBe(RaceEventScope.Session);
+      expect(
+        isCommentaryEligible(buildEvent(type, RaceEventPriority.Critical)),
+        `${type} 는 해설 대상에서 빠져야 한다`,
+      ).toBe(false);
+    }
+  });
+
+  it("남은 해설 대상은 전부 Driver 범위다", () => {
+    for (const type of ELIGIBLE_TYPES) {
+      expect(getRaceEventScope(type)).toBe(RaceEventScope.Driver);
+    }
+  });
+});
+
+// 경기 요약의 "주요 순간" 은 방송과 경쟁하지 않으므로 Session 범위 제한을 받지 않는다.
+// 해설과 같은 함수를 쓰면 요약에서 세이프티카가 사라진다.
+describe("selectKeyMomentEvents", () => {
+  it("Session 범위 사건도 주요 순간에는 남는다", () => {
+    const events = [
+      buildEvent(RaceEventType.SafetyCar),
+      buildEvent(RaceEventType.Retirement),
+    ];
+    const selected = selectKeyMomentEvents(events, 10);
+
+    expect(selected.map((event) => event.type).sort()).toEqual(
+      [RaceEventType.Retirement, RaceEventType.SafetyCar].sort(),
+    );
+    expect(selectCommentaryEvents(events, 10).map((event) => event.type)).toEqual([
+      RaceEventType.Retirement,
+    ]);
   });
 });
 

@@ -1,5 +1,7 @@
 import { RaceEvent } from "../RaceEvent";
 import { RaceEventPriority } from "../RaceEventPriority";
+import { RaceEventScope } from "../RaceEventScope";
+import { getRaceEventScope } from "../RaceEventScopeMap";
 import { RaceEventType } from "../RaceEventType";
 import { isCommentaryEligibleType } from "./CommentaryEventAllowlist";
 
@@ -17,14 +19,26 @@ export type AiCommentary = {
   isMock: boolean;
 };
 
-// 자동 해설 대상 여부.
+// 자동 해설 대상 여부. 두 관문을 모두 통과해야 한다.
 //
-// 우선순위(high/critical)가 아니라 이벤트 타입 allowlist 로 판정한다.
+// **관문 1 — 타입 allowlist.** 우선순위(high/critical)가 아니라 이벤트 타입으로 판정한다.
 // 추월·피트스톱은 high/critical 의 88% 를 차지하면서도 도메인 결정론 문장이 사실을
-// 이미 다 전달해 해설이 동어반복이었다. 판정 근거와 타입별 이유는
-// CommentaryEventAllowlist.ts 주석 참고.
+// 이미 다 전달해 해설이 동어반복이었다. 타입별 이유는 CommentaryEventAllowlist.ts 참고.
+//
+// **관문 2 — Driver 범위만.** Session 범위(SC · VSC · 재개 · 플래그)는 방송이 가장 잘하는
+// 영역이라 해설을 폐기했다(docs/19-watch-now.md §폐기한다, 수용 기준 6). 실측에서 나온
+// 무가치한 문장 — "41랩에 세이프티 카가 발동되며 트랙 상황이 급변합니다" — 이 전부
+// 여기였다. 방송은 같은 것을 화면과 함께, 더 빠르게, 더 감정적으로 말한다.
+//
+// **왜 allowlist 의 SafetyCar 등 4개를 false 로 내리지 않고 범위로 걸렀는가:**
+// 두 관문이 서로 다른 질문에 답하기 때문이다. allowlist 는 "이 타입은 해석할 여지가
+// 있는가", 범위 게이트는 "그 해석을 방송이 이미 더 잘하는가" 를 묻는다. allowlist 안에서
+// 4개만 false 로 내리면 "왜 이 넷만" 이 그 파일만 봐서는 보이지 않고, RaceEventType 에
+// Session 범위 타입이 새로 추가될 때마다 사람이 기억해서 false 로 내려야 한다.
+// 범위로 거르면 RACE_EVENT_SCOPES 매핑이 그 일을 자동으로 한다.
 export const isCommentaryEligible = (event: RaceEvent): boolean =>
-  isCommentaryEligibleType(event.type);
+  isCommentaryEligibleType(event.type) &&
+  getRaceEventScope(event.type) === RaceEventScope.Driver;
 
 export const DEFAULT_COMMENTARY_LIMIT = 8;
 
@@ -33,6 +47,19 @@ export const selectCommentaryEvents = (
   events: readonly RaceEvent[],
   limit: number = DEFAULT_COMMENTARY_LIMIT,
 ): RaceEvent[] => events.filter(isCommentaryEligible).slice(-limit);
+
+// 경기 요약의 "주요 순간" 선별 — 해설 대상 선별과 **의도적으로 다른 함수**다.
+//
+// 요약은 방송과 경쟁하지 않는다. 경기가 끝난 뒤 무슨 일이 있었는지 돌아보는 목록이므로
+// 세이프티카와 재개는 오히려 빠지면 안 되는 사건이다. 해설에 건 Driver 범위 제한을
+// 여기까지 끌고 오면 "주요 순간" 에서 SC 가 사라진다.
+//
+// 그래서 타입 allowlist(해석할 여지가 있는 사건)만 공유하고 범위 게이트는 쓰지 않는다.
+export const selectKeyMomentEvents = (
+  events: readonly RaceEvent[],
+  limit: number,
+): RaceEvent[] =>
+  events.filter((event) => isCommentaryEligibleType(event.type)).slice(-limit);
 
 // 해설 id 접두사. 저장 문서에서 복원할 때도 같은 규칙을 써야 하므로 상수로 둔다
 // (firestore/CommentaryDocument.ts).

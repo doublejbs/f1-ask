@@ -1,10 +1,15 @@
 "use client";
 
 import { Dictionary } from "@/i18n/Messages";
+import {
+  translateWatchNowSignal,
+  translateWatchNowSignalType,
+} from "@/i18n/TranslateWatchNowSignal";
 import { cn } from "@/lib/Utils";
 import {
   DriverStateMarker,
   DriverStateMarkerKind,
+  LaneWatchNowSignal,
   RaceEvent,
   RaceEventType,
 } from "@f1/domain";
@@ -24,14 +29,25 @@ type Props = {
   marker: DriverStateMarker | null;
   // 경기 시계 기준 창 안의 최신 순간 이벤트. 없으면 null.
   recentEvent: RaceEvent | null;
+  // 이 드라이버의 "지금 볼 것" 신호 중 **칸에 올라가지 못한 것들**(docs/19 수용 기준 7).
+  // 칸에 이미 뜬 신호는 도메인이 overflow 에서 제외하므로 여기 들어오지 않는다 —
+  // 같은 신호를 칸과 행에 두 번 보여주지 않는다.
+  watchNowSignals: LaneWatchNowSignal[];
 };
 
 // 슬롯 고정 폭. **항상 렌더**되므로 마커가 있든 없든 행 레이아웃이 동일하다.
 // 36px 은 가장 긴 칩(`+15s`)이 들어가는 최소 폭이다.
 // (docs/14-event-placement.md "행 밀도 — 가장 큰 리스크")
-const SLOT_CLASS = "flex h-5 w-9 shrink-0 items-center justify-center";
+//
+// `relative` 는 아래 "지금 볼 것" 점의 기준이다. 점은 absolute 라 이 슬롯의 36×20 을
+// 한 톨도 쓰지 않는다 — 고정 열 폭 계산(DriverListView 의 152px 역산)이 그대로 유효하다.
+const SLOT_CLASS =
+  "relative flex h-5 w-9 shrink-0 items-center justify-center";
 
 const ICON_CLASS = "h-4 w-4";
+
+// 여러 신호를 한 문장으로 잇는 구분자. 화면에 나가지 않고 title/aria-label 안에만 있다.
+const WATCH_NOW_SIGNAL_SEPARATOR = " · ";
 
 // 페널티 초 표기. 정수면 소수점을 붙이지 않는다(칩 폭이 좁다).
 const formatPenaltySeconds = (seconds: number): string =>
@@ -113,15 +129,84 @@ const buildPenaltyChip = (
   return { text: `+${seconds}s`, description };
 };
 
+// "지금 볼 것" 행 표시의 접근성 문구.
+//
+// **한 드라이버에 신호가 여러 건이면 점은 그대로 하나다.** 점을 늘리면 좁은 슬롯에서
+// 개수를 세게 만들 뿐이고, 애초에 이 표시의 뜻은 "여기도 뭔가 있다" 이지 "몇 건 있다"가
+// 아니다. 대신 문구에는 전부 싣는다 — 점이 하나여도 정보는 잃지 않는다. 순서는 도메인이
+// 이미 정렬해 준 순서(걸린 포인트 → 최신)를 그대로 따른다.
+const buildWatchNowDescription = (
+  dictionary: Dictionary,
+  signals: LaneWatchNowSignal[],
+): string =>
+  dictionary.rowMarker.watchNow.replace(
+    "{signals}",
+    signals
+      .map(
+        (entry) =>
+          `${translateWatchNowSignalType(entry.signal.type, dictionary)}: ${translateWatchNowSignal(entry, dictionary)}`,
+      )
+      .join(WATCH_NOW_SIGNAL_SEPARATOR),
+  );
+
+// 칸에 못 올라간 신호가 있다는 **조용한** 점.
+//
+// 왜 이 형태인가(docs/19 §화면 "나머지 감지 결과는 순위표 행에 조용히 표시한다"):
+//   - 칸은 "지금 볼 것", 행 표시는 "보고 싶으면 봐라" 다. 시각적 무게가 칸보다 확실히
+//     가벼워야 하므로 글자 · 아이콘이 아니라 6px 점 하나다.
+//   - `absolute` 라 슬롯의 36×20 을 쓰지 않는다. **행 높이(h-14 고정)와 고정 열 폭이
+//     둘 다 그대로다** — 순위표가 이 표시 때문에 한 픽셀도 밀리지 않는다.
+//   - 칩(rounded-full)의 모서리 바깥 여백에 앉으므로 페널티 칩이 슬롯을 거의 다 채우는
+//     최악 케이스에서도 글자를 가리지 않는다.
+//   - `ring-background` 로 아래 내용과 분리해 아이콘 위에 겹쳐도 점으로 읽힌다.
+//
+// 색은 muted-foreground 다. 팀색 · 페널티 빨강 · 조사 앰버 · 배틀 앰버 어느 것과도
+// 겹치지 않으면서 이 팔레트에서 가장 조용한 값이라, 훑을 때는 안 보이고 찾으면 보인다.
+const WatchNowDotView = ({
+  dictionary,
+  signals,
+}: {
+  dictionary: Dictionary;
+  signals: LaneWatchNowSignal[];
+}) => {
+  if (signals.length === 0) {
+    return null;
+  }
+
+  const description = buildWatchNowDescription(dictionary, signals);
+
+  return (
+    <span
+      title={description}
+      aria-label={description}
+      role="img"
+      // pointer-events 를 죽이지 않는다 — 죽이면 `title` 툴팁이 뜨지 않아 점이
+      // 뜻을 전달할 유일한 경로가 막힌다. 행 클릭은 그대로 상위로 버블링되므로
+      // 상세 시트를 여는 동작과 충돌하지 않는다(페널티 칩도 같은 방식이다).
+      className="absolute -top-0.5 right-0 h-1.5 w-1.5 rounded-full bg-muted-foreground/70 ring-2 ring-background"
+    />
+  );
+};
+
 // 순위 행의 마커 슬롯 (docs/14-event-placement.md "행 밀도").
 //
 // 지속 마커와 순간 아이콘이 **같은 슬롯 하나**를 공유한다. 둘 다 있으면 지속 마커가
 // 이긴다 — 페널티가 추월보다 중요하다. 슬롯은 비어 있을 때도 렌더되어 폭을 유지한다.
+//
+// "지금 볼 것" 점은 그 경쟁에 끼지 않는다. 슬롯 위에 얹히는 별도 층이라 **어떤 마커가
+// 이기든 항상 함께 보인다.** 슬롯 하나를 두고 겨루게 했다면 페널티 · 피트인 · 개인 최고
+// 랩처럼 흔한 마커가 있는 행에서 신호가 조용히 사라졌을 것이고, 그러면 "칸에서 밀린 것도
+// 볼 수 있다"는 약속이 다시 거짓이 된다.
 export const DriverRowMarkerView = ({
   dictionary,
   marker,
   recentEvent,
+  watchNowSignals,
 }: Props) => {
+  const watchNowDot = (
+    <WatchNowDotView dictionary={dictionary} signals={watchNowSignals} />
+  );
+
   if (marker !== null && marker.kind === DriverStateMarkerKind.Penalty) {
     const chip = buildPenaltyChip(dictionary, marker);
 
@@ -137,6 +222,8 @@ export const DriverRowMarkerView = ({
         >
           {chip.text}
         </span>
+
+        {watchNowDot}
       </span>
     );
   }
@@ -151,6 +238,8 @@ export const DriverRowMarkerView = ({
         >
           ?
         </span>
+
+        {watchNowDot}
       </span>
     );
   }
@@ -172,6 +261,8 @@ export const DriverRowMarkerView = ({
           {instant.icon}
         </span>
       ) : null}
+
+      {watchNowDot}
     </span>
   );
 };

@@ -111,6 +111,32 @@ describe("normalizeOpenF1SnapshotAt", () => {
     expect(leader?.driverNumber).toBe(44);
   });
 
+  it("선두의 앞차 간격은 null 이다 — OpenF1 의 interval 0 을 그대로 흘리지 않는다", () => {
+    // OpenF1 은 선두에게도 `interval: 0` 을 보내지만 그 0 은 "간격이 0 초"가 아니라
+    // "앞차가 없다"는 뜻이다. 흘려보내면 간격 수렴 감지가 `0 < 1.0` 으로 발화해
+    // "P1 앞차와 0.0초" 같은 문장을 만들어 낸다.
+    const early = normalizeOpenF1SnapshotAt(index, T0 + 10_000, 0);
+    const earlyLeader = early.drivers.find((d) => d.position === 1);
+    const earlySecond = early.drivers.find((d) => d.position === 2);
+
+    expect(earlyLeader?.driverNumber).toBe(1);
+    expect(earlyLeader?.intervalToAheadSeconds).toBeNull();
+    // 선두 대비 간격 0 은 여전히 사실이므로 이 필드는 건드리지 않는다.
+    expect(earlyLeader?.gapToLeaderSeconds).toBe(0);
+    // 선두가 아닌 차의 간격은 그대로 통과한다 — 0 을 뭉개는 것이 아니다.
+    expect(earlySecond?.intervalToAheadSeconds).toBe(1.5);
+
+    // 선두가 바뀌면 null 도 따라 옮겨간다. 드라이버가 아니라 자리에 붙은 성질이다.
+    const late = normalizeOpenF1SnapshotAt(index, T0 + 65_000, 1);
+    const lateLeader = late.drivers.find((d) => d.position === 1);
+    const lateSecond = late.drivers.find((d) => d.position === 2);
+
+    expect(lateLeader?.driverNumber).toBe(44);
+    expect(lateLeader?.intervalToAheadSeconds).toBeNull();
+    expect(lateSecond?.driverNumber).toBe(1);
+    expect(lateSecond?.intervalToAheadSeconds).toBe(0.8);
+  });
+
   it("숫자가 아닌 gap('+1 LAP')은 null 로 처리한다", () => {
     const snapshot = normalizeOpenF1SnapshotAt(index, T0 + 65_000, 1);
     const lec = snapshot.drivers.find((d) => d.driverNumber === 16);

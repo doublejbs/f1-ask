@@ -4,6 +4,9 @@ import { SessionStatus } from "../SessionStatus";
 import { TeamRadioClip } from "../TeamRadioClip";
 import { TireCompound } from "../TireCompound";
 import { WeatherState } from "../WeatherState";
+import { OpenF1RaceControlCategory } from "./OpenF1RaceControlCategory";
+import { parseRaceControlCategory } from "./OpenF1RaceControlParsing";
+import { classifySafetyCarMessage } from "./OpenF1SafetyCarClassification";
 import { scheduledRaceLaps } from "./RaceLapCounts";
 import {
   OpenF1Interval,
@@ -143,17 +146,16 @@ export const deriveOpenF1Status = (
       break;
     }
 
-    const text = message.message.toUpperCase();
+    if (
+      parseRaceControlCategory(message.category) ===
+      OpenF1RaceControlCategory.SafetyCar
+    ) {
+      // 문구 해석은 공용 판정에만 둔다(OpenF1SafetyCarClassification 주석 참고).
+      // 예전에는 여기서 "VIRTUAL" 만 봐서 실데이터의 'VSC DEPLOYED' 를 풀 SC 로 오분류했다.
+      const neutralization = classifySafetyCarMessage(message.message);
 
-    if (message.category === "SafetyCar") {
-      if (text.includes("VIRTUAL")) {
-        status = text.includes("ENDING")
-          ? SessionStatus.Green
-          : SessionStatus.VirtualSafetyCar;
-      } else if (text.includes("DEPLOYED")) {
-        status = SessionStatus.SafetyCar;
-      } else if (text.includes("IN THIS LAP") || text.includes("ENDING")) {
-        status = SessionStatus.Green;
+      if (neutralization !== null) {
+        status = neutralization;
       }
 
       continue;
@@ -302,7 +304,16 @@ export const normalizeOpenF1SnapshotAt = (
           ? startingPosition - position
           : null,
       gapToLeaderSeconds: numberOrNull(intervalRow?.gap_to_leader ?? null),
-      intervalToAheadSeconds: numberOrNull(intervalRow?.interval ?? null),
+      // 선두에게는 앞차가 없다. OpenF1 은 선두의 `interval` 을 0 으로 채워 보내지만
+      // 그 0 은 "간격이 0 초"가 아니라 "해당 없음"이며, 그대로 흘리면 하류가 0 을
+      // 실제 간격으로 읽는다(간격 수렴 감지가 `0 < 1.0` 으로 발화해 "P1 앞차와 0.0초"
+      // 같은 문장을 만들어 냈다).
+      //
+      // `null` 이 이 필드의 "앞차 없음" 표현이며, MockRaceEngine 은 이미 선두에
+      // `null` 을 넣는다(MockRaceEngine.test.ts). 데이터 소스마다 선두 표현이 갈리지
+      // 않도록 사실을 아는 이 층에서 맞춘다.
+      intervalToAheadSeconds:
+        position === 1 ? null : numberOrNull(intervalRow?.interval ?? null),
       intervalToBehindSeconds: null,
       lastLapSeconds: laps.length > 0 ? (laps.at(-1) as number) : null,
       personalBestLapSeconds: laps.length > 0 ? Math.min(...laps) : null,
