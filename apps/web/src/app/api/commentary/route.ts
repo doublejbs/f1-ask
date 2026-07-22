@@ -41,7 +41,14 @@ export const POST = async (request: Request): Promise<NextResponse> => {
         snapshot,
       });
 
-      return toAiCommentary(event, generated.text, generated.isMock === true);
+      // provider 가 프롬프트에서 본 시점 맥락을 그대로 실어 보낸다. 라이브 경로도 워커·
+      // Firestore 경로와 같은 계약이 되어, 클라이언트가 어느 출처든 focus.context 를 채운다.
+      return toAiCommentary(
+        event,
+        generated.text,
+        generated.isMock === true,
+        generated.pointInTimeContext,
+      );
     }),
   );
 

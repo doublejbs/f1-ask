@@ -46,11 +46,26 @@ export type Dictionary = {
     rain: string;
     dry: string;
   };
-  // 이벤트에 붙는 AI 해설 줄의 접기/펼치기 토글.
-  // 시간순 피드가 사라지며(docs/14-event-placement.md) 나머지 키는 소비자가 없어졌다.
-  events: {
-    commentaryExpand: string;
-    commentaryCollapse: string;
+  // 해설 캡션 탭 → 상세 시트 (docs/21-commentary-ask.md).
+  // 해설 전문 · 원본 이벤트 · 그 시점 순위 · 질문을 담는다.
+  commentarySheet: {
+    // 캡션 카드 탭 타깃의 접근성 라벨.
+    open: string;
+    close: string;
+    // 시트 제목.
+    title: string;
+    // 원본 이벤트 요약 섹션 제목("무슨 일이었나").
+    sourceEvent: string;
+    // 그 시점 순위 섹션 제목.
+    standings: string;
+    // 시점 맥락이 없는 해설(옛/replay)에서 답변이 현재 데이터 기준임을 알리는 주석.
+    noContextNote: string;
+    // 질문 입력 자리표시자.
+    placeholder: string;
+    // 질문 전송 버튼 라벨.
+    ask: string;
+    // 스레드가 비었을 때의 안내.
+    emptyHint: string;
   };
   teamRadio: {
     title: string;
@@ -292,9 +307,17 @@ const en: Dictionary = {
     rain: "Rain",
     dry: "Dry",
   },
-  events: {
-    commentaryExpand: "More",
-    commentaryCollapse: "Less",
+  commentarySheet: {
+    open: "Open commentary detail and ask about it",
+    close: "Close",
+    title: "Commentary",
+    sourceEvent: "What happened",
+    standings: "Standings at that moment",
+    noContextNote:
+      "No point-in-time standings are stored for this note, so answers use the current race data.",
+    placeholder: "Ask about this moment…",
+    ask: "Ask",
+    emptyHint: "Ask about this event — answers stay within this moment.",
   },
   teamRadio: {
     title: "Team Radio",
@@ -538,9 +561,17 @@ const ko: Dictionary = {
     rain: "강수",
     dry: "건조",
   },
-  events: {
-    commentaryExpand: "더 보기",
-    commentaryCollapse: "접기",
+  commentarySheet: {
+    open: "해설 상세 열고 질문하기",
+    close: "닫기",
+    title: "해설",
+    sourceEvent: "무슨 일이었나",
+    standings: "그 시점 순위",
+    noContextNote:
+      "이 해설에는 시점 순위가 저장돼 있지 않아, 답변은 현재 경기 데이터를 기준으로 합니다.",
+    placeholder: "이 순간에 대해 물어보세요…",
+    ask: "질문",
+    emptyHint: "이 이벤트에 대해 물어보세요 — 답변은 이 순간 안에서만 합니다.",
   },
   teamRadio: {
     title: "팀 라디오",
@@ -784,9 +815,17 @@ const ja: Dictionary = {
     rain: "降水",
     dry: "ドライ",
   },
-  events: {
-    commentaryExpand: "もっと見る",
-    commentaryCollapse: "閉じる",
+  commentarySheet: {
+    open: "解説の詳細を開いて質問する",
+    close: "閉じる",
+    title: "解説",
+    sourceEvent: "何が起きたか",
+    standings: "その時点の順位",
+    noContextNote:
+      "この解説には時点の順位が保存されていないため、回答は現在のレースデータに基づきます。",
+    placeholder: "この場面について質問…",
+    ask: "質問",
+    emptyHint: "このイベントについて質問できます — 回答はこの場面の中だけで行います。",
   },
   teamRadio: {
     title: "チームラジオ",

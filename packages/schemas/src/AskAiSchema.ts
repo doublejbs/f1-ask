@@ -7,6 +7,7 @@ import {
   SupportedLocale,
 } from "@f1/domain";
 import { z } from "zod";
+import { commentaryContextSchema } from "./CommentaryContextSchema";
 import { raceEventSchema } from "./RaceEventSchema";
 import { liveRaceSnapshotSchema } from "./RaceSnapshotSchema";
 
@@ -25,6 +26,13 @@ export const askAiRequestSchema = z.object({
   recentEvents: z.array(raceEventSchema),
   favoriteDriverNumbers: z.array(z.number().int()),
   conversationHistory: z.array(chatMessageSchema).max(12).optional(),
+  // 특정 해설에 대한 질문이면 그 이벤트와 시점 맥락. 없으면 경기 전반 질문(AI 탭)이다.
+  focus: z
+    .object({
+      event: raceEventSchema,
+      context: commentaryContextSchema,
+    })
+    .optional(),
 }) satisfies z.ZodType<LlmQuestionRequest>;
 
 export const llmAnswerSchema = z.object({

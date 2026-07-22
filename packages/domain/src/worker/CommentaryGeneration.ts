@@ -266,6 +266,10 @@ export const generateCommentaryForEvents = async (
       task.variant.explanationLevel,
       options.model,
       new Date(deps.nowMs()).toISOString(),
+      // 해설이 프롬프트에서 본 그 맥락을 그대로 저장한다. 재계산하지 않아 "해설이 본 것 ==
+      // 저장한 것" 이 보장된다. provider 가 채우지 못한 경우(구식 provider 등)엔 undefined 라
+      // toCommentaryDocument 가 필드를 담지 않는다 (docs/21 §시점 맥락을 해설 문서에 저장한다).
+      commentary.pointInTimeContext,
     );
 
     try {

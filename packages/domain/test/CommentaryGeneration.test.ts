@@ -6,7 +6,11 @@ import { RaceEventPriority } from "../src/RaceEventPriority";
 import { RaceEventType } from "../src/RaceEventType";
 import { SessionStatus } from "../src/SessionStatus";
 import { SupportedLocale } from "../src/SupportedLocale";
-import { RECENT_COMMENTARY_LIMIT } from "../src/ai/CommentaryContext";
+import {
+  CommentaryContext,
+  RECENT_COMMENTARY_LIMIT,
+} from "../src/ai/CommentaryContext";
+import { RaceEventScope } from "../src/RaceEventScope";
 import {
   LlmCommentary,
   LlmCommentaryRequest,
@@ -578,5 +582,67 @@ describe("generateCommentaryForEvents", () => {
     expect(entry?.document.locale).toBe(SupportedLocale.Ko);
     expect(entry?.document.explanationLevel).toBe(ExplanationLevel.Standard);
     expect(entry?.document.generatedAt).toBe("2026-07-19T06:00:00.000Z");
+  });
+
+  // 시점 맥락 저장 (docs/21-commentary-ask.md §시점 맥락을 해설 문서에 저장한다).
+  // provider 가 프롬프트에서 본 맥락을 실어 보내면, 워커가 재계산 없이 그대로 저장한다.
+  const buildContext = (currentLap: number): CommentaryContext => ({
+    scope: RaceEventScope.Driver,
+    event: {
+      type: RaceEventType.Penalty,
+      driverNumber: 44,
+      driverCode: "HAM",
+      lapNumber: currentLap,
+      params: {},
+    },
+    session: {
+      status: SessionStatus.Green,
+      currentLap,
+      totalLaps: 44,
+      lapsRemaining: 44 - currentLap,
+      retiredCount: 0,
+    },
+    standings: [
+      { position: 1, code: "VER", team: "Red Bull", gapToLeaderSeconds: null },
+    ],
+    recentCommentary: [],
+  });
+
+  it("provider 가 실어 보낸 시점 맥락을 저장 문서에 그대로 담는다", async () => {
+    const context = buildContext(12);
+    const harness = buildHarness({
+      generate: async (request) => ({
+        sourceEventId: request.event.id,
+        text: `해설 ${request.event.id}`,
+        pointInTimeContext: context,
+      }),
+    });
+
+    await generateCommentaryForEvents(
+      runOptions([buildEvent("event:a", 0)], EMPTY_COMMENTARY_RUN_CONTEXT),
+      harness.deps,
+    );
+
+    // 재계산이 아니라 provider 가 준 그 객체를 저장한다 — "해설이 본 것 == 저장한 것".
+    expect(harness.saved[0]?.document.pointInTimeContext).toEqual(context);
+  });
+
+  it("provider 가 맥락을 안 주면 저장 문서에 필드를 담지 않는다", async () => {
+    // 기존 불변식: 맥락 없는 생성물은 옛 문서 형태(필드 없음)를 그대로 유지한다.
+    const harness = buildHarness({
+      generate: async (request) => ({
+        sourceEventId: request.event.id,
+        text: `해설 ${request.event.id}`,
+      }),
+    });
+
+    await generateCommentaryForEvents(
+      runOptions([buildEvent("event:a", 0)], EMPTY_COMMENTARY_RUN_CONTEXT),
+      harness.deps,
+    );
+
+    expect(Object.keys(harness.saved[0]?.document ?? {})).not.toContain(
+      "pointInTimeContext",
+    );
   });
 });

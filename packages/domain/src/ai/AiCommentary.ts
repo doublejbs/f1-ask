@@ -3,6 +3,7 @@ import { RaceEventPriority } from "../RaceEventPriority";
 import { RaceEventScope } from "../RaceEventScope";
 import { getRaceEventScope } from "../RaceEventScopeMap";
 import { RaceEventType } from "../RaceEventType";
+import { CommentaryContext } from "./CommentaryContext";
 import { isCommentaryEligibleType } from "./CommentaryEventAllowlist";
 
 // AI 자동 해설 아이템 (docs/02-architecture.md §44, PRD §8.2).
@@ -17,6 +18,11 @@ export type AiCommentary = {
   // 결정론적 Mock provider 가 만든 간이 해설인지 여부.
   // 실제 LLM 해설과 폴백 해설을 화면에서 구분하기 위한 정직성 신호다.
   isMock: boolean;
+  // 해설이 생성 시 본 시점 맥락(순위 슬라이스·세션 상태). 저장 문서(pointInTimeContext)에서
+  // 실려 온다. 사용자가 이 해설을 탭해 질문할 때 focus.context 로 그대로 보내, "현재" 가
+  // 아니라 그 이벤트 시점의 순위로 답하게 한다 (docs/21-commentary-ask.md §질문 경로 확장).
+  // optional 인 이유: 워커가 채우기 전 문서 · mock · replay 경로에는 없을 수 있다.
+  pointInTimeContext?: CommentaryContext;
 };
 
 // 자동 해설 대상 여부. 두 관문을 모두 통과해야 한다.
@@ -66,19 +72,30 @@ export const selectKeyMomentEvents = (
 export const AI_COMMENTARY_ID_PREFIX = "commentary:";
 
 // 이벤트 + 생성된 텍스트 → 해설 아이템. id 는 원본 이벤트 기준으로 결정론적.
+// pointInTimeContext 는 라이브 생성 경로(/api/commentary)가 provider 가 본 맥락을 실어
+// 나를 때 넘긴다. 넘기지 않으면 필드 자체를 담지 않는다 — 옛 문서 형태와 왕복이 깨지지 않게.
 export const toAiCommentary = (
   event: RaceEvent,
   text: string,
   isMock: boolean = false,
-): AiCommentary => ({
-  id: `${AI_COMMENTARY_ID_PREFIX}${event.id}`,
-  sourceEventId: event.id,
-  sourceEventType: event.type,
-  priority: event.priority,
-  text,
-  timestamp: event.timestamp,
-  isMock,
-});
+  pointInTimeContext?: CommentaryContext,
+): AiCommentary => {
+  const commentary: AiCommentary = {
+    id: `${AI_COMMENTARY_ID_PREFIX}${event.id}`,
+    sourceEventId: event.id,
+    sourceEventType: event.type,
+    priority: event.priority,
+    text,
+    timestamp: event.timestamp,
+    isMock,
+  };
+
+  if (pointInTimeContext !== undefined) {
+    commentary.pointInTimeContext = pointInTimeContext;
+  }
+
+  return commentary;
+};
 
 // 이벤트 + (있으면) 그 이벤트의 해설. 해설은 이벤트에 1:1 종속된 파생 데이터이므로
 // 별도 목록이 아니라 이벤트 항목의 한 겹으로 다룬다 (docs/13-race-console.md 원칙 1).

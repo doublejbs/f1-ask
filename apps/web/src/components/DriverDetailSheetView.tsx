@@ -67,6 +67,8 @@ type Props = {
   onClose: () => void;
   // "AI에게 질문" — 시트를 닫고 AI 탭으로 전환하며 질문을 제출한다.
   onAskAi: (driver: LiveDriverState) => void;
+  // 이벤트 이력의 해설 캡션을 탭하면 그 해설로 상세 시트(질문 포함)를 연다.
+  onSelectCommentary: (commentary: AiCommentary) => void;
 };
 
 type ContentProps = {
@@ -79,6 +81,7 @@ type ContentProps = {
   allEvents: RaceEvent[];
   commentary: AiCommentary[];
   onToggleRadio: (url: string) => void;
+  onSelectCommentary: (commentary: AiCommentary) => void;
 };
 
 type FooterProps = {
@@ -101,6 +104,7 @@ type EventHistorySectionProps = {
   driver: LiveDriverState;
   allEvents: RaceEvent[];
   commentary: AiCommentary[];
+  onSelectCommentary: (commentary: AiCommentary) => void;
 };
 
 type StatRowProps = {
@@ -143,6 +147,7 @@ const DriverEventHistorySection = ({
   driver,
   allEvents,
   commentary,
+  onSelectCommentary,
 }: EventHistorySectionProps) => {
   const rows = useMemo(
     () =>
@@ -200,6 +205,7 @@ const DriverEventHistorySection = ({
                 <EventCommentaryLineView
                   dictionary={dictionary}
                   commentary={eventCommentary}
+                  onSelect={onSelectCommentary}
                 />
               ) : null}
             </li>
@@ -311,6 +317,7 @@ const DriverDetailContent = ({
   allEvents,
   commentary,
   onToggleRadio,
+  onSelectCommentary,
 }: ContentProps) => {
   const accent = teamColorHex(driver.teamColour) ?? "hsl(var(--border))";
 
@@ -439,6 +446,7 @@ const DriverDetailContent = ({
         driver={driver}
         allEvents={allEvents}
         commentary={commentary}
+        onSelectCommentary={onSelectCommentary}
       />
     </>
   );
@@ -471,6 +479,7 @@ export const DriverDetailSheetView = ({
   onToggleRadio,
   onClose,
   onAskAi,
+  onSelectCommentary,
 }: Props) => (
   <BottomSheetView
     isOpen={driver !== null}
@@ -498,6 +507,7 @@ export const DriverDetailSheetView = ({
         allEvents={allEvents}
         commentary={commentary}
         onToggleRadio={onToggleRadio}
+        onSelectCommentary={onSelectCommentary}
       />
     ) : null}
   </BottomSheetView>

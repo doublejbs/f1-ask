@@ -7,6 +7,7 @@ import {
   SupportedLocale,
 } from "@f1/domain";
 import { z } from "zod";
+import { commentaryContextSchema } from "./CommentaryContextSchema";
 import { liveRaceSnapshotSchema } from "./RaceSnapshotSchema";
 import { raceEventSchema } from "./RaceEventSchema";
 
@@ -28,6 +29,9 @@ export const aiCommentarySchema = z.object({
   text: z.string().min(1),
   timestamp: z.string(),
   isMock: z.boolean(),
+  // 라이브 생성 경로(/api/commentary)가 실어 보내는 시점 맥락. 없으면 경기 전반 질문만
+  // 가능한 옛 형태다 — optional 이라 그대로 파싱된다 (docs/21-commentary-ask.md).
+  pointInTimeContext: commentaryContextSchema.optional(),
 }) satisfies z.ZodType<AiCommentary>;
 
 // Firestore `sessions/{sessionId}/aiCommentary/{docId}` 저장 문서 검증.
@@ -45,6 +49,9 @@ export const commentaryDocumentSchema = z.object({
   timestamp: z.string().datetime(),
   generatedAt: z.string().datetime(),
   model: z.string().min(1),
+  // 해설이 생성 시 본 시점 맥락. 질문 시 재조회 없이 이것을 쓴다.
+  // optional 이라 워커가 채우기 전 문서 · mock · replay 경로도 그대로 파싱된다(방어적).
+  pointInTimeContext: commentaryContextSchema.optional(),
 }) satisfies z.ZodType<CommentaryDocument>;
 
 export const parseCommentaryRequest = (value: unknown): CommentaryRequest =>

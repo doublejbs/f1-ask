@@ -2,11 +2,35 @@ import {
   COMMENTARY_SCHEMA_VERSION,
   ExplanationLevel,
   RaceEventPriority,
+  RaceEventScope,
   RaceEventType,
   SupportedLocale,
 } from "@f1/domain";
 import { describe, expect, it } from "vitest";
 import { parseCommentaryDocument } from "../src/CommentarySchema";
+
+const validPointInTimeContext = {
+  scope: RaceEventScope.Driver,
+  event: {
+    type: RaceEventType.Penalty,
+    driverNumber: 44,
+    driverCode: "HAM",
+    lapNumber: 12,
+    params: { seconds: 5 },
+  },
+  session: {
+    status: "active",
+    currentLap: 12,
+    totalLaps: 44,
+    lapsRemaining: 32,
+    retiredCount: 0,
+  },
+  standings: [
+    { position: 1, code: "VER", team: "Red Bull", gapToLeaderSeconds: null },
+    { position: 4, code: "HAM", team: "Ferrari", gapToLeaderSeconds: 12.4 },
+  ],
+  recentCommentary: [],
+};
 
 const validDocument = {
   schemaVersion: COMMENTARY_SCHEMA_VERSION,
@@ -67,5 +91,42 @@ describe("commentaryDocumentSchema", () => {
     const parsed = parseCommentaryDocument({ ...validDocument, isMock: true });
 
     expect(Object.keys(parsed)).not.toContain("isMock");
+  });
+
+  it("시점 맥락이 없어도 파싱된다 — mock·replay·옛 문서 방어 (optional)", () => {
+    const parsed = parseCommentaryDocument(validDocument);
+
+    expect(parsed.pointInTimeContext).toBeUndefined();
+  });
+
+  it("유효한 시점 맥락을 담은 문서를 통과시키고 그대로 복원한다", () => {
+    const parsed = parseCommentaryDocument({
+      ...validDocument,
+      pointInTimeContext: validPointInTimeContext,
+    });
+
+    expect(parsed.pointInTimeContext).toEqual(validPointInTimeContext);
+  });
+
+  it("Session 범위 맥락은 순위 슬라이스가 없어도 통과한다 (standings optional)", () => {
+    const { standings, ...sessionScoped } = validPointInTimeContext;
+
+    expect(standings.length).toBeGreaterThan(0);
+    expect(() =>
+      parseCommentaryDocument({
+        ...validDocument,
+        pointInTimeContext: { ...sessionScoped, scope: RaceEventScope.Session },
+      }),
+    ).not.toThrow();
+  });
+
+  it("형태가 깨진 시점 맥락은 거부한다", () => {
+    expect(() =>
+      parseCommentaryDocument({
+        ...validDocument,
+        // recentCommentary(필수)가 빠진 맥락.
+        pointInTimeContext: { scope: RaceEventScope.Driver },
+      }),
+    ).toThrow();
   });
 });

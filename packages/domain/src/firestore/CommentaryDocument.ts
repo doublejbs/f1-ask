@@ -3,6 +3,7 @@ import { RaceEventPriority } from "../RaceEventPriority";
 import { RaceEventType } from "../RaceEventType";
 import { SupportedLocale } from "../SupportedLocale";
 import { AI_COMMENTARY_ID_PREFIX, AiCommentary } from "../ai/AiCommentary";
+import { CommentaryContext } from "../ai/CommentaryContext";
 
 // 워커가 생성한 해설의 저장 형식 (docs/18-ai-commentary-worker.md §저장).
 //
@@ -115,24 +116,35 @@ export type CommentaryDocument = {
   // 해설을 만든 시각. 원 이벤트 시각과 다를 수 있다(재처리 · 지연 생성).
   generatedAt: string;
   model: string;
+  // 해설이 생성 시 본 시점 맥락(순위 슬라이스·세션 상태·이벤트 요약).
+  // 과거 해설에 질문할 때 "현재"가 아니라 이 시점의 순위로 답하게 한다 —
+  // 재조회 없이 저장된 맥락을 그대로 쓴다 (docs/21-commentary-ask.md §시점 맥락을 해설 문서에 저장한다).
+  //
+  // optional 인 이유: 다음 단계에서 워커가 채우기 전이거나, mock · replay 경로에서는 없을 수 있다.
+  // 파싱은 방어적으로 — 없으면 undefined 다.
+  pointInTimeContext?: CommentaryContext;
 };
 
 // 도메인 해설 → 저장 문서.
 //
 // mock 해설은 거부한다. 저장하면 키를 고친 뒤에도 "경기의 주목할 만한 순간입니다" 가
 // 영구히 남는다(docs/18 §폴백). 호출자가 실수로 넘기면 조용히 통과시키지 않는다.
+// pointInTimeContext 는 optional 이다. 다음 단계(워커·API 라우트)에서 해설이 생성 시 본
+// 맥락을 넘겨 채운다. 넘기지 않으면 필드 자체를 담지 않는다 — Firestore 는 undefined 값을
+// 거부하고, 기존 문서 형태(필드 없음)도 그대로 유지되어야 하기 때문이다.
 export const toCommentaryDocument = (
   commentary: AiCommentary,
   locale: SupportedLocale,
   explanationLevel: ExplanationLevel,
   model: string,
   generatedAt: string,
+  pointInTimeContext?: CommentaryContext,
 ): CommentaryDocument => {
   if (commentary.isMock) {
     throw new Error("mock 해설은 Firestore 에 저장하지 않는다");
   }
 
-  return {
+  const document: CommentaryDocument = {
     schemaVersion: COMMENTARY_SCHEMA_VERSION,
     sourceEventId: commentary.sourceEventId,
     sourceEventType: commentary.sourceEventType,
@@ -144,6 +156,12 @@ export const toCommentaryDocument = (
     generatedAt,
     model,
   };
+
+  if (pointInTimeContext !== undefined) {
+    document.pointInTimeContext = pointInTimeContext;
+  }
+
+  return document;
 };
 
 // 저장 문서 → 도메인 해설. 클라이언트는 구독한 문서를 결국 AiCommentary 로 써야 한다.
@@ -151,12 +169,23 @@ export const toCommentaryDocument = (
 // 생성물이므로 isMock 은 false 다.
 export const toAiCommentaryFromDocument = (
   document: CommentaryDocument,
-): AiCommentary => ({
-  id: `${AI_COMMENTARY_ID_PREFIX}${document.sourceEventId}`,
-  sourceEventId: document.sourceEventId,
-  sourceEventType: document.sourceEventType,
-  priority: document.priority,
-  text: document.text,
-  timestamp: document.timestamp,
-  isMock: false,
-});
+): AiCommentary => {
+  const commentary: AiCommentary = {
+    id: `${AI_COMMENTARY_ID_PREFIX}${document.sourceEventId}`,
+    sourceEventId: document.sourceEventId,
+    sourceEventType: document.sourceEventType,
+    priority: document.priority,
+    text: document.text,
+    timestamp: document.timestamp,
+    isMock: false,
+  };
+
+  // 저장된 시점 맥락을 도메인 해설로 실어 나른다. 이게 없으면 클라이언트가 해설을 탭해도
+  // focus.context 를 채울 데가 없어 3단계 질문 UI 가 성립하지 않는다
+  // (docs/21-commentary-ask.md §질문 경로 확장). 옛 문서엔 필드가 없어 undefined 다.
+  if (document.pointInTimeContext !== undefined) {
+    commentary.pointInTimeContext = document.pointInTimeContext;
+  }
+
+  return commentary;
+};

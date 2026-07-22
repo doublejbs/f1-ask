@@ -118,6 +118,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
             <RaceTabView
               dictionary={dictionary}
               locale={locale}
+              explanationLevel={explanationLevel}
               snapshot={race.snapshot}
               summary={summary}
               allEvents={race.allEvents}
