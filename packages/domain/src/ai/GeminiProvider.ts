@@ -8,6 +8,7 @@ import { buildCommentaryPrompt } from "./CommentaryPrompt";
 import { GeminiChatRole } from "./GeminiChatRole";
 import { LlmChatRole } from "./LlmChatRole";
 import { buildQuestionPrompt } from "./QuestionPrompt";
+import { selectQuestionEvents } from "./QuestionEventSelection";
 import {
   LLM_REQUEST_TIMEOUT_MS,
   withLlmRequestTimeout,
@@ -60,7 +61,6 @@ const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 // 이 provider 는 1~2문장만 생성하므로 사고가 필요 없다 — 꺼야 현재 예산(300/120/200)으로 본문이 나온다.
 const THINKING_BUDGET_DISABLED = 0;
 const CONTEXT_DRIVER_LIMIT = 20;
-const RECENT_EVENT_LIMIT = 8;
 
 // AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다. ClaudeProvider 와 동일한 문구를 유지한다.
 const SYSTEM_RULES = [
@@ -119,7 +119,9 @@ const buildQuestionContext = (
   const drivers = snapshot.drivers
     .slice(0, CONTEXT_DRIVER_LIMIT)
     .map(toDriverContext);
-  const events = recentEvents.slice(-RECENT_EVENT_LIMIT).map((event) => ({
+  // 시간순 자르기가 아니라 우선순위·타입 선별(도메인 순수 함수)로 이벤트를 고른다.
+  // 세 provider 가 같은 함수를 쓰므로 컨텍스트가 갈라지지 않는다 (QuestionEventSelection.ts).
+  const events = selectQuestionEvents(recentEvents).map((event) => ({
     type: event.type,
     driverNumber: event.driverNumber ?? null,
     params: event.params,

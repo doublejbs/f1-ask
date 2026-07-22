@@ -10,6 +10,7 @@ import {
   withLlmRequestTimeout,
 } from "./LlmRequestTimeout";
 import { buildQuestionPrompt } from "./QuestionPrompt";
+import { selectQuestionEvents } from "./QuestionEventSelection";
 import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
 import {
   LlmAnswer,
@@ -44,7 +45,6 @@ export type OpenAiProviderOptions = {
 export const OPENAI_DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 const CONTEXT_DRIVER_LIMIT = 20;
-const RECENT_EVENT_LIMIT = 8;
 
 // AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다.
 const SYSTEM_RULES = [
@@ -95,7 +95,9 @@ const buildQuestionContext = (
   const drivers = snapshot.drivers
     .slice(0, CONTEXT_DRIVER_LIMIT)
     .map(toDriverContext);
-  const events = recentEvents.slice(-RECENT_EVENT_LIMIT).map((event) => ({
+  // 시간순 자르기가 아니라 우선순위·타입 선별(도메인 순수 함수)로 이벤트를 고른다.
+  // 세 provider 가 같은 함수를 쓰므로 컨텍스트가 갈라지지 않는다 (QuestionEventSelection.ts).
+  const events = selectQuestionEvents(recentEvents).map((event) => ({
     type: event.type,
     driverNumber: event.driverNumber ?? null,
     params: event.params,
