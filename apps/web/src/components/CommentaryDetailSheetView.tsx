@@ -124,7 +124,6 @@ export const CommentaryDetailSheetView = ({
           locale={locale}
           commentary={commentary}
           sourceEvent={sourceEvent}
-          hasFocus={focus !== null}
           turns={state.turns}
           isLoading={isLoading}
           isError={state.status === "error"}

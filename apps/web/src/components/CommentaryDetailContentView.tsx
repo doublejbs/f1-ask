@@ -25,8 +25,6 @@ type Props = {
   commentary: AiCommentary;
   // 원본 이벤트. 목록에서 밀려나 못 찾으면 null — 그러면 요약 섹션을 생략한다.
   sourceEvent: RaceEvent | null;
-  // 시점 맥락으로 질문을 좁힐 수 있는지. false 면 "현재 데이터 기준" 주석을 보인다.
-  hasFocus: boolean;
   turns: ChatTurn[];
   isLoading: boolean;
   isError: boolean;
@@ -117,7 +115,6 @@ export const CommentaryDetailContentView = ({
   locale,
   commentary,
   sourceEvent,
-  hasFocus,
   turns,
   isLoading,
   isError,
@@ -195,9 +192,11 @@ export const CommentaryDetailContentView = ({
         />
       ) : null}
 
-      {/* 시점 맥락이 없으면 답변이 현재 데이터 기준임을 알린다 — 사용자가 "그 순간" 으로
-          오해하지 않게 한다(docs/21 §pointInTimeContext 없음 처리). */}
-      {!hasFocus ? (
+      {/* 시점 순위조차 없을 때만 "현재 데이터 기준" 을 알린다. hasFocus 로 게이트하면
+          순위 슬라이스는 그려지는데(standings 있음) 원본 이벤트가 최근 창 밖으로 밀려
+          hasFocus 가 false 인 경우, 화면엔 그 시점 순위가 보이는데 "없다" 고 말하는
+          모순이 생긴다. 화면에 보이는 것과 문구를 일치시킨다. */}
+      {standings.length === 0 ? (
         <div className="mt-5 flex items-start gap-2 rounded-lg bg-white/[0.04] px-3 py-2.5">
           <Info
             className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
