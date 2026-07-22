@@ -5,6 +5,7 @@ import { RaceEventPriority } from "../RaceEventPriority";
 import { RaceEventType } from "../RaceEventType";
 import { RetirementReason } from "../RetirementReason";
 import { buildLiveContextSummary } from "./OpenF1ContextSummary";
+import { buildOvertakeForecasts } from "./OvertakeForecast";
 import { buildOverrideWindow } from "./OpenF1OverrideWindow";
 import { makeEvent, TimedRaceEvent } from "./OpenF1EventFactory";
 import {
@@ -611,8 +612,11 @@ export const buildOpenF1LiveFrame = (
   // 요약도 nowMs 시점까지로 잘라 스냅샷에 얹는다. 워커(PollRunner)와 리플레이 하네스
   // (OpenF1LivePoll.test.ts)가 둘 다 이 함수를 거치므로 계산이 한 곳에서만 일어난다.
   const contextSummary = buildLiveContextSummary(data, options.nowMs);
+  // 추월 예측도 같은 자리에서 계산해 스냅샷에 싣는다 — 워커·리플레이·아카이브가 자동 공유한다
+  // (docs/23 §계산 위치: 워커). contextSummary 와 같은 nowMs 시점 규칙을 쓴다.
+  const overtakeForecasts = buildOvertakeForecasts(snapshot, data, options.nowMs);
 
-  return { snapshot: { ...snapshot, contextSummary }, events };
+  return { snapshot: { ...snapshot, contextSummary, overtakeForecasts }, events };
 };
 
 export type BuildRecordingOptions = {

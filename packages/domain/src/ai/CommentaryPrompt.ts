@@ -62,10 +62,23 @@ const INVESTIGATION_GUIDANCE = [
   "A 'noted'/'under_investigation' event opens a threat; a 'concluded' event resolves it. Never write the same sentence for the opening and the conclusion of one incident.",
 ].join(" ");
 
+// 추월 예측(overtake_forecast) 전용 지침.
+//
+// 예측의 본체는 결정론 나눗셈이다(docs/23 §원칙: 예측은 산수다). 잡는 속도·예상 랩은 params 에
+// 이미 계산돼 있으므로 모델이 새 숫자를 지어내면 안 된다. LLM 의 자리는 "왜 잡히는가" —
+// 양쪽 compound·tireAgeLaps 차이로 추세를 설명하는 것이다. 예측 랩은 확정이 아니라 추세이므로
+// 단정("N랩째 추월한다")하지 말고 흐름("이 추세면 N랩 안에 사정권")으로 말하게 한다.
+const OVERTAKE_FORECAST_GUIDANCE = [
+  "This is a forecast, not a fact: the closing rate and predicted lap in params are deterministic math. Speak of the predicted lap as a TREND ('on this pace, within N laps'), never as a settled outcome ('will pass on lap N').",
+  "Ground the WHY in the two cars' tyre difference — compare their compound and tireAgeLaps to explain why the chaser is reeling the leader in (fresher rubber, softer compound, less wear).",
+  "Use ONLY the numbers already in params (closing rate, laps to battle, predicted lap); never invent a pace, gap, or lap of your own.",
+].join(" ");
+
 // 이벤트 타입별 전용 지침. 없으면 undefined.
 const EVENT_TYPE_GUIDANCE: Partial<Record<RaceEventType, string>> = {
   [RaceEventType.StrategyNote]: STRATEGY_NOTE_GUIDANCE,
   [RaceEventType.Investigation]: INVESTIGATION_GUIDANCE,
+  [RaceEventType.OvertakeForecast]: OVERTAKE_FORECAST_GUIDANCE,
 };
 
 // 이벤트 범위에 맞는 해설 시스템 규칙을 만든다.

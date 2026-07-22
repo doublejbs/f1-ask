@@ -13,6 +13,7 @@ import {
   DEFAULT_WATCH_NOW_LANE_CONFIG,
   WatchNowLaneConfig,
 } from "./WatchNowLaneConfig";
+import { buildOvertakeForecastSignals } from "./WatchNowForecastSignals";
 import { WatchNowSignal } from "./WatchNowSignal";
 
 // 버퍼 상한. 정상 동작에서는 후보 창(90초) 밖 신호가 매 프레임 잘려 나가므로 여기까지
@@ -80,6 +81,12 @@ export class WatchNowFeed {
     this.lastSessionId = snapshot.sessionId;
 
     this.signals.push(...this.detector.observe(snapshot));
+
+    // 예측은 감지가 아니라 변환이다 — 워커가 스냅샷에 실은 overtakeForecasts 를 신호로 옮겨
+    // 감지 신호와 같은 버퍼에 넣는다. 프레임 식별자 중복 방지가 이미 걸려 있어 같은 프레임을
+    // 두 번 관측해도 예측 신호가 두 번 쌓이지 않는다(docs/23 §UI).
+    this.signals.push(...buildOvertakeForecastSignals(snapshot));
+
     this.pruneSignals(this.resolveReferenceMs(snapshot));
 
     return true;

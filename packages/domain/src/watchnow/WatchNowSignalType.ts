@@ -11,4 +11,8 @@ export enum WatchNowSignalType {
   UndercutThreat = "undercut_threat",
   // D. 기준점 대비 순위가 임계 이상 변동했다.
   PositionSwing = "position_swing",
+  // E. 순위 인접 페어가 N랩 후 배틀 범위(1초 내)에 든다. 워커가 랩타임 추세로 계산해
+  // 스냅샷에 실은 예측을 신호로 변환한 것이다(docs/23) — 클라이언트 감지가 아니다.
+  // 값은 overtake_forecast 이벤트 타입 문자열과 맞춘다.
+  OvertakeForecast = "overtake_forecast",
 }

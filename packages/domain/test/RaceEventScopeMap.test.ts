@@ -9,7 +9,7 @@ describe("RaceEventScopeMap", () => {
     const missing = types.filter((type) => RACE_EVENT_SCOPES[type] === undefined);
 
     expect(missing).toEqual([]);
-    expect(types).toHaveLength(32);
+    expect(types).toHaveLength(33);
     expect(Object.keys(RACE_EVENT_SCOPES)).toHaveLength(types.length);
   });
 

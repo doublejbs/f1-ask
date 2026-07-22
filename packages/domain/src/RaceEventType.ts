@@ -39,4 +39,6 @@ export enum RaceEventType {
   PitLaneOpen = "pit_lane_open",
   RainRisk = "rain_risk",
   TeamRadioPosted = "team_radio_posted",
+  // 순위 인접 페어의 "N랩 후 배틀 진입" 예측 (docs/23-overtake-forecast.md §이벤트).
+  OvertakeForecast = "overtake_forecast",
 }

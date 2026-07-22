@@ -107,6 +107,20 @@ export {
   mapCompound,
 } from "./openf1/OpenF1Normalizer";
 export { buildLiveContextSummary } from "./openf1/OpenF1ContextSummary";
+export type { OvertakeForecastConfig } from "./openf1/OvertakeForecastConfig";
+export {
+  DEFAULT_OVERTAKE_FORECAST_CONFIG,
+  DEFAULT_BATTLE_THRESHOLD_SECONDS,
+  DEFAULT_MIN_INTERVAL_SECONDS,
+  DEFAULT_MIN_CLOSING_RATE_SECONDS_PER_LAP,
+  DEFAULT_MAX_LAPS_AHEAD,
+  DEFAULT_RECENT_LAP_COUNT,
+  DEFAULT_OUTLIER_RATIO,
+} from "./openf1/OvertakeForecastConfig";
+export type { OvertakeForecast } from "./openf1/OvertakeForecast";
+export { buildOvertakeForecasts } from "./openf1/OvertakeForecast";
+export { OvertakeForecastTracker } from "./openf1/OvertakeForecastTracker";
+export { buildOvertakeForecastEvent } from "./openf1/OvertakeForecastEvent";
 export type {
   OpenF1Recording,
   OpenF1RecordingFrame,

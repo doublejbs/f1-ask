@@ -3,6 +3,7 @@ import {
   LiveRaceContextSummary,
   LiveRaceSnapshot,
   OvertakeContextSummary,
+  OvertakeForecast,
   PitContextSummary,
   SessionStatus,
   StintContextSummary,
@@ -82,6 +83,16 @@ export const liveRaceContextSummarySchema = z.object({
   overtakes: overtakeContextSummarySchema,
 }) satisfies z.ZodType<LiveRaceContextSummary>;
 
+// 워커가 계산해 싣는 순위 인접 페어의 배틀 진입 예측. optional — mock·replay·옛 스냅샷엔 없다.
+const overtakeForecastSchema = z.object({
+  chaserNumber: z.number().int(),
+  targetNumber: z.number().int(),
+  intervalSeconds: z.number(),
+  closingRateSecondsPerLap: z.number(),
+  predictedLapsToBattle: z.number().int(),
+  predictedLap: z.number().int(),
+}) satisfies z.ZodType<OvertakeForecast>;
+
 export const liveRaceSnapshotSchema = z.object({
   schemaVersion: z.number().int().positive(),
   sessionId: z.string().min(1),
@@ -98,6 +109,7 @@ export const liveRaceSnapshotSchema = z.object({
   weather: weatherStateSchema.optional(),
   teamRadios: z.array(teamRadioClipSchema).optional(),
   contextSummary: liveRaceContextSummarySchema.optional(),
+  overtakeForecasts: z.array(overtakeForecastSchema).optional(),
   generatedAt: z.string().datetime(),
   sourceUpdatedAt: z.string().datetime(),
   version: z.number().int().nonnegative(),

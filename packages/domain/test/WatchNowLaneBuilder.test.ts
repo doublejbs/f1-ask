@@ -82,6 +82,7 @@ const createSignal = (
   rivalDriverCode: null,
   positionFrom: null,
   positionTo: null,
+  predictedLapsToBattle: null,
   ...overrides,
 });
 

@@ -64,6 +64,34 @@ describe("race schemas", () => {
     // 스트립해 요약이 provider 까지 못 간다 — 그 회귀를 여기서 막는다.
     expect(parsed.contextSummary).toEqual(withSummary.contextSummary);
   });
+
+  it("overtakeForecasts 가 없어도 통과한다 (optional — mock·옛 스냅샷 안전)", () => {
+    const { snapshot } = engine.snapshotAt(70);
+
+    expect(snapshot.overtakeForecasts).toBeUndefined();
+    expect(() => parseLiveRaceSnapshot(snapshot)).not.toThrow();
+  });
+
+  it("overtakeForecasts 가 있으면 파싱 후에도 보존된다", () => {
+    const { snapshot } = engine.snapshotAt(70);
+    const withForecasts = {
+      ...snapshot,
+      overtakeForecasts: [
+        {
+          chaserNumber: 4,
+          targetNumber: 1,
+          intervalSeconds: 3.0,
+          closingRateSecondsPerLap: 0.5,
+          predictedLapsToBattle: 4,
+          predictedLap: 14,
+        },
+      ],
+    };
+
+    const parsed = parseLiveRaceSnapshot(withForecasts);
+
+    expect(parsed.overtakeForecasts).toEqual(withForecasts.overtakeForecasts);
+  });
 });
 
 describe("env schemas", () => {

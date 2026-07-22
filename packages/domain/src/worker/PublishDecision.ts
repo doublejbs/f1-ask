@@ -26,6 +26,10 @@ export const SNAPSHOT_HEARTBEAT_MS = 12_000;
 // 요약만 미세 변동**하는 순간이 있다. 이걸 지문에 넣으면 경기 상태가 안 움직였는데
 // 스냅샷을 다시 쓰게 되어 쓰기 증폭이 된다(docs/16 에서 크게 데인 그 문제).
 // 요약이 필요한 소비자(AI 질문)는 heartbeat 주기로 갱신되는 스냅샷으로 충분하다.
+//
+// overtakeForecasts 는 contextSummary 와 달리 **제외하지 않는다**(...rest 에 그대로 남긴다).
+// 값이 반올림돼 있어 소수 끝자리로 흔들리지 않고, 입력(interval·랩타임)이 스냅샷 본체라 예측은
+// 본체가 움직일 때만 함께 바뀐다 — 지문에 넣어도 쓰기 증폭을 만들지 않는다(docs/23 §스냅샷 계약).
 const toComparableSnapshot = (snapshot: LiveRaceSnapshot): string => {
   const { generatedAt, sourceUpdatedAt, version, contextSummary, ...rest } =
     snapshot;

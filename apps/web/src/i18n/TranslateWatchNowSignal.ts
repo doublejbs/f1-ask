@@ -63,6 +63,20 @@ export const translateWatchNowSignal = (
     });
   }
 
+  if (signal.type === WatchNowSignalType.OvertakeForecast) {
+    // 예측 랩이 1이면 단수 템플릿을 쓴다 — en "1 lap". 워커가 실은 값이라 정수다.
+    const template =
+      signal.predictedLapsToBattle === 1
+        ? texts.overtakeForecastSingular
+        : texts.overtakeForecast;
+
+    return fill(template, {
+      code,
+      rival: signal.rivalDriverCode ?? UNKNOWN_TEXT,
+      laps: formatNumber(signal.predictedLapsToBattle),
+    });
+  }
+
   return fill(texts.positionSwing, {
     code,
     from: formatNumber(signal.positionFrom),

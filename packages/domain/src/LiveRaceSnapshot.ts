@@ -1,5 +1,6 @@
 import { LiveDriverState } from "./LiveDriverState";
 import { LiveRaceContextSummary } from "./LiveRaceContextSummary";
+import { OvertakeForecast } from "./openf1/OvertakeForecast";
 import { SessionStatus } from "./SessionStatus";
 import { TeamRadioClip } from "./TeamRadioClip";
 import { WeatherState } from "./WeatherState";
@@ -24,6 +25,9 @@ export type LiveRaceSnapshot = {
   // 워커가 원본에서 계산해 싣는 결정론적 요약 (docs/22 §B). AI 질문 컨텍스트에 쓴다.
   // optional — mock·replay·옛 스냅샷에 없어도 안전하다.
   contextSummary?: LiveRaceContextSummary;
+  // 워커가 원본 랩타임으로 계산해 싣는 순위 인접 페어의 배틀 진입 예측 (docs/23 §스냅샷 계약).
+  // optional — mock·replay·옛 스냅샷에 없어도 안전하다.
+  overtakeForecasts?: OvertakeForecast[];
   generatedAt: string;
   sourceUpdatedAt: string;
   version: number;

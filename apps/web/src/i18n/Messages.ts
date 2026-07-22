@@ -262,6 +262,11 @@ export type Dictionary = {
     undercutThreat: string;
     // {from} → {to} 순위.
     positionSwing: string;
+    // 배틀 진입 예측(docs/23). {code} chaser, {rival} 따라잡히는 앞차, {laps} 예측 랩 수.
+    // 조사를 피하려 {code} 뒤에는 쉼표를 쓴다(기존 이벤트 번역 관례).
+    overtakeForecast: string;
+    // 예측 랩이 1일 때. en 은 "1 lap" 단수, ko/ja 는 구조가 같지만 병렬로 둔다.
+    overtakeForecastSingular: string;
     // 걸린 챔피언십 포인트 배지. {points} 를 치환한다.
     pointsAtStake: string;
     // 포인트 배지의 스크린리더 라벨. {points} 를 치환한다.
@@ -485,11 +490,14 @@ const en: Dictionary = {
       [WatchNowSignalType.GapConvergence]: "Closing",
       [WatchNowSignalType.UndercutThreat]: "Undercut",
       [WatchNowSignalType.PositionSwing]: "Swing",
+      [WatchNowSignalType.OvertakeForecast]: "Forecast",
     },
     tireAge: "{code} on {laps}-lap tires",
     gapConvergence: "{code} {gap}s to car ahead",
     undercutThreat: "{code} — {rival} pitted",
     positionSwing: "{code} P{from} to P{to}",
+    overtakeForecast: "{code} expected within 1s of {rival} in {laps} laps",
+    overtakeForecastSingular: "{code} expected within 1s of {rival} in 1 lap",
     pointsAtStake: "{points}pt",
     pointsAtStakeLabel: "{points} championship points at stake",
     position: "P{position}",
@@ -739,11 +747,14 @@ const ko: Dictionary = {
       [WatchNowSignalType.GapConvergence]: "간격",
       [WatchNowSignalType.UndercutThreat]: "언더컷",
       [WatchNowSignalType.PositionSwing]: "순위",
+      [WatchNowSignalType.OvertakeForecast]: "예측",
     },
     tireAge: "{code} 타이어 {laps}랩째",
     gapConvergence: "{code} 앞차와 {gap}초",
     undercutThreat: "{code} — {rival} 피트인",
     positionSwing: "{code} P{from} → P{to}",
+    overtakeForecast: "{code}, {laps}랩 후 {rival} 1초 내 진입 예상",
+    overtakeForecastSingular: "{code}, 1랩 후 {rival} 1초 내 진입 예상",
     pointsAtStake: "{points}점",
     pointsAtStakeLabel: "챔피언십 {points}점이 걸려 있음",
     position: "P{position}",
@@ -993,11 +1004,14 @@ const ja: Dictionary = {
       [WatchNowSignalType.GapConvergence]: "接近",
       [WatchNowSignalType.UndercutThreat]: "アンダーカット",
       [WatchNowSignalType.PositionSwing]: "順位変動",
+      [WatchNowSignalType.OvertakeForecast]: "予測",
     },
     tireAge: "{code} タイヤ{laps}周目",
     gapConvergence: "{code} 前車と{gap}秒",
     undercutThreat: "{code} — {rival} ピットイン",
     positionSwing: "{code} P{from} → P{to}",
+    overtakeForecast: "{code}、{laps}周後に {rival} の1秒以内に接近見込み",
+    overtakeForecastSingular: "{code}、1周後に {rival} の1秒以内に接近見込み",
     pointsAtStake: "{points}点",
     pointsAtStakeLabel: "チャンピオンシップ{points}点がかかっている",
     position: "P{position}",
