@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { AiCommentary, toAiCommentary } from "../src/ai/AiCommentary";
+import { CommentaryContext } from "../src/ai/CommentaryContext";
 import { ExplanationLevel } from "../src/ExplanationLevel";
+import { RaceEventScope } from "../src/RaceEventScope";
 import {
   COMMENTARY_SCHEMA_VERSION,
   MAX_FIRESTORE_DOC_ID_BYTES,
@@ -18,6 +20,31 @@ import { SupportedLocale } from "../src/SupportedLocale";
 const EVENT_ID = "2026-bel-race:penalty:penalty:HAM:1784467391000";
 
 const GENERATED_AT = "2026-07-19T05:12:00.000Z";
+
+// 페널티가 나온 그 시점(12랩)의 맥락. 질문 때 44랩이 아니라 이 순위로 답해야 한다.
+const POINT_IN_TIME_CONTEXT: CommentaryContext = {
+  scope: RaceEventScope.Driver,
+  event: {
+    type: RaceEventType.Penalty,
+    driverNumber: 44,
+    driverCode: "HAM",
+    lapNumber: 12,
+    params: { seconds: 5 },
+  },
+  session: {
+    status: "active",
+    currentLap: 12,
+    totalLaps: 44,
+    lapsRemaining: 32,
+    retiredCount: 0,
+  },
+  standings: [
+    { position: 1, code: "VER", team: "Red Bull", gapToLeaderSeconds: null },
+    { position: 4, code: "HAM", team: "Ferrari", gapToLeaderSeconds: 12.4 },
+    { position: 5, code: "PIA", team: "McLaren", gapToLeaderSeconds: 13.9 },
+  ],
+  recentCommentary: [],
+};
 
 const buildEvent = (): RaceEvent => ({
   schemaVersion: 1,
@@ -171,6 +198,40 @@ describe("toCommentaryDocument", () => {
     });
   });
 
+  it("시점 맥락을 넘기면 문서에 그대로 담기고 왕복 보존된다", () => {
+    const commentary = toAiCommentary(buildEvent(), "HAM 의 5초 페널티가 순위를 흔든다");
+
+    const document = toCommentaryDocument(
+      commentary,
+      SupportedLocale.Ko,
+      ExplanationLevel.Standard,
+      "gemini-3.5-flash",
+      GENERATED_AT,
+      POINT_IN_TIME_CONTEXT,
+    );
+
+    // 재조회 없이 이 맥락을 질문에 쓰므로 직렬화 왕복에서 한 글자도 잃으면 안 된다.
+    expect(document.pointInTimeContext).toEqual(POINT_IN_TIME_CONTEXT);
+    expect(JSON.parse(JSON.stringify(document)).pointInTimeContext).toEqual(
+      POINT_IN_TIME_CONTEXT,
+    );
+  });
+
+  it("시점 맥락을 넘기지 않으면 필드 자체가 없다 (mock·replay·옛 문서 방어)", () => {
+    const commentary = toAiCommentary(buildEvent(), "텍스트");
+
+    const document = toCommentaryDocument(
+      commentary,
+      SupportedLocale.Ko,
+      ExplanationLevel.Standard,
+      "gemini-3.5-flash",
+      GENERATED_AT,
+    );
+
+    // Firestore 는 undefined 값을 거부하므로 키 자체가 없어야 한다.
+    expect(Object.keys(document)).not.toContain("pointInTimeContext");
+  });
+
   it("isMock 을 저장 문서에 담지 않는다", () => {
     const commentary = toAiCommentary(buildEvent(), "텍스트");
 
@@ -219,5 +280,36 @@ describe("toAiCommentaryFromDocument", () => {
     );
 
     expect(restored).toEqual(original);
+  });
+
+  it("저장된 시점 맥락을 도메인 해설로 실어 나른다", () => {
+    // 클라이언트가 해설을 탭해 질문할 때 focus.context 를 채우려면 맥락이 문서에서
+    // 도메인 해설까지 이어져야 한다 (docs/21-commentary-ask.md §질문 경로 확장).
+    const document = toCommentaryDocument(
+      toAiCommentary(buildEvent(), "HAM 의 5초 페널티가 순위를 흔든다"),
+      SupportedLocale.Ko,
+      ExplanationLevel.Standard,
+      "gemini-3.5-flash",
+      GENERATED_AT,
+      POINT_IN_TIME_CONTEXT,
+    );
+
+    const restored = toAiCommentaryFromDocument(document);
+
+    expect(restored.pointInTimeContext).toEqual(POINT_IN_TIME_CONTEXT);
+  });
+
+  it("맥락 없는 옛 문서는 필드 없이 복원된다", () => {
+    const document = toCommentaryDocument(
+      toAiCommentary(buildEvent(), "텍스트"),
+      SupportedLocale.Ko,
+      ExplanationLevel.Standard,
+      "gemini-3.5-flash",
+      GENERATED_AT,
+    );
+
+    const restored = toAiCommentaryFromDocument(document);
+
+    expect(Object.keys(restored)).not.toContain("pointInTimeContext");
   });
 });

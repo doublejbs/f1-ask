@@ -179,9 +179,11 @@ describe.each(PROVIDER_CASES)(
 
         expect(sent).not.toBeNull();
 
-        const expected = buildCommentaryPrompt(request);
+        // context 는 프롬프트로 "전송" 되는 별도 필드가 아니라 user JSON 안에 이미 녹아
+        // 있다. 전송 본문과 비교할 대상은 system·user 뿐이다.
+        const { system, user } = buildCommentaryPrompt(request);
 
-        expect(readPrompt(sent!)).toEqual(expected);
+        expect(readPrompt(sent!)).toEqual({ system, user });
       },
     );
 

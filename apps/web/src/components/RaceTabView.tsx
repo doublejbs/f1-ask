@@ -1,5 +1,6 @@
 "use client";
 
+import { CommentaryDetailSheetView } from "@/components/CommentaryDetailSheetView";
 import { DriverDetailSheetView } from "@/components/DriverDetailSheetView";
 import { DriverListView } from "@/components/DriverListView";
 import { LatestEventPagerView } from "@/components/LatestEventPagerView";
@@ -17,6 +18,7 @@ import { groupTeamRadiosByDriver, parseTimestampMs } from "@/lib/TeamRadio";
 import {
   AiCommentary,
   Battle,
+  ExplanationLevel,
   LiveDriverState,
   LiveRaceSnapshot,
   RaceEvent,
@@ -33,6 +35,8 @@ import { useMemo, useState } from "react";
 type Props = {
   dictionary: Dictionary;
   locale: SupportedLocale;
+  // 해설 상세 시트의 질문이 AI 요청에 실어 보낸다(AI 탭과 같은 설정값).
+  explanationLevel: ExplanationLevel;
   snapshot: LiveRaceSnapshot;
   summary: RaceSummaryResponse | null;
   allEvents: RaceEvent[];
@@ -58,6 +62,7 @@ const EMPTY_BATTLES: Battle[] = [];
 export const RaceTabView = ({
   dictionary,
   locale,
+  explanationLevel,
   snapshot,
   summary,
   allEvents,
@@ -71,6 +76,11 @@ export const RaceTabView = ({
   const [selectedDriver, setSelectedDriver] = useState<LiveDriverState | null>(
     null,
   );
+
+  // 해설 캡션 탭으로 열리는 상세 시트. selectedDriver 와 같은 패턴이며, 드라이버 시트
+  // 위에 겹쳐 열린다(캡션이 그 시트의 이벤트 이력 안에 있으므로).
+  const [selectedCommentary, setSelectedCommentary] =
+    useState<AiCommentary | null>(null);
 
   const fieldBestSectors = useMemo(
     () => computeFieldBestSectors(snapshot.drivers),
@@ -145,6 +155,10 @@ export const RaceTabView = ({
 
   const handleCloseSheet = () => {
     setSelectedDriver(null);
+  };
+
+  const handleCloseCommentarySheet = () => {
+    setSelectedCommentary(null);
   };
 
   // 시트의 "AI에게 질문": 시트를 닫고 AI 탭으로 전환하며 질문을 제출한다.
@@ -259,6 +273,19 @@ export const RaceTabView = ({
         onToggleRadio={togglePlay}
         onClose={handleCloseSheet}
         onAskAi={handleAskAi}
+        onSelectCommentary={setSelectedCommentary}
+      />
+
+      {/* 해설 상세 시트. 드라이버 시트의 이벤트 이력에서 캡션을 탭하면 그 위에 겹쳐 열린다. */}
+      <CommentaryDetailSheetView
+        dictionary={dictionary}
+        locale={locale}
+        explanationLevel={explanationLevel}
+        snapshot={snapshot}
+        allEvents={allEvents}
+        favoriteDriverNumbers={favoriteDriverNumbers}
+        commentary={selectedCommentary}
+        onClose={handleCloseCommentarySheet}
       />
     </div>
   );

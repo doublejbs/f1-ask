@@ -6,6 +6,7 @@ import { SupportedLocale } from "../SupportedLocale";
 import { AiConfidence } from "./AiConfidence";
 import { buildCommentaryPrompt } from "./CommentaryPrompt";
 import { LlmChatRole } from "./LlmChatRole";
+import { buildQuestionPrompt } from "./QuestionPrompt";
 import {
   LLM_REQUEST_TIMEOUT_MS,
   withLlmRequestTimeout,
@@ -187,14 +188,19 @@ export class ClaudeProvider implements RaceLlmProvider {
       request.favoriteDriverNumbers,
     );
 
-    const system = [
-      SYSTEM_RULES,
-      `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
-      LEVEL_GUIDANCE[request.explanationLevel],
-      'Reply with ONLY a JSON object (no markdown, no prose around it): {"answer": string, "confidence": "low"|"medium"|"high", "insufficientData": boolean, "referencedDriverNumbers": number[]}.',
-    ].join("\n");
-
-    const user = `Question: ${request.question}\n\nCurrent race data (JSON):\n${context}`;
+    // 골격·포커스 조립은 세 provider 공용이다. 여기서 따로 만들면 문구가 갈라진다
+    // (QuestionPrompt.ts 주석 참고). 포커스가 없으면 결과는 기존과 바이트 동일하다.
+    const { system, user } = buildQuestionPrompt({
+      systemLines: [
+        SYSTEM_RULES,
+        `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
+        LEVEL_GUIDANCE[request.explanationLevel],
+        'Reply with ONLY a JSON object (no markdown, no prose around it): {"answer": string, "confidence": "low"|"medium"|"high", "insufficientData": boolean, "referencedDriverNumbers": number[]}.',
+      ],
+      question: request.question,
+      dataContext: context,
+      focus: request.focus,
+    });
 
     // 이전 대화 턴(원문 텍스트) + 현재 질문(데이터 첨부)으로 messages 를 구성한다.
     // 데이터는 매 턴 바뀌므로 현재 질문에만 첨부하고, 히스토리는 Q&A 텍스트만 담는다.
@@ -231,7 +237,7 @@ export class ClaudeProvider implements RaceLlmProvider {
   ): Promise<LlmCommentary> {
     // 조립은 세 provider 공용이다. 여기서 따로 만들면 문구가 갈라진다
     // (CommentaryPrompt.ts 주석 참고).
-    const { system, user } = buildCommentaryPrompt(request);
+    const { system, user, context } = buildCommentaryPrompt(request);
 
     const text = await this.message(
       system,
@@ -239,7 +245,12 @@ export class ClaudeProvider implements RaceLlmProvider {
       120,
     );
 
-    return { sourceEventId: request.event.id, text: text.trim() };
+    // 프롬프트에 넣은 맥락을 그대로 실어 보낸다. 워커가 저장 시 재계산하지 않는다.
+    return {
+      sourceEventId: request.event.id,
+      text: text.trim(),
+      pointInTimeContext: context,
+    };
   }
 
   async generateSummary(request: LlmSummaryRequest): Promise<LlmSummary> {

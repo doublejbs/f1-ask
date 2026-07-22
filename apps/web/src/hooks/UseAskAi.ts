@@ -5,6 +5,7 @@ import {
   LiveRaceSnapshot,
   LlmAnswer,
   LlmChatRole,
+  LlmQuestionFocus,
   RaceEvent,
   SupportedLocale,
 } from "@f1/domain";
@@ -32,6 +33,9 @@ export type AskAiInput = {
   snapshot: LiveRaceSnapshot;
   recentEvents: RaceEvent[];
   favoriteDriverNumbers: number[];
+  // 특정 해설에 대한 질문이면 그 이벤트와 시점 맥락. AI 탭(경기 전반 질문)은 넘기지
+  // 않으므로 undefined 로 남아 body 에서 빠진다 — 기존 경로가 그대로 동작한다.
+  focus?: LlmQuestionFocus;
 };
 
 export type AskAiController = {
@@ -94,6 +98,8 @@ export const useAskAi = (): AskAiController => {
           recentEvents: input.recentEvents,
           favoriteDriverNumbers: input.favoriteDriverNumbers,
           conversationHistory: history,
+          // undefined 면 JSON 직렬화에서 빠진다 — 서버는 focus 없는 일반 질문으로 처리한다.
+          focus: input.focus,
         }),
       });
 

@@ -228,6 +228,7 @@ export { LlmChatRole } from "./ai/LlmChatRole";
 export type {
   RaceLlmProvider,
   LlmQuestionRequest,
+  LlmQuestionFocus,
   LlmChatMessage,
   LlmAnswer,
   LlmCommentaryRequest,
@@ -287,7 +288,10 @@ export {
   buildCommentaryContext,
   RECENT_COMMENTARY_LIMIT,
 } from "./ai/CommentaryContext";
+export { buildLlmQuestionFocus } from "./ai/QuestionFocus";
 export { buildCommentarySystemRules } from "./ai/CommentaryPrompt";
+export type { QuestionPrompt } from "./ai/QuestionPrompt";
+export { buildQuestionPrompt } from "./ai/QuestionPrompt";
 export type { LlmRequestTimeoutOptions } from "./ai/LlmRequestTimeout";
 export {
   withLlmRequestTimeout,

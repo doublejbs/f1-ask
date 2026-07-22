@@ -36,6 +36,8 @@ export {
 } from "./CommentarySchema";
 export type { CommentaryRequest } from "./CommentarySchema";
 
+export { commentaryContextSchema } from "./CommentaryContextSchema";
+
 export {
   summaryRequestSchema,
   raceSummaryDataSchema,

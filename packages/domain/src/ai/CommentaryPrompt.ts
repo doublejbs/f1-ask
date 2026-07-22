@@ -1,6 +1,6 @@
 import { RaceEventScope } from "../RaceEventScope";
 import { RaceEventType } from "../RaceEventType";
-import { buildCommentaryContext } from "./CommentaryContext";
+import { buildCommentaryContext, CommentaryContext } from "./CommentaryContext";
 import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
 import { LlmCommentaryRequest } from "./RaceLlmProvider";
 
@@ -96,6 +96,11 @@ export const buildCommentarySystemRules = (
 export type CommentaryPrompt = {
   system: string;
   user: string;
+  // 프롬프트에 실제로 직렬화해 넣은 시점 맥락. provider 가 저장 경로로 그대로 실어 보낸다.
+  // 저장용으로 다시 만들지 않는 이유는 "해설이 본 것 == 저장한 것" 을 한 객체로 보장하기
+  // 위해서다 — 두 번 만들면 스냅샷·러닝 컨텍스트가 미묘하게 어긋날 수 있다
+  // (docs/21-commentary-ask.md §시점 맥락을 해설 문서에 저장한다).
+  context: CommentaryContext;
 };
 
 // 해설 요청 하나를 프롬프트 두 덩어리로 조립한다.
@@ -122,5 +127,5 @@ export const buildCommentaryPrompt = (
 
   const user = `Event context (JSON):\n${JSON.stringify(context)}`;
 
-  return { system, user };
+  return { system, user, context };
 };
