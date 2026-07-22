@@ -2,6 +2,7 @@
 export {
   weatherStateSchema,
   liveDriverStateSchema,
+  liveRaceContextSummarySchema,
   liveRaceSnapshotSchema,
   parseLiveRaceSnapshot,
 } from "./RaceSnapshotSchema";

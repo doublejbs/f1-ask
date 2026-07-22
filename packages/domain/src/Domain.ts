@@ -33,6 +33,12 @@ export type { TeamRadioClip } from "./TeamRadioClip";
 export type { LiveDriverState } from "./LiveDriverState";
 export type { LiveRaceSnapshot } from "./LiveRaceSnapshot";
 export type {
+  LiveRaceContextSummary,
+  PitContextSummary,
+  StintContextSummary,
+  OvertakeContextSummary,
+} from "./LiveRaceContextSummary";
+export type {
   RaceEvent,
   RaceEventParams,
   RaceEventParamValue,
@@ -100,6 +106,7 @@ export {
   deriveOpenF1Status,
   mapCompound,
 } from "./openf1/OpenF1Normalizer";
+export { buildLiveContextSummary } from "./openf1/OpenF1ContextSummary";
 export type {
   OpenF1Recording,
   OpenF1RecordingFrame,

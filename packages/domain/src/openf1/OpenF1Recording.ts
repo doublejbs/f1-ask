@@ -4,6 +4,7 @@ import { RaceEvent, RaceEventParams } from "../RaceEvent";
 import { RaceEventPriority } from "../RaceEventPriority";
 import { RaceEventType } from "../RaceEventType";
 import { RetirementReason } from "../RetirementReason";
+import { buildLiveContextSummary } from "./OpenF1ContextSummary";
 import { buildOverrideWindow } from "./OpenF1OverrideWindow";
 import { makeEvent, TimedRaceEvent } from "./OpenF1EventFactory";
 import {
@@ -607,7 +608,11 @@ export const buildOpenF1LiveFrame = (
     (timed) => timed.event,
   );
 
-  return { snapshot, events };
+  // 요약도 nowMs 시점까지로 잘라 스냅샷에 얹는다. 워커(PollRunner)와 리플레이 하네스
+  // (OpenF1LivePoll.test.ts)가 둘 다 이 함수를 거치므로 계산이 한 곳에서만 일어난다.
+  const contextSummary = buildLiveContextSummary(data, options.nowMs);
+
+  return { snapshot: { ...snapshot, contextSummary }, events };
 };
 
 export type BuildRecordingOptions = {

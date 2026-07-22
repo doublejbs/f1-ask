@@ -1,4 +1,5 @@
 import { LiveDriverState } from "./LiveDriverState";
+import { LiveRaceContextSummary } from "./LiveRaceContextSummary";
 import { SessionStatus } from "./SessionStatus";
 import { TeamRadioClip } from "./TeamRadioClip";
 import { WeatherState } from "./WeatherState";
@@ -20,6 +21,9 @@ export type LiveRaceSnapshot = {
   drivers: LiveDriverState[];
   weather?: WeatherState;
   teamRadios?: TeamRadioClip[];
+  // 워커가 원본에서 계산해 싣는 결정론적 요약 (docs/22 §B). AI 질문 컨텍스트에 쓴다.
+  // optional — mock·replay·옛 스냅샷에 없어도 안전하다.
+  contextSummary?: LiveRaceContextSummary;
   generatedAt: string;
   sourceUpdatedAt: string;
   version: number;

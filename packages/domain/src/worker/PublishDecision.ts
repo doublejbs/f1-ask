@@ -19,12 +19,21 @@ export const SNAPSHOT_HEARTBEAT_MS = 12_000;
 
 // 매 폴링마다 값이 바뀌는 필드는 비교에서 제외한다. 이 필드들만 달라진 것은
 // "새로 계산했다"는 뜻일 뿐 실제 경기 상태가 움직였다는 뜻이 아니다.
+//
+// contextSummary(원본 요약)도 제외한다. 요약은 driver 상태와 함께 움직이는 게
+// 보통이라 대개 본체 변화에 동반하지만, 정지 구간에서 뒤늦게 도착한 pit_duration
+// 이 중앙값을 바꾸거나 추월 최다 동점이 재계산되는 것처럼 **본체는 그대로인데
+// 요약만 미세 변동**하는 순간이 있다. 이걸 지문에 넣으면 경기 상태가 안 움직였는데
+// 스냅샷을 다시 쓰게 되어 쓰기 증폭이 된다(docs/16 에서 크게 데인 그 문제).
+// 요약이 필요한 소비자(AI 질문)는 heartbeat 주기로 갱신되는 스냅샷으로 충분하다.
 const toComparableSnapshot = (snapshot: LiveRaceSnapshot): string => {
-  const { generatedAt, sourceUpdatedAt, version, ...rest } = snapshot;
+  const { generatedAt, sourceUpdatedAt, version, contextSummary, ...rest } =
+    snapshot;
 
   void generatedAt;
   void sourceUpdatedAt;
   void version;
+  void contextSummary;
 
   return JSON.stringify(rest);
 };

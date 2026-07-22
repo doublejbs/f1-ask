@@ -26,6 +26,44 @@ describe("race schemas", () => {
   it("잘못된 snapshot 은 거부한다", () => {
     expect(() => parseLiveRaceSnapshot({ sessionId: 123 })).toThrow();
   });
+
+  it("contextSummary 가 없어도 통과한다 (optional — mock·옛 스냅샷 안전)", () => {
+    const { snapshot } = engine.snapshotAt(70);
+
+    // 엔진 스냅샷엔 contextSummary 가 없다.
+    expect(snapshot.contextSummary).toBeUndefined();
+    expect(() => parseLiveRaceSnapshot(snapshot)).not.toThrow();
+  });
+
+  it("contextSummary 가 있으면 파싱 후에도 보존된다 (경계에서 스트립되지 않음)", () => {
+    const { snapshot } = engine.snapshotAt(70);
+    const withSummary = {
+      ...snapshot,
+      contextSummary: {
+        pits: { totalStops: 28, medianDurationSeconds: 24.7365 },
+        stints: [
+          {
+            driverNumber: 44,
+            stintCount: 2,
+            currentStintStartLap: 21,
+            previousCompound: "MEDIUM",
+            lastPitLap: 20,
+          },
+        ],
+        overtakes: {
+          total: 214,
+          mostActiveDriverNumber: 4,
+          mostActiveCount: 9,
+        },
+      },
+    };
+
+    const parsed = parseLiveRaceSnapshot(withSummary);
+
+    // /api/ask 는 이 스키마로 스냅샷을 파싱한다. 필드가 스키마에 없으면 zod 가 조용히
+    // 스트립해 요약이 provider 까지 못 간다 — 그 회귀를 여기서 막는다.
+    expect(parsed.contextSummary).toEqual(withSummary.contextSummary);
+  });
 });
 
 describe("env schemas", () => {

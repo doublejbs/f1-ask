@@ -11,6 +11,7 @@ import {
 } from "./LlmRequestTimeout";
 import { buildQuestionPrompt } from "./QuestionPrompt";
 import { selectQuestionEvents } from "./QuestionEventSelection";
+import { toQuestionSummaryContext } from "./QuestionSummaryContext";
 import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
 import {
   LlmAnswer,
@@ -114,6 +115,8 @@ const buildQuestionContext = (
     favoriteDriverNumbers,
     drivers,
     recentEvents: events,
+    // 워커가 원본에서 계산한 결정론적 요약(피트·스틴트·추월). 세 provider 공용 함수로 넣는다.
+    summary: toQuestionSummaryContext(snapshot.contextSummary),
   });
 };
 
