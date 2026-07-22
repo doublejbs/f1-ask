@@ -20,10 +20,15 @@ export type WatchNowSignal = {
   tireAgeLaps: number | null;
   // B 에서 채워진다 — 발화 시점의 앞차 간격(초).
   gapSeconds: number | null;
-  // C 에서 채워진다 — 피트인해 위협이 된 뒤차.
+  // C(언더컷)·E(예측)에서 채워진다 — 상대 드라이버.
+  //   C: 피트인해 위협이 된 뒤차. E: 따라잡히는 앞차(target).
+  // 두 종류가 한 필드를 공유하는 이유는 즐겨찾기·상대역 판정이 상대 드라이버 하나를 보기
+  // 때문이다(WatchNowLaneBuilder). E 는 chaser 가 주체, target 이 상대다.
   rivalDriverNumber: number | null;
   rivalDriverCode: string | null;
   // D 에서 채워진다 — 기준점 순위와 발화 시점 순위.
   positionFrom: number | null;
   positionTo: number | null;
+  // E(예측)에서 채워진다 — 배틀 진입까지 남은 예측 랩 수(워커 계산값).
+  predictedLapsToBattle: number | null;
 };

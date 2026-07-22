@@ -2,6 +2,7 @@ import { Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import {
   buildOpenF1LiveFrame,
+  buildOvertakeForecastEvent,
   CommentaryRunContext,
   CommentaryVariant,
   decidePublish,
@@ -13,6 +14,7 @@ import {
   OpenF1ClientOptions,
   OpenF1SessionData,
   OpenF1SessionMeta,
+  OvertakeForecastTracker,
   PublishState,
   RaceEvent,
   SelectedLlmProvider,
@@ -108,6 +110,10 @@ export const runPollWindow = async (
     sessionId,
   );
   let publishState: PublishState = EMPTY_PUBLISH_STATE;
+  // 추월 예측을 엣지 트리거로 바꾸는 상태는 세션(=이 폴링 창) 단위로 하나만 든다. 매 폴링이
+  // 스냅샷의 forecasts 전부를 observe 하면 "새로 성립한" 것만 돌아온다(docs/23 §이벤트). 프레임 간
+  // 상태이므로 루프 밖에 둔다. 인스턴스가 함수 기동마다 리셋돼도 최종 중복 쓰기는 EventWriteCursor 가 막는다.
+  const overtakeForecastTracker = new OvertakeForecastTracker();
   const result: PollRunResult = {
     polls: 0,
     eventWrites: 0,
@@ -162,9 +168,21 @@ export const runPollWindow = async (
         result.sessionDocWrites += 1;
       }
 
+      // 추월 예측은 buildEvents 경로 밖이다(엣지 트리거라 상태가 필요하다). 스냅샷에 실린
+      // forecasts 를 트래커에 넣어 "새로 성립한" 것만 이벤트화하고, 기존 이벤트와 합쳐 같은
+      // 쓰기 경로(selectUnwrittenEvents → writeEvents)에 태운다.
+      const newForecasts = overtakeForecastTracker.observe(
+        liveSnapshot.overtakeForecasts ?? [],
+        liveSnapshot,
+      );
+      const forecastEvents = newForecasts.map((forecast) =>
+        buildOvertakeForecastEvent(forecast, liveSnapshot, nowMs),
+      );
+      const allEvents = [...events, ...forecastEvents];
+
       // 핵심: 매 폴링은 "지금까지의 전체 이벤트"를 다시 계산한다.
       // 커서로 아직 쓰지 않은 것만 걸러 낸다.
-      const selection = selectUnwrittenEvents(events, cursor);
+      const selection = selectUnwrittenEvents(allEvents, cursor);
 
       if (selection.events.length > 0) {
         await writeEvents(db, sessionId, selection.events);
@@ -174,7 +192,7 @@ export const runPollWindow = async (
       }
 
       result.polls += 1;
-      lastFrame = { snapshot: liveSnapshot, events };
+      lastFrame = { snapshot: liveSnapshot, events: allEvents };
 
       logger.info("폴링 완료", {
         iteration,

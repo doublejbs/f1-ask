@@ -43,6 +43,8 @@ export const COMMENTARY_ELIGIBLE_EVENT_TYPES: Record<RaceEventType, boolean> = {
   [RaceEventType.FastestLap]: true,
   // 재시작: 재개 시점의 순위/타이어 상황이 판을 다시 짠다.
   [RaceEventType.SessionRestarted]: true,
+  // 추월 예측: "몇 랩 후 잡힌다"는 결정론 숫자에 "왜 잡히는가"(타이어 차이)를 얹는 게 해설의 몫이다.
+  [RaceEventType.OvertakeForecast]: true,
 
   // ── 제외: 도메인 결정론 문장이 사실을 이미 다 전달하는 타입 ──
   // 추월·피트스톱은 실측 대비 88% 를 차지하면서 해설이 동어반복이었다.

@@ -142,3 +142,79 @@ describe("해설 프롬프트와 Q&A 프롬프트의 분리", () => {
     expect(calls[0]!.body).toContain("이전 해설 한 줄");
   });
 });
+
+describe("이벤트 타입별 전용 지침 부착", () => {
+  it("StrategyNote 이벤트에는 STRATEGY_NOTE_GUIDANCE 가 붙는다", async () => {
+    const { fetchImpl, calls } = makeFetch();
+
+    await new GeminiProvider({ apiKey: "k", fetchImpl }).generateCommentary({
+      event: buildEvent(RaceEventType.StrategyNote),
+      locale: SupportedLocale.Ko,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+    });
+
+    const system = systemTextOf(calls[0]!.body);
+
+    // StrategyNote 전용 지침의 핵심 내용
+    expect(system).toContain("tyre strategy event");
+    expect(system).toContain("INTENT");
+  });
+
+  it("Investigation 이벤트에는 INVESTIGATION_GUIDANCE 가 붙는다", async () => {
+    const { fetchImpl, calls } = makeFetch();
+
+    await new GeminiProvider({ apiKey: "k", fetchImpl }).generateCommentary({
+      event: buildEvent(RaceEventType.Investigation),
+      locale: SupportedLocale.Ko,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+    });
+
+    const system = systemTextOf(calls[0]!.body);
+
+    // Investigation 전용 지침의 핵심 내용
+    expect(system).toContain("params.status");
+    expect(system).toContain("noted");
+    expect(system).toContain("under_investigation");
+    expect(system).toContain("concluded");
+  });
+
+  it("OvertakeForecast 이벤트에는 OVERTAKE_FORECAST_GUIDANCE 가 붙는다", async () => {
+    const { fetchImpl, calls } = makeFetch();
+
+    await new GeminiProvider({ apiKey: "k", fetchImpl }).generateCommentary({
+      event: buildEvent(RaceEventType.OvertakeForecast),
+      locale: SupportedLocale.Ko,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+    });
+
+    const system = systemTextOf(calls[0]!.body);
+
+    // OvertakeForecast 전용 지침의 핵심 내용
+    expect(system).toContain("forecast, not a fact");
+    expect(system).toContain("compound and tireAgeLaps");
+    expect(system).toContain("TREND");
+  });
+
+  it("지침이 없는 이벤트 타입은 공통 규칙만 포함한다", async () => {
+    const { fetchImpl, calls } = makeFetch();
+
+    await new GeminiProvider({ apiKey: "k", fetchImpl }).generateCommentary({
+      event: buildEvent(RaceEventType.SafetyCar),
+      locale: SupportedLocale.Ko,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+    });
+
+    const system = systemTextOf(calls[0]!.body);
+
+    // 공통 규칙은 있어야 함
+    expect(system).toContain("Use ONLY the data provided");
+    // 타입별 지침은 없어야 함
+    expect(system).not.toContain("tyre strategy");
+    expect(system).not.toContain("params.status");
+    expect(system).not.toContain("forecast, not a fact");
+  });
+});

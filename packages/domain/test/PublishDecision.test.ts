@@ -91,6 +91,55 @@ describe("스냅샷 / 세션 문서 쓰기 판정", () => {
     expect(moved.shouldWriteSessionDoc).toBe(true);
   });
 
+  it("overtakeForecasts 만 바뀌어도 스냅샷을 쓴다 (contextSummary 와 대비 — 지문에 포함)", () => {
+    const first = decidePublish(makeSnapshot(), EMPTY_PUBLISH_STATE, {
+      nowMs: NOW,
+    });
+    // heartbeat 이전 시점이라, 지문이 바뀌지 않는 한 스냅샷을 쓰지 않는다. overtakeForecasts 가
+    // 지문에 포함되므로 이것만 달라져도 써야 한다.
+    const withForecast = decidePublish(
+      makeSnapshot({
+        overtakeForecasts: [
+          {
+            chaserNumber: 4,
+            targetNumber: 1,
+            intervalSeconds: 3.0,
+            closingRateSecondsPerLap: 0.5,
+            predictedLapsToBattle: 4,
+            predictedLap: 14,
+          },
+        ],
+      }),
+      first.nextState,
+      { nowMs: NOW + 3000 },
+    );
+
+    expect(withForecast.shouldWriteSnapshot).toBe(true);
+  });
+
+  it("contextSummary 만 바뀌면 스냅샷을 건너뛴다 (overtakeForecasts 와 대비 — 지문에서 제외)", () => {
+    const first = decidePublish(makeSnapshot(), EMPTY_PUBLISH_STATE, {
+      nowMs: NOW,
+    });
+    const withSummary = decidePublish(
+      makeSnapshot({
+        contextSummary: {
+          pits: { totalStops: 3, medianDurationSeconds: 24.7 },
+          stints: [],
+          overtakes: {
+            total: 1,
+            mostActiveDriverNumber: 4,
+            mostActiveCount: 1,
+          },
+        },
+      }),
+      first.nextState,
+      { nowMs: NOW + 3000 },
+    );
+
+    expect(withSummary.shouldWriteSnapshot).toBe(false);
+  });
+
   it("드라이버 상태만 바뀌면 스냅샷만 쓰고 세션 문서는 건너뛴다", () => {
     const first = decidePublish(makeSnapshot(), EMPTY_PUBLISH_STATE, {
       nowMs: NOW,

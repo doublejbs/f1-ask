@@ -40,6 +40,7 @@ const ALLOWLISTED_TYPES: readonly RaceEventType[] = [
   RaceEventType.StrategyNote,
   RaceEventType.FastestLap,
   RaceEventType.SessionRestarted,
+  RaceEventType.OvertakeForecast,
 ];
 
 // allowlist 를 통과하지만 **Session 범위라 해설이 폐기된** 타입

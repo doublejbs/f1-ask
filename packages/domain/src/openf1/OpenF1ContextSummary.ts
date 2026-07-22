@@ -6,15 +6,13 @@ import {
 } from "../LiveRaceContextSummary";
 import { mapCompound } from "./OpenF1Normalizer";
 import { OpenF1Lap, OpenF1Pit, OpenF1SessionData, OpenF1Stint } from "./OpenF1Types";
+import { medianOf, parseMs } from "./OpenF1LapMath";
 
 // OpenF1 원본에서 "nowMs 시점까지"의 결정론적 요약을 계산하는 순수 함수 (docs/22 §B).
 //
 // 워커가 원본을 유일하게 쥐는 지점(PollRunner 의 fetchOpenF1SessionData 직후)에서 호출된다.
 // buildOpenF1LiveFrame 이 nowMs 로 스냅샷을 "그 시점"으로 잘라내듯, 여기서도 nowMs 를 받아
 // 그 시점까지의 데이터만 집계한다 — 리플레이·라이브 모두 "지금까지"가 맞다.
-
-const parseMs = (date: string | null): number =>
-  date === null ? Number.NaN : Date.parse(date);
 
 // 드라이버가 nowMs 시점에 진행 중인 랩 번호. normalizeOpenF1SnapshotAt 의 driverLapNumber 와
 // 같은 규칙(date_start <= nowMs 인 랩의 최댓값, 최소 1)이라 스냅샷과 시점이 어긋나지 않는다.
@@ -30,30 +28,6 @@ const driverLapAt = (laps: OpenF1Lap[], nowMs: number): number => {
   }
 
   return lap;
-};
-
-// 정렬된 표본의 중앙값. 표본이 없으면 null, 짝수면 가운데 두 값의 평균.
-const medianOf = (sortedValues: number[]): number | null => {
-  const count = sortedValues.length;
-
-  if (count === 0) {
-    return null;
-  }
-
-  const mid = Math.floor(count / 2);
-
-  if (count % 2 === 1) {
-    return sortedValues[mid] ?? null;
-  }
-
-  const lower = sortedValues[mid - 1];
-  const upper = sortedValues[mid];
-
-  if (lower === undefined || upper === undefined) {
-    return null;
-  }
-
-  return (lower + upper) / 2;
 };
 
 const buildPitSummary = (pitsSoFar: OpenF1Pit[]): PitContextSummary => {

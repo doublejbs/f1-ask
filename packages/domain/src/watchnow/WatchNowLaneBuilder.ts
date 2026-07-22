@@ -111,7 +111,12 @@ const resolveRivalDriverNumber = (
   position: number | null,
   driverNumberByPosition: Map<number, number>,
 ): number | null => {
-  if (signal.type === WatchNowSignalType.UndercutThreat) {
+  // C(언더컷)·E(예측)는 신호가 상대 드라이버를 직접 들고 있다 — 언더컷은 피트인한 뒤차,
+  // 예측은 따라잡히는 앞차(target)다.
+  if (
+    signal.type === WatchNowSignalType.UndercutThreat ||
+    signal.type === WatchNowSignalType.OvertakeForecast
+  ) {
     return signal.rivalDriverNumber;
   }
 
@@ -143,7 +148,12 @@ const resolvePointsAtStake = (
     return resolvePointsBetweenPositions(signal.positionFrom, signal.positionTo);
   }
 
-  if (signal.type === WatchNowSignalType.UndercutThreat) {
+  // 언더컷은 두 실제 순위 사이의 포인트. 예측(E)도 chaser ↔ target 두 실제 순위 사이라
+  // 같은 계산이다 — 인접 페어이므로 target 은 chaser 바로 앞자리다.
+  if (
+    signal.type === WatchNowSignalType.UndercutThreat ||
+    signal.type === WatchNowSignalType.OvertakeForecast
+  ) {
     return resolvePointsBetweenPositions(position, rivalPosition);
   }
 
@@ -282,7 +292,14 @@ export const buildWatchNowLanes = ({
       rivalPosition,
       rivalDriverNumber,
       pointsAtStake: resolvePointsAtStake(signal, position, rivalPosition),
-      isFavorite: favorites.has(signal.driverNumber),
+      // 예측(E)은 chaser·target 중 하나라도 즐겨찾기면 내 드라이버 칸이다(docs/23 §UI). chaser 는
+      // 주체(driverNumber), target 은 상대역(rivalDriverNumber)이다. 다른 종류는 주체만 본다 —
+      // 언더컷 상대역까지 즐겨찾기로 끌어오면 기존 칸 배치가 바뀌므로 예측으로만 넓힌다.
+      isFavorite:
+        favorites.has(signal.driverNumber) ||
+        (signal.type === WatchNowSignalType.OvertakeForecast &&
+          rivalDriverNumber !== null &&
+          favorites.has(rivalDriverNumber)),
     };
   });
 

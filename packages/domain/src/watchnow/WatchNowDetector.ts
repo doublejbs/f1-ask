@@ -155,6 +155,7 @@ export class WatchNowDetector {
       rivalDriverCode: null,
       positionFrom: null,
       positionTo: null,
+      predictedLapsToBattle: null,
     });
   }
 
@@ -219,6 +220,7 @@ export class WatchNowDetector {
       rivalDriverCode: null,
       positionFrom: null,
       positionTo: null,
+      predictedLapsToBattle: null,
     });
   }
 
@@ -285,6 +287,7 @@ export class WatchNowDetector {
           rivalDriverCode: pitter.code,
           positionFrom: null,
           positionTo: null,
+          predictedLapsToBattle: null,
         });
       }
     }
@@ -334,6 +337,7 @@ export class WatchNowDetector {
       rivalDriverCode: null,
       positionFrom: baseline,
       positionTo: position,
+      predictedLapsToBattle: null,
     });
   }
 }

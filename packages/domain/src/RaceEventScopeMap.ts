@@ -41,6 +41,8 @@ export const RACE_EVENT_SCOPES: Record<RaceEventType, RaceEventScope> = {
   [RaceEventType.GapIncreasing]: RaceEventScope.Driver,
   [RaceEventType.OverrideRangeEntered]: RaceEventScope.Driver,
   [RaceEventType.PositionChange]: RaceEventScope.Driver,
+  // chaser(뒷차) 기준의 예측이라 드라이버 범위다 (docs/23 §이벤트).
+  [RaceEventType.OvertakeForecast]: RaceEventScope.Driver,
 };
 
 // 이벤트 타입의 범위를 돌려준다. 매핑이 전수라 항상 값이 있다.

@@ -566,6 +566,30 @@ export const translateRaceEvent = (
         ja: `降水確率は ${percent}% です。`,
       });
     }
+    case RaceEventType.OvertakeForecast: {
+      // 배틀 진입 예측(docs/23). params 는 driverCode(chaser)·targetDriverCode(target)·
+      // predictedLapsToBattle 를 싣는다.
+      const laps = asNumber(event.params.predictedLapsToBattle);
+
+      // 옛 이벤트·결손이면 기존 fallback 으로 안전하게 처리한다.
+      if (driver.length === 0 || target.length === 0 || laps === null) {
+        return pick(locale, {
+          en: "Race update.",
+          ko: "경기 업데이트.",
+          ja: "レース更新。",
+        });
+      }
+
+      // 1랩은 en 단수("1 lap"). ko·ja 는 단복수 구분이 없다.
+      const enLaps = laps === 1 ? "1 lap" : `${laps} laps`;
+
+      // 조사를 피하려 드라이버 코드 뒤에는 쉼표를 쓴다(기존 이벤트 번역 관례).
+      return pick(locale, {
+        en: `${driver} expected within 1s of ${target} in ${enLaps}.`,
+        ko: `${driver}, ${laps}랩 후 ${target} 1초 내 진입 예상.`,
+        ja: `${driver}、${laps}周後に ${target} の1秒以内に接近する見込み。`,
+      });
+    }
     case RaceEventType.TeamRadioPosted:
       return pick(locale, {
         en: `New team radio from ${driver}.`,

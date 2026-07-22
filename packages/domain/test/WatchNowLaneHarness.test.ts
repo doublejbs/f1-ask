@@ -57,6 +57,7 @@ const TYPE_LABEL: Record<WatchNowSignalType, string> = {
   [WatchNowSignalType.GapConvergence]: "간격 수렴",
   [WatchNowSignalType.UndercutThreat]: "언더컷 위협",
   [WatchNowSignalType.PositionSwing]: "순위 급변",
+  [WatchNowSignalType.OvertakeForecast]: "추월 예측",
 };
 
 const LANE_LABEL: Record<WatchNowLane, string> = {
