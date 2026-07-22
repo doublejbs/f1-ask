@@ -280,6 +280,15 @@ export {
   COMMENTARY_ELIGIBLE_EVENT_TYPES,
   isCommentaryEligibleType,
 } from "./ai/CommentaryEventAllowlist";
+export {
+  QUESTION_CONTEXT_ELIGIBLE_EVENT_TYPES,
+  QUESTION_CONTEXT_EVENT_TYPE_ADDITIONS,
+  isQuestionContextEligibleType,
+} from "./ai/QuestionEventAllowlist";
+export {
+  selectQuestionEvents,
+  RECENT_QUESTION_EVENT_LIMIT,
+} from "./ai/QuestionEventSelection";
 export type {
   CommentaryContext,
   CommentaryStandingsRow,
