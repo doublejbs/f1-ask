@@ -13,6 +13,7 @@ import {
   OpenF1Position,
   OpenF1RaceControl,
   OpenF1SessionData,
+  OpenF1SessionResult,
   OpenF1Stint,
 } from "../../src/openf1/OpenF1Types";
 
@@ -27,6 +28,8 @@ type BelgianGpFixture = {
   laps: OpenF1Lap[];
   raceControl: OpenF1RaceControl[];
   drivers?: OpenF1Driver[];
+  // session_result 엔드포인트. 감지기는 쓰지 않지만 buildEvents 의 리타이어 이벤트에 필요하다.
+  sessionResults?: OpenF1SessionResult[];
 };
 
 // 감지기는 최종적으로 워커의 라이브 스냅샷 위에서 돈다. 회귀 테스트만 원본 형태를 쓰면
@@ -69,6 +72,9 @@ const toSessionData = (fixture: BelgianGpFixture): OpenF1SessionData => {
     laps: fixture.laps,
     pits: fixture.pit,
     raceControl: fixture.raceControl,
+    // 리타이어 이벤트 재생성용. 감지 경로(normalizeOpenF1SnapshotAt)는 이 필드를 읽지 않으므로
+    // 추가해도 감지 회귀 수치는 변하지 않는다 — buildEvents 만 소비한다.
+    sessionResults: fixture.sessionResults,
   };
 };
 

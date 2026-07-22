@@ -1,4 +1,5 @@
-import { initializeApp } from "firebase-admin/app";
+import { readFileSync } from "node:fs";
+import { cert, initializeApp } from "firebase-admin/app";
 import { FieldValue, Firestore, getFirestore } from "firebase-admin/firestore";
 import { describe, expect, it } from "vitest";
 import { LiveRaceSnapshot } from "../src/LiveRaceSnapshot";
@@ -329,15 +330,50 @@ describe("OpenF1 live poll → Firestore", () => {
         username !== undefined || apiKey !== undefined,
         "OPENF1_USERNAME/PASSWORD or OPENF1_API_KEY is required",
       ).toBe(true);
-      expect(
-        process.env.FIRESTORE_EMULATOR_HOST,
-        "FIRESTORE_EMULATOR_HOST is required",
-      ).toBeTruthy();
 
-      const app = initializeApp(
-        { projectId: process.env.GCLOUD_PROJECT ?? "demo-f1" },
-        `poll-${Date.now()}`,
-      );
+      // 기본은 에뮬레이터 강제다 — 실수로 프로덕션 Firestore 를 오염시키지 않게 하는
+      // 안전장치다. POLL_TARGET=production 을 **명시**했을 때만 이 강제를 풀고
+      // 서비스 계정 키로 실서버에 붙는다. 명시 플래그가 없으면 기존 동작 그대로다.
+      const isProductionTarget = process.env.POLL_TARGET === "production";
+
+      let app;
+
+      if (isProductionTarget) {
+        const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+        expect(
+          keyPath,
+          "POLL_TARGET=production 에는 GOOGLE_APPLICATION_CREDENTIALS(서비스 계정 키 경로)가 필요하다",
+        ).toBeTruthy();
+        expect(
+          process.env.FIRESTORE_EMULATOR_HOST,
+          "POLL_TARGET=production 에서는 FIRESTORE_EMULATOR_HOST 를 설정하면 안 된다 (에뮬레이터로 새어 나간다)",
+        ).toBeFalsy();
+
+        const serviceAccount = JSON.parse(
+          readFileSync(keyPath as string, "utf8"),
+        );
+
+        app = initializeApp(
+          { credential: cert(serviceAccount) },
+          `poll-${Date.now()}`,
+        );
+
+        // eslint-disable-next-line no-console
+        console.log(
+          `⚠️  PRODUCTION TARGET: ${serviceAccount.project_id} 실서버에 쓴다`,
+        );
+      } else {
+        expect(
+          process.env.FIRESTORE_EMULATOR_HOST,
+          "FIRESTORE_EMULATOR_HOST is required",
+        ).toBeTruthy();
+
+        app = initializeApp(
+          { projectId: process.env.GCLOUD_PROJECT ?? "demo-f1" },
+          `poll-${Date.now()}`,
+        );
+      }
       const db = getFirestore(app);
       // 스냅샷의 optional 필드(weather/lastSectorsSeconds 등)가 undefined 일 수 있어
       // Firestore 쓰기 시 오류가 나지 않도록 undefined 프로퍼티를 무시한다.

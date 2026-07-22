@@ -1,4 +1,5 @@
 import { RaceEventScope } from "../RaceEventScope";
+import { RaceEventType } from "../RaceEventType";
 import { buildCommentaryContext } from "./CommentaryContext";
 import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
 import { LlmCommentaryRequest } from "./RaceLlmProvider";
@@ -24,7 +25,7 @@ const SCOPE_MISSION: Record<RaceEventScope, string> = {
 
 // 범위와 무관하게 항상 적용되는 규칙. 각 항목에 실측 근거가 있다.
 const COMMENTARY_COMMON_RULES = [
-  "- Use ONLY the data provided. Never invent numbers, positions, reasons, or probabilities.",
+  "- Use ONLY the data provided. Never invent numbers, positions, or probabilities.",
   "- If it is not in the data, it does not exist. Never mention flags, weather, tyres, or team decisions that are absent from the data.",
   "- Never mention the data, your sources, or your own uncertainty (no 'cannot be confirmed', no 'according to the data').",
   "- Refer to drivers ONLY by the three-letter code given in the data. Never use full names.",
@@ -32,14 +33,62 @@ const COMMENTARY_COMMON_RULES = [
   "- Present tense. Factual and forceful, never speculative.",
 ];
 
+// 타이어 전략(strategy_note) 전용 지침.
+//
+// 실측(벨기에 GP 29건 중 12건)에서 이 타입이 "누구는 다른 타이어로 반등을 노린다" 로
+// 획일화됐다. 원인은 공통 규칙의 "reasons 를 지어내지 말라" 가 타이어 특성 설명까지
+// 막아, 모델이 compound 를 이름만 대고 의미를 회피했기 때문이다.
+//
+// 타이어 특성(소프트=그립·고마모, 하드=내구·저그립, 미디엄=중간)은 지어낸 수치가
+// 아니라 F1 의 물리적 상식이다. 이것과 데이터에 있는 남은 랩·순위를 곱하면 "왜 이
+// compound 인가" 가 근거 있는 추론으로 나온다 — 하드 + 남은 랩 많음 = 끝까지 가는
+// 롱런, 소프트 + 남은 랩 적음 = 막판 페이스 승부. 단 랩 수·순위·간격 같은 구체값은
+// 여전히 데이터에 있는 것만 쓴다.
+const STRATEGY_NOTE_GUIDANCE = [
+  "For a tyre strategy event, name the INTENT behind THIS compound, not just that it differs from the field.",
+  "Read the intent from tyre physics (soft = grip, high wear; hard = durable, low grip; medium = balance) plus laps remaining and track position: hard with many laps left = a long run to the flag; soft late = a final-stint pace attack.",
+  "Do NOT recite the tyre's properties in the sentence; state the tactical consequence only. Two drivers on the same compound must read differently — differentiate by their position, gap, or laps remaining, never with the same phrase.",
+  "Stay within the one-sentence length limit; if the reasoning does not fit, keep the consequence and drop the explanation.",
+].join(" ");
+
+// 조사(investigation) 전용 지침.
+//
+// 실측(벨기에 GP)에서 같은 사건의 접수/종료 두 이벤트가 같은 문장으로 나왔다. 원인은
+// params.status(noted / under_investigation / concluded)를 프롬프트가 활용하라고
+// 지시하지 않아, 모델이 상태를 무시하고 같은 요지를 반복했기 때문이다. status 는
+// 지어낸 값이 아니라 레이스 컨트롤이 통보한 사실이므로 그대로 반영한다.
+const INVESTIGATION_GUIDANCE = [
+  "Anchor the sentence to params.status: 'noted' = stewards have just logged the incident (no verdict yet); 'under_investigation' = an active probe is running; 'concluded' = the review is over and the outcome now stands.",
+  "A 'noted'/'under_investigation' event opens a threat; a 'concluded' event resolves it. Never write the same sentence for the opening and the conclusion of one incident.",
+].join(" ");
+
+// 이벤트 타입별 전용 지침. 없으면 undefined.
+const EVENT_TYPE_GUIDANCE: Partial<Record<RaceEventType, string>> = {
+  [RaceEventType.StrategyNote]: STRATEGY_NOTE_GUIDANCE,
+  [RaceEventType.Investigation]: INVESTIGATION_GUIDANCE,
+};
+
 // 이벤트 범위에 맞는 해설 시스템 규칙을 만든다.
-export const buildCommentarySystemRules = (scope: RaceEventScope): string => {
-  return [
+// 타입별 전용 지침이 있으면 덧붙인다 (타이어 전략의 compound 의도, 조사의 접수/종료 구분 등).
+export const buildCommentarySystemRules = (
+  scope: RaceEventScope,
+  eventType?: RaceEventType,
+): string => {
+  const rules = [
     COMMENTARY_ROLE,
     "Rules you must follow:",
     SCOPE_MISSION[scope],
     ...COMMENTARY_COMMON_RULES,
-  ].join("\n");
+  ];
+
+  const typeGuidance =
+    eventType === undefined ? undefined : EVENT_TYPE_GUIDANCE[eventType];
+
+  if (typeGuidance !== undefined) {
+    rules.push(typeGuidance);
+  }
+
+  return rules.join("\n");
 };
 
 // 완성된 해설 프롬프트. 전송 형식(Gemini contents · Claude messages · OpenAI messages)
@@ -65,7 +114,7 @@ export const buildCommentaryPrompt = (
   );
 
   const system = [
-    buildCommentarySystemRules(context.scope),
+    buildCommentarySystemRules(context.scope, request.event.type),
     `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
     LEVEL_GUIDANCE[request.explanationLevel],
     "Reply with only the sentence.",
