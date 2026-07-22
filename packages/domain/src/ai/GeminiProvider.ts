@@ -9,6 +9,7 @@ import { GeminiChatRole } from "./GeminiChatRole";
 import { LlmChatRole } from "./LlmChatRole";
 import { buildQuestionPrompt } from "./QuestionPrompt";
 import { selectQuestionEvents } from "./QuestionEventSelection";
+import { toQuestionSummaryContext } from "./QuestionSummaryContext";
 import {
   LLM_REQUEST_TIMEOUT_MS,
   withLlmRequestTimeout,
@@ -150,6 +151,8 @@ const buildQuestionContext = (
     // 드라이버별: 순위/시작순위/순위변동/간격/타이어/최근랩/섹터[S1,S2,S3]/스피드트랩/피트.
     drivers,
     recentEvents: events,
+    // 워커가 원본에서 계산한 결정론적 요약(피트·스틴트·추월). 세 provider 공용 함수로 넣는다.
+    summary: toQuestionSummaryContext(snapshot.contextSummary),
   });
 };
 
