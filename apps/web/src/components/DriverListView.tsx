@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo } from "react";
+import { DriverForecastBadgeView } from "@/components/DriverForecastBadgeView";
 import { DriverRowMarkerView } from "@/components/DriverRowMarkerView";
 import { SectorChipView } from "@/components/SectorChipView";
 import { TireCompoundSize } from "@/components/TireCompoundSize";
@@ -22,6 +24,7 @@ import {
   DriverStateMarker,
   LaneWatchNowSignal,
   LiveDriverState,
+  OvertakeForecast,
   RaceEvent,
   TeamRadioClip,
 } from "@f1/domain";
@@ -124,6 +127,8 @@ type Props = {
   // 드라이버 번호 → "지금 볼 것" 칸에서 밀려난 신호들 (docs/19 수용 기준 7).
   // 신호가 없는 드라이버는 담기지 않는다.
   watchNowOverflowByDriver: Map<number, LaneWatchNowSignal[]>;
+  // chaser 번호 → 추월 예측 (docs/24). 배지는 chaser 행에만 붙는다.
+  forecastsByChaser: Map<number, OvertakeForecast>;
   isFavorite: (driverNumber: number) => boolean;
   onToggleFavorite: (driverNumber: number) => void;
   onToggleRadio: (url: string) => void;
@@ -152,6 +157,10 @@ type RowProps = {
   battleWithAhead: Battle | null;
   // 이 드라이버가 "앞차"인 배틀(= 뒤차와의 접전). 액센트 바를 아래 행까지 잇는 데만 쓴다.
   battleWithBehind: Battle | null;
+  // 이 드라이버가 chaser 인 추월 예측 (docs/24). 배틀이 있으면 행이 스스로 숨긴다.
+  forecast: OvertakeForecast | null;
+  // 예측 배지에 보이는 앞차 코드. 로스터에서 못 찾으면 null 이고 배지를 그리지 않는다.
+  forecastTargetCode: string | null;
   onToggleFavorite: (driverNumber: number) => void;
   onToggleRadio: (url: string) => void;
   onSelectDriver: (driver: LiveDriverState) => void;
@@ -283,6 +292,8 @@ const DriverRow = ({
   divided,
   battleWithAhead,
   battleWithBehind,
+  forecast,
+  forecastTargetCode,
   onToggleFavorite,
   onToggleRadio,
   onSelectDriver,
@@ -299,6 +310,10 @@ const DriverRow = ({
   const radioRecent =
     latestRadio !== null &&
     isRecentTeamRadio(latestRadio.timestamp, radioReferenceMs);
+  // 예측 배지는 배틀 부재 시에만 그린다 (docs/24 수용 기준 2 — 현재가 예측보다 우선).
+  // battleWithBehind 만 있는 행도 액센트 바가 이미 "지금 접전 중"을 말하므로 함께 숨긴다.
+  const visibleForecast =
+    !inBattle && forecastTargetCode !== null ? forecast : null;
 
   const handleSelect = () => {
     onSelectDriver(driver);
@@ -591,20 +606,34 @@ const DriverRow = ({
             </span>
           </>
         ) : (
-          // 배틀이 아니면 선두 갭 한 줄뿐이다(등락은 좌측 슬롯으로 이동했다).
-          <span
-            title={dictionary.driverSheet.leadGap}
-            className={cn(
-              "font-bold leading-tight tabular-nums",
-              leading ? "text-sm text-muted-foreground" : "text-lg",
-            )}
-          >
-            <span className="sr-only">{dictionary.driverSheet.leadGap}</span>
+          // 배틀이 아니면 선두 갭 한 줄이고(등락은 좌측 슬롯으로 이동했다), 추월 예측이
+          // 있으면 그 아래 작은 줄로 배지를 잇는다. 갭 열에 두는 이유: 예측의 재료가
+          // 앞차와의 간격이라 의미상 이 열이 맞고, 배틀 행의 2줄 구조(간격 위 · 선두 갭
+          // 아래)와 같은 자리를 쓰므로 배틀↔예측이 오갈 때 시선이 이동하지 않는다.
+          <>
+            <span
+              title={dictionary.driverSheet.leadGap}
+              className={cn(
+                "font-bold leading-tight tabular-nums",
+                leading ? "text-sm text-muted-foreground" : "text-lg",
+              )}
+            >
+              <span className="sr-only">{dictionary.driverSheet.leadGap}</span>
 
-            {leading
-              ? dictionary.table.leader
-              : formatGapCompact(driver.gapToLeaderSeconds)}
-          </span>
+              {leading
+                ? dictionary.table.leader
+                : formatGapCompact(driver.gapToLeaderSeconds)}
+            </span>
+
+            {visibleForecast !== null && forecastTargetCode !== null ? (
+              <DriverForecastBadgeView
+                dictionary={dictionary}
+                forecast={visibleForecast}
+                targetCode={forecastTargetCode}
+                chaserCode={driver.code}
+              />
+            ) : null}
+          </>
         )}
       </div>
 
@@ -702,6 +731,7 @@ export const DriverListView = ({
   markersByDriver,
   recentEventsByDriver,
   watchNowOverflowByDriver,
+  forecastsByChaser,
   isFavorite,
   onToggleFavorite,
   onToggleRadio,
@@ -720,6 +750,18 @@ export const DriverListView = ({
 
   const findWatchNowSignals = (driverNumber: number): LaneWatchNowSignal[] =>
     watchNowOverflowByDriver.get(driverNumber) ?? EMPTY_WATCH_NOW_SIGNALS;
+
+  const findForecast = (driverNumber: number): OvertakeForecast | null =>
+    forecastsByChaser.get(driverNumber) ?? null;
+
+  // 예측 배지의 앞차 코드. 도메인 예측에는 번호만 있고 코드는 로스터(UI)에만 있다.
+  const driverCodesByNumber = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const driver of drivers) {
+      map.set(driver.driverNumber, driver.code);
+    }
+    return map;
+  }, [drivers]);
 
   // 배틀 쌍을 드라이버 번호로 인덱싱한다. 한 드라이버가 앞차이자 뒤차일 수 있으므로 맵을 나눈다.
   const battlesByChasing = new Map<number, Battle>();
@@ -811,6 +853,10 @@ export const DriverListView = ({
                   // 고정 섹션은 순위가 연속이 아니라 인접 관계가 성립하지 않는다. 배틀 표시를 하지 않는다.
                   battleWithAhead={null}
                   battleWithBehind={null}
+                  // 배틀을 그리지 않는 섹션이라 "배틀이 예측을 이긴다" 판정도 못 한다.
+                  // 모순된 배지를 보이느니 예측도 전체 순위 섹션에만 둔다.
+                  forecast={null}
+                  forecastTargetCode={null}
                   onToggleFavorite={onToggleFavorite}
                   onToggleRadio={onToggleRadio}
                   onSelectDriver={onSelectDriver}
@@ -822,27 +868,35 @@ export const DriverListView = ({
           <div className="flex w-max flex-col gap-2">
             <HeaderRow dictionary={dictionary} title={dictionary.table.title} />
 
-            {drivers.map((driver, index) => (
-              <DriverRow
-                key={driver.driverNumber}
-                dictionary={dictionary}
-                driver={driver}
-                fieldBestSectors={fieldBestSectors}
-                favorite={isFavorite(driver.driverNumber)}
-                latestRadio={findLatestRadio(driver.driverNumber)}
-                radioReferenceMs={radioReferenceMs}
-                playingRadioUrl={playingRadioUrl}
-                marker={findMarker(driver.driverNumber)}
-                recentEvent={findRecentEvent(driver.driverNumber)}
-                watchNowSignals={findWatchNowSignals(driver.driverNumber)}
-                divided={index < drivers.length - 1}
-                battleWithAhead={battlesByChasing.get(driver.driverNumber) ?? null}
-                battleWithBehind={battlesByAhead.get(driver.driverNumber) ?? null}
-                onToggleFavorite={onToggleFavorite}
-                onToggleRadio={onToggleRadio}
-                onSelectDriver={onSelectDriver}
-              />
-            ))}
+            {drivers.map((driver, index) => {
+              const forecast = findForecast(driver.driverNumber);
+
+              return (
+                <DriverRow
+                  key={driver.driverNumber}
+                  dictionary={dictionary}
+                  driver={driver}
+                  fieldBestSectors={fieldBestSectors}
+                  favorite={isFavorite(driver.driverNumber)}
+                  latestRadio={findLatestRadio(driver.driverNumber)}
+                  radioReferenceMs={radioReferenceMs}
+                  playingRadioUrl={playingRadioUrl}
+                  marker={findMarker(driver.driverNumber)}
+                  recentEvent={findRecentEvent(driver.driverNumber)}
+                  watchNowSignals={findWatchNowSignals(driver.driverNumber)}
+                  divided={index < drivers.length - 1}
+                  battleWithAhead={battlesByChasing.get(driver.driverNumber) ?? null}
+                  battleWithBehind={battlesByAhead.get(driver.driverNumber) ?? null}
+                  forecast={forecast}
+                  forecastTargetCode={
+                    forecast === null ? null : driverCodesByNumber.get(forecast.targetNumber) ?? null
+                  }
+                  onToggleFavorite={onToggleFavorite}
+                  onToggleRadio={onToggleRadio}
+                  onSelectDriver={onSelectDriver}
+                />
+              );
+            })}
           </div>
         </div>
       </div>

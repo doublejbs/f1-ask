@@ -89,7 +89,7 @@ export const WatchNowLanesView = ({
 
   return (
     // role="group" — 6초마다 내용이 바뀌므로 라이브 리전으로 두면 스크린리더가 갱신마다
-    // 전체를 다시 읽어 소음이 된다(LatestEventPagerView 와 같은 판단).
+    // 전체를 다시 읽어 소음이 된다.
     <section
       role="group"
       aria-label={texts.title}
