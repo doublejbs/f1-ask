@@ -3,6 +3,7 @@
 import { CommentaryDetailSheetView } from "@/components/CommentaryDetailSheetView";
 import { DriverDetailSheetView } from "@/components/DriverDetailSheetView";
 import { DriverListView } from "@/components/DriverListView";
+import { ForecastPanelView } from "@/components/ForecastPanelView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionStatusStripView } from "@/components/SessionStatusStripView";
 import { WatchNowLanesView } from "@/components/WatchNowLanesView";
@@ -26,7 +27,7 @@ import {
   TeamRadioClip,
   selectBattles,
   selectDriverStateMarkers,
-  selectOvertakeForecastsByChaser,
+  selectImminentOvertakeForecasts,
   selectRecentDriverEvents,
 } from "@f1/domain";
 import { RaceSummaryResponse } from "@f1/schemas";
@@ -53,8 +54,13 @@ const EMPTY_RADIO_CLIPS: TeamRadioClip[] = [];
 
 const EMPTY_BATTLES: Battle[] = [];
 
+// 예측 패널이 보여주는 최대 행 수 (docs/24 §개정). 3건이면 임박한 것만 남고
+// 패널이 순위표를 밀어내지 않는다.
+const FORECAST_PANEL_LIMIT = 3;
+
 // 「경기」 탭 — 구 「지금」 + 「순위」를 합친 레이스 콘솔 (docs/13-race-console.md).
-// 경기 요약(종료 시) → 세션 상태 스트립 → "지금 볼 것" → 날씨 칩 → 순위 목록.
+// 경기 요약(종료 시) → 세션 상태 스트립 → "지금 볼 것" → 날씨 칩 → 추월 예측 패널
+// → 순위 목록.
 // 시간순 이벤트 피드는 없다 (docs/14-event-placement.md) — 세션 상태는 스트립으로,
 // 드라이버 이벤트는 순위 행 마커로, 이력은 피드 탭과 드라이버 상세 시트로 분해됐다.
 // 최근 이벤트 페이저도 docs/24 로 빠져 순위가 화면 전체를 쓴다.
@@ -132,10 +138,14 @@ export const RaceTabView = ({
     [allEvents, raceClockMs],
   );
 
-  // 추월 예측을 chaser 행에 인라인으로 붙인다 (docs/24). 예측 계산은 워커가 이미 했고
-  // (스냅샷의 overtakeForecasts), 여기서는 행이 O(1) 로 찾도록 인덱싱만 한다.
-  const forecastsByChaser = useMemo(
-    () => selectOvertakeForecastsByChaser(snapshot.overtakeForecasts),
+  // 순위표 위 전용 패널이 보여줄 임박한 예측 (docs/24 §개정). 예측 계산은 워커가
+  // 이미 했고(스냅샷의 overtakeForecasts), 정렬·상한 판단은 도메인 셀렉터가 맡는다.
+  const imminentForecasts = useMemo(
+    () =>
+      selectImminentOvertakeForecasts(
+        snapshot.overtakeForecasts,
+        FORECAST_PANEL_LIMIT,
+      ),
     [snapshot.overtakeForecasts],
   );
 
@@ -230,6 +240,17 @@ export const RaceTabView = ({
         <WeatherChipView dictionary={dictionary} weather={snapshot.weather} />
       ) : null}
 
+      {/* 추월 예측 패널 — 순위표 **바로 위** (docs/24 §개정). 패널이 가리키는 대상이
+          순위표의 드라이버 쌍이라 순위표에 인접해야 하고, 날씨 칩은 세션 전역 정보라
+          "지금 볼 것" 카드 그룹 쪽(위)에 남긴다. 예측이 없으면 렌더하지 않는다. */}
+      {imminentForecasts.length > 0 ? (
+        <ForecastPanelView
+          dictionary={dictionary}
+          forecasts={imminentForecasts}
+          drivers={snapshot.drivers}
+        />
+      ) : null}
+
       {/* 컴팩트 행 목록(관심 드라이버 고정). 행 탭 → 상세 시트 → "AI에게 질문" */}
       <DriverListView
         dictionary={dictionary}
@@ -242,7 +263,6 @@ export const RaceTabView = ({
         markersByDriver={markersByDriver}
         recentEventsByDriver={recentEventsByDriver}
         watchNowOverflowByDriver={watchNowOverflowByDriver}
-        forecastsByChaser={forecastsByChaser}
         isFavorite={isFavorite}
         onToggleFavorite={onToggleFavorite}
         onToggleRadio={togglePlay}

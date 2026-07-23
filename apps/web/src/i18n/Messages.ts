@@ -204,7 +204,7 @@ export type Dictionary = {
     // 칩이 색에만 의존하지 않도록 title/aria-label 에 덧붙이는 심각도 문구.
     severity: Record<SessionStateSeverity, string>;
   };
-  // 순위 행의 지속 마커·순간 아이콘·갭 예측 배지 접근성 문구 (docs/14-event-placement.md, docs/24).
+  // 순위 행의 지속 마커·순간 아이콘 접근성 문구 (docs/14-event-placement.md).
   // 칩에 보이는 글자(`+5s` / `PEN` / `?`)는 기호라 로케일과 무관하고,
   // 의미는 여기 문구가 title/aria-label 로 전달한다.
   rowMarker: {
@@ -226,11 +226,6 @@ export type Dictionary = {
     // 점 하나는 뜻을 전달하지 못하므로 실제 내용은 이 문구가 title/aria-label 로 옮긴다.
     // {signals} 에 신호 요약 문장들이 " · " 로 이어져 들어간다.
     watchNow: string;
-    // 행 인라인 추월 예측 배지 (docs/24). 행 폭이 좁아 카드용 watchNow.overtakeForecast 와
-    // 별도로 짧게 둔다. {laps} 예측 랩 수, {target} 앞차 코드.
-    forecast: string;
-    // 예측 랩이 1일 때. en 은 "1 lap" 단수, ko/ja 는 구조가 같지만 병렬로 둔다.
-    forecastSingular: string;
   };
   // 최신 이벤트 카드 (docs/14-event-placement.md).
   latestEvent: {
@@ -280,6 +275,16 @@ export type Dictionary = {
     position: string;
     // 행 탭 힌트. {code} 를 드라이버 코드로 치환한다.
     openDriver: string;
+  };
+  // 순위표 바로 위 전용 추월 예측 패널 (docs/24 §개정: 전용 예측 패널).
+  // 행의 온전한 스크린리더 문장은 watchNow.overtakeForecast(Singular) 를 재사용한다.
+  forecastPanel: {
+    // 패널 제목 겸 접근성 라벨.
+    title: string;
+    // 행의 임박 표기. {laps} 예측 랩 수.
+    laps: string;
+    // 예측 랩이 1일 때. en 은 "1 lap" 단수, ko/ja 는 구조가 같지만 병렬로 둔다.
+    lapsSingular: string;
   };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
@@ -473,8 +478,6 @@ const en: Dictionary = {
     strategyNote: "Strategy note",
     blueFlag: "Blue flag",
     watchNow: "Also worth watching — {signals}",
-    forecast: "{target} in {laps} laps",
-    forecastSingular: "{target} in 1 lap",
   },
   latestEvent: {
     title: "Latest key event",
@@ -509,6 +512,11 @@ const en: Dictionary = {
     pointsAtStakeLabel: "{points} championship points at stake",
     position: "P{position}",
     openDriver: "Open {code} details",
+  },
+  forecastPanel: {
+    title: "Overtake forecast",
+    laps: "{laps} laps",
+    lapsSingular: "1 lap",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -732,8 +740,6 @@ const ko: Dictionary = {
     strategyNote: "전략 노트",
     blueFlag: "블루 플래그",
     watchNow: "이것도 볼 만하다 — {signals}",
-    forecast: "{laps}랩 후 {target}",
-    forecastSingular: "1랩 후 {target}",
   },
   latestEvent: {
     title: "최신 주요 이벤트",
@@ -768,6 +774,11 @@ const ko: Dictionary = {
     pointsAtStakeLabel: "챔피언십 {points}점이 걸려 있음",
     position: "P{position}",
     openDriver: "{code} 상세 열기",
+  },
+  forecastPanel: {
+    title: "추월 예측",
+    laps: "{laps}랩",
+    lapsSingular: "1랩",
   },
   status: {
     [SessionStatus.Scheduled]: "예정",
@@ -991,8 +1002,6 @@ const ja: Dictionary = {
     strategyNote: "戦略メモ",
     blueFlag: "ブルーフラッグ",
     watchNow: "こちらも注目 — {signals}",
-    forecast: "{laps}周後 {target}",
-    forecastSingular: "1周後 {target}",
   },
   latestEvent: {
     title: "最新の重要イベント",
@@ -1027,6 +1036,11 @@ const ja: Dictionary = {
     pointsAtStakeLabel: "チャンピオンシップ{points}点がかかっている",
     position: "P{position}",
     openDriver: "{code} の詳細を開く",
+  },
+  forecastPanel: {
+    title: "オーバーテイク予測",
+    laps: "{laps}周",
+    lapsSingular: "1周",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",
