@@ -3,7 +3,6 @@
 import { CommentaryDetailSheetView } from "@/components/CommentaryDetailSheetView";
 import { DriverDetailSheetView } from "@/components/DriverDetailSheetView";
 import { DriverListView } from "@/components/DriverListView";
-import { LatestEventPagerView } from "@/components/LatestEventPagerView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionStatusStripView } from "@/components/SessionStatusStripView";
 import { WatchNowLanesView } from "@/components/WatchNowLanesView";
@@ -27,6 +26,7 @@ import {
   TeamRadioClip,
   selectBattles,
   selectDriverStateMarkers,
+  selectOvertakeForecastsByChaser,
   selectRecentDriverEvents,
 } from "@f1/domain";
 import { RaceSummaryResponse } from "@f1/schemas";
@@ -54,11 +54,10 @@ const EMPTY_RADIO_CLIPS: TeamRadioClip[] = [];
 const EMPTY_BATTLES: Battle[] = [];
 
 // 「경기」 탭 — 구 「지금」 + 「순위」를 합친 레이스 콘솔 (docs/13-race-console.md).
-// 경기 요약(종료 시) → 세션 상태 스트립 → 최신 이벤트 카드 → Critical 배너(sticky)
-// → 날씨 칩 → 순위 목록.
+// 경기 요약(종료 시) → 세션 상태 스트립 → "지금 볼 것" → 날씨 칩 → 순위 목록.
 // 시간순 이벤트 피드는 없다 (docs/14-event-placement.md) — 세션 상태는 스트립으로,
-// 드라이버 이벤트는 순위 행 마커로, 해설과 이력은 최신 이벤트 카드와
-// 드라이버 상세 시트로 분해됐다. 순위가 화면 전체를 쓴다.
+// 드라이버 이벤트는 순위 행 마커로, 이력은 피드 탭과 드라이버 상세 시트로 분해됐다.
+// 최근 이벤트 페이저도 docs/24 로 빠져 순위가 화면 전체를 쓴다.
 export const RaceTabView = ({
   dictionary,
   locale,
@@ -133,6 +132,13 @@ export const RaceTabView = ({
     [allEvents, raceClockMs],
   );
 
+  // 추월 예측을 chaser 행에 인라인으로 붙인다 (docs/24). 예측 계산은 워커가 이미 했고
+  // (스냅샷의 overtakeForecasts), 여기서는 행이 O(1) 로 찾도록 인덱싱만 한다.
+  const forecastsByChaser = useMemo(
+    () => selectOvertakeForecastsByChaser(snapshot.overtakeForecasts),
+    [snapshot.overtakeForecasts],
+  );
+
   // "지금 볼 것" 칸 3개. 감지기 인스턴스는 훅이 ref 로 붙들고 있으므로 여기서 다시
   // 만들거나 초기화하지 않는다.
   const watchNowLanes = useWatchNowLanes({
@@ -182,14 +188,14 @@ export const RaceTabView = ({
         />
       ) : null}
 
-      {/* 고정 헤더 그룹 — "지금 상황"(세션 상태 스트립) + "방금 일어난 일"(이벤트 스택).
+      {/* 고정 헤더 그룹 — "지금 상황"(세션 상태 스트립)만 남는다 (docs/24 §상단 정리).
+          최근 이벤트 페이저는 뺐다 — 순위표가 본체인 화면에서 상단을 밀어내는 값이
+          없고, 이벤트 이력은 피드 탭이 담당한다. SC · 레드 플래그 같은 세션 상태는
+          안전 정보라 유지한다.
           순위를 스크롤해도 남도록 상태바(z-40) 바로 아래에 sticky 로 붙는다.
           top 은 상태바 실측 높이 변수(--status-bar-height)를 그대로 쓴다.
           배경을 채워(+블러) 뒤로 흐르는 순위 행이 비쳐 글자가 겹치지 않게 한다.
-          두 자식 모두 렌더를 생략하면 :empty 가 되어 통째로 숨는다.
-          높이 예산: 이 그룹 + 상태바가 뷰포트의 35% 를 넘지 않아야 한다. 그래서
-          AI 해설은 여기 두지 않고(드라이버 상세 시트 전용), 이벤트는 여러 건을
-          쌓지 않고 1건씩 넘겨 본다. */}
+          스트립이 렌더를 생략하면 :empty 가 되어 통째로 숨는다. */}
       {/* -mt-4 로 부모의 gap-4 를 상쇄한다. 고정됐을 때는 어차피 상태바에 붙으므로
           평소에도 붙여 두는 편이 일관되고, 높이 예산에서 16px 을 아낀다. */}
       <div className="sticky top-[var(--status-bar-height)] z-30 -mx-4 -mt-4 flex flex-col gap-1.5 bg-[hsl(var(--background)/0.82)] px-4 py-2 backdrop-blur-xl empty:hidden lg:mx-0 lg:px-0">
@@ -200,38 +206,19 @@ export const RaceTabView = ({
           allEvents={allEvents}
           atMs={raceClockMs}
         />
-
-        {/* 최근 주요 이벤트를 한 번에 1건씩. 위/아래 버튼으로 되짚어 본다.
-            탭하면 해당 드라이버 상세 시트를 연다.
-            Critical 배너는 여기에 흡수됐다 — 같은 이벤트를 두 번 보여주지 않고
-            고정 영역 높이도 아낀다(Critical 은 붉은 틴트로 구분한다). */}
-        <LatestEventPagerView
-          dictionary={dictionary}
-          locale={locale}
-          allEvents={allEvents}
-          drivers={snapshot.drivers}
-          atMs={raceClockMs}
-          onSelectDriver={setSelectedDriver}
-        />
       </div>
 
       {/* "지금 볼 것" — 고정 헤더 **아래**, 순위표 **위**.
 
           위치를 이렇게 정한 이유는 셋이다.
 
-          1. 고정 헤더 안에 넣지 않는다. 그 그룹은 상태바와 합쳐 뷰포트 35% 를 넘지 않아야
-             하는데(위 주석) 칸 3개는 그것만으로 예산을 다 쓴다. 스크롤하면 사라져야 하는
+          1. 고정 헤더 안에 넣지 않는다. 그 그룹은 상태바와 합쳐 높이 예산이 빠듯한데
+             칸 3개는 그것만으로 예산을 다 쓴다. 스크롤하면 사라져야 하는
              내용이기도 하다 — 순위를 훑는 동안 화면 위쪽을 계속 점유할 이유가 없다.
           2. 순위표 위에 둔다. 감지 결과 중 칸에 못 올라간 나머지는 순위표 행 표시로 가므로
              (docs/19 수용 기준 7) 요약이 먼저 오고 전체가 뒤에 오는 순서가 맞다.
-          3. 최신 이벤트 페이저와 **공존시키되 층을 나눈다.** 둘 다 상단에서 "주목할 것"을
-             말하지만 종류가 다르다 — 페이저는 발표된 사건(플래그 · 페널티 · 리타이어)을
-             되짚는 이력이고, 이 섹션은 아무도 발표하지 않는 진행 중 상황(타이어 · 간격 ·
-             언더컷 · 순위)이다. 합치면 "발표된 것"과 "추론한 것"이 한 줄에 섞여 신뢰도가
-             다른 정보가 같은 무게로 보인다. 게다가 둘의 공백 구간이 서로 어긋난다 —
-             이 섹션은 SC · VSC 중 간격 감지를 억제해 조용해지는데 바로 그때 페이저가
-             가장 시끄럽고, 조용한 그린 플래그 구간에서는 반대가 된다. 서로의 빈 구간을
-             메우므로 하나를 없앨 이유가 없다. */}
+          (최신 이벤트 페이저와의 공존 논리는 docs/24 로 페이저가 빠지면서 사라졌다 —
+          발표된 사건의 이력은 피드 탭이 담당한다.) */}
       <WatchNowLanesView
         dictionary={dictionary}
         lanes={watchNowLanes}
@@ -255,6 +242,7 @@ export const RaceTabView = ({
         markersByDriver={markersByDriver}
         recentEventsByDriver={recentEventsByDriver}
         watchNowOverflowByDriver={watchNowOverflowByDriver}
+        forecastsByChaser={forecastsByChaser}
         isFavorite={isFavorite}
         onToggleFavorite={onToggleFavorite}
         onToggleRadio={togglePlay}

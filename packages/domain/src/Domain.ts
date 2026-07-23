@@ -119,6 +119,7 @@ export {
 } from "./openf1/OvertakeForecastConfig";
 export type { OvertakeForecast } from "./openf1/OvertakeForecast";
 export { buildOvertakeForecasts } from "./openf1/OvertakeForecast";
+export { selectOvertakeForecastsByChaser } from "./OvertakeForecastRowSelector";
 export { OvertakeForecastTracker } from "./openf1/OvertakeForecastTracker";
 export { buildOvertakeForecastEvent } from "./openf1/OvertakeForecastEvent";
 export type {

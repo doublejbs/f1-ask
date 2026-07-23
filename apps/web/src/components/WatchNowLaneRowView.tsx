@@ -88,7 +88,6 @@ export const WatchNowLaneRowView = ({
       className={cn(
         ROW_CLASS,
         // press(scale) 미사용 — 탭하면 상세 시트가 손가락 아래 깔려 :active 가 굳는다.
-        // LatestEventPagerView 와 같은 이유다.
         "outline-none transition-colors hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70",
       )}
     >
