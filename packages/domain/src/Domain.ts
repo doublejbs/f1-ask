@@ -446,6 +446,7 @@ export {
   generateCommentaryForEvents,
   selectPendingCommentaryTasks,
 } from "./worker/CommentaryGeneration";
+export { mergeEventsByDeduplicationKey } from "./worker/RaceEventMerge";
 
 // "지금 볼 것" 결정론적 감지기 (docs/19-watch-now.md).
 export { WatchNowSignalType } from "./watchnow/WatchNowSignalType";
