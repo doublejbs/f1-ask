@@ -31,6 +31,7 @@ import {
   planReplayCommentary,
   runReplayCommentary,
 } from "../src/worker/ReplayCommentaryHarness";
+import { mergeEventsByDeduplicationKey } from "../src/worker/RaceEventMerge";
 import {
   fetchLatestOpenF1Meta,
   fetchOpenF1SessionData,
@@ -39,6 +40,8 @@ import {
 } from "../src/openf1/OpenF1Client";
 import { buildOpenF1LiveFrame } from "../src/openf1/OpenF1Recording";
 import { OpenF1SessionData } from "../src/openf1/OpenF1Types";
+import { buildOvertakeForecastEvent } from "../src/openf1/OvertakeForecastEvent";
+import { OvertakeForecastTracker } from "../src/openf1/OvertakeForecastTracker";
 
 // 실제 OpenF1 라이브 세션을 폴링해 Firestore 에뮬레이터에 퍼블리시한다 (Worker 역할).
 // 네트워크 + 인증 + 에뮬레이터가 필요하므로 기본 실행에서는 skip 된다.
@@ -455,6 +458,15 @@ describe("OpenF1 live poll → Firestore", () => {
 
       let lastFrame: LastFrame | null = null;
 
+      // 추월 예측을 엣지 트리거로 바꾸는 상태는 워커(PollRunner)와 같이 폴링 창 단위 1개다.
+      // 매 프레임 스냅샷의 forecasts 전부를 observe 하면 "새로 성립한" 것만 돌아온다.
+      const forecastTracker = new OvertakeForecastTracker();
+      // 프레임 간 누적. 엣지 트리거 발화는 그 프레임에만 존재하고 마지막 프레임 events 에는
+      // 없으므로, 누적해 두지 않으면 해설 대상에서 통째로 빠진다.
+      const firedForecastEvents: RaceEvent[] = [];
+      // 요약 로그용 고유 페어 집합.
+      const firedForecastPairs = new Set<string>();
+
       for (let iteration = 0; iteration < ITERATIONS; iteration += 1) {
         const data = replayData ?? (await fetchOpenF1SessionData(liveMeta, clientOptions));
         const startMs = replayData === null ? resolveStartMs(data) : replayStartMs;
@@ -479,6 +491,26 @@ describe("OpenF1 live poll → Firestore", () => {
           generatedAt: iso,
         };
 
+        // 추월 예측은 buildEvents 경로 밖이다(엣지 트리거라 상태가 필요하다). 워커와 같은
+        // 배선: 스냅샷의 forecasts 를 트래커에 넣어 "새로 성립한" 것만 이벤트화한다.
+        // nowMs 는 라이브면 실제 시각(Date.now()), 리플레이면 가상 시계다 — 워커의
+        // Date.now() 자리에 가상 시계가 들어가는 것이 리플레이의 핵심이다.
+        const newForecasts = forecastTracker.observe(
+          liveSnapshot.overtakeForecasts ?? [],
+          liveSnapshot,
+        );
+        const forecastEvents = newForecasts.map((forecast) =>
+          buildOvertakeForecastEvent(forecast, liveSnapshot, nowMs),
+        );
+
+        firedForecastEvents.push(...forecastEvents);
+
+        for (const forecast of newForecasts) {
+          firedForecastPairs.add(
+            `${forecast.chaserNumber}:${forecast.targetNumber}`,
+          );
+        }
+
         await db
           .doc(`sessions/${LIVE_SESSION_ID}/live/current`)
           .set({ ...liveSnapshot, persistedAt: FieldValue.serverTimestamp() });
@@ -498,10 +530,13 @@ describe("OpenF1 live poll → Firestore", () => {
           { merge: true },
         );
 
-        if (events.length > 0) {
+        // 예측 이벤트는 기존 이벤트와 같은 경로(deduplicationKey 문서 ID)로 함께 쓴다.
+        const frameEvents = [...events, ...forecastEvents];
+
+        if (frameEvents.length > 0) {
           const batch = db.batch();
 
-          for (const event of events) {
+          for (const event of frameEvents) {
             batch.set(
               db.doc(
                 `sessions/${LIVE_SESSION_ID}/events/${event.deduplicationKey}`,
@@ -513,7 +548,13 @@ describe("OpenF1 live poll → Firestore", () => {
           await batch.commit();
         }
 
-        lastFrame = { snapshot: liveSnapshot, events };
+        lastFrame = { snapshot: liveSnapshot, events: frameEvents };
+
+        // 발화가 없으면 생략해 로그를 어지럽히지 않는다.
+        const forecastLog =
+          forecastEvents.length > 0
+            ? `, forecasts fired ${forecastEvents.length}`
+            : "";
 
         if (isReplayMode) {
           const totalMs = Math.max(1, replayEndMs - replayStartMs);
@@ -521,12 +562,12 @@ describe("OpenF1 live poll → Firestore", () => {
 
           // eslint-disable-next-line no-console
           console.log(
-            `replay ${iteration + 1}/${ITERATIONS}: t+${formatElapsed(nowMs - startMs)} (${progress}%) lap ${snapshot.currentLap}/${snapshot.totalLaps}, ${snapshot.drivers.length} drivers, ${events.length} events`,
+            `replay ${iteration + 1}/${ITERATIONS}: t+${formatElapsed(nowMs - startMs)} (${progress}%) lap ${snapshot.currentLap}/${snapshot.totalLaps}, ${snapshot.drivers.length} drivers, ${events.length} events${forecastLog}`,
           );
         } else {
           // eslint-disable-next-line no-console
           console.log(
-            `poll ${iteration + 1}/${ITERATIONS}: lap ${snapshot.currentLap}/${snapshot.totalLaps} status ${snapshot.status}, ${snapshot.drivers.length} drivers, ${events.length} events`,
+            `poll ${iteration + 1}/${ITERATIONS}: lap ${snapshot.currentLap}/${snapshot.totalLaps} status ${snapshot.status}, ${snapshot.drivers.length} drivers, ${events.length} events${forecastLog}`,
           );
         }
 
@@ -544,14 +585,30 @@ describe("OpenF1 live poll → Firestore", () => {
         }
       }
 
+      // eslint-disable-next-line no-console
+      console.log(
+        `overtake forecasts: 총 ${firedForecastEvents.length}건 발화, 고유 페어 ${firedForecastPairs.size}개`,
+      );
+
       // 워커와 같은 순서다: 폴링 루프가 끝난 뒤 일괄 생성한다.
       // 해설 실패가 이미 퍼블리시한 이벤트를 되돌릴 이유는 없으므로 여기서 삼킨다.
       if (lastFrame !== null && commentaryContext !== null) {
+        // 예측 이벤트는 엣지 트리거라 성립한 그 프레임에만 실리고 마지막 프레임 events 에는
+        // 없다. 워커(PollRunner)와 같은 창 내 누적 병합이다 — 누적분을 deduplicationKey 로
+        // 합치지 않으면 창 중간에 발화한 예측이 해설 대상에서 통째로 빠진다.
+        const commentaryFrame: LastFrame = {
+          snapshot: lastFrame.snapshot,
+          events: mergeEventsByDeduplicationKey(
+            lastFrame.events,
+            firedForecastEvents,
+          ),
+        };
+
         try {
           await runCommentaryPhase(
             db,
             LIVE_SESSION_ID,
-            lastFrame,
+            commentaryFrame,
             commentaryContext,
           );
         } catch (error) {

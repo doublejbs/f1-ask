@@ -11,6 +11,7 @@ import {
   fetchOpenF1SessionData,
   generateCommentaryForEvents,
   LiveRaceSnapshot,
+  mergeEventsByDeduplicationKey,
   OpenF1ClientOptions,
   OpenF1SessionData,
   OpenF1SessionMeta,
@@ -114,6 +115,9 @@ export const runPollWindow = async (
   // 스냅샷의 forecasts 전부를 observe 하면 "새로 성립한" 것만 돌아온다(docs/23 §이벤트). 프레임 간
   // 상태이므로 루프 밖에 둔다. 인스턴스가 함수 기동마다 리셋돼도 최종 중복 쓰기는 EventWriteCursor 가 막는다.
   const overtakeForecastTracker = new OvertakeForecastTracker();
+  // 폴링 창 내 발화한 예측 이벤트의 누적. 엣지 트리거 발화는 그 폴의 events 에만 실리고
+  // 마지막 프레임 events 에는 없으므로, 누적해 두지 않으면 해설 대상에서 통째로 빠진다.
+  const firedForecastEvents: RaceEvent[] = [];
   const result: PollRunResult = {
     polls: 0,
     eventWrites: 0,
@@ -180,6 +184,8 @@ export const runPollWindow = async (
       );
       const allEvents = [...events, ...forecastEvents];
 
+      firedForecastEvents.push(...forecastEvents);
+
       // 핵심: 매 폴링은 "지금까지의 전체 이벤트"를 다시 계산한다.
       // 커서로 아직 쓰지 않은 것만 걸러 낸다.
       const selection = selectUnwrittenEvents(allEvents, cursor);
@@ -214,9 +220,16 @@ export const runPollWindow = async (
     if (lastFrame !== null && options.llm !== undefined) {
       try {
         const llm = options.llm;
+        // 예측 이벤트는 엣지 트리거라 성립한 그 폴에만 실리고 마지막 프레임 events 에는
+        // 없다. 창 내 누적분을 deduplicationKey 로 병합하지 않으면 창 중간에 발화한
+        // 예측이 해설 대상에서 빠진다 (하네스 OpenF1LivePoll.test.ts 와 같은 병합).
+        const commentaryEvents = mergeEventsByDeduplicationKey(
+          lastFrame.events,
+          firedForecastEvents,
+        );
         const generation = await generateCommentaryForEvents(
           {
-            events: lastFrame.events,
+            events: commentaryEvents,
             snapshot: lastFrame.snapshot,
             variants: options.variants,
             context: commentaryContext,
