@@ -12,6 +12,10 @@ import {
 import { buildQuestionPrompt } from "./QuestionPrompt";
 import { selectQuestionEvents } from "./QuestionEventSelection";
 import { toQuestionSummaryContext } from "./QuestionSummaryContext";
+import {
+  QUESTION_SYSTEM_RULES,
+  SUMMARY_SYSTEM_RULES,
+} from "./QuestionSystemRules";
 import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
 import {
   LlmAnswer,
@@ -46,16 +50,6 @@ export type OpenAiProviderOptions = {
 export const OPENAI_DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 const CONTEXT_DRIVER_LIMIT = 20;
-
-// AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다.
-const SYSTEM_RULES = [
-  "You are a reliable Formula 1 race engineer explaining live timing data on a second screen.",
-  "Rules you must follow:",
-  "- Use ONLY the data provided in the context. Never invent numbers, positions, or probabilities.",
-  "- Team strategy (pit calls, undercut) is an estimate — say it cannot be confirmed from the data.",
-  "- If the data is insufficient to answer, say you do not know.",
-  "- Be concise: 1-2 short sentences.",
-].join("\n");
 
 type DriverContext = {
   n: number;
@@ -176,7 +170,7 @@ export class OpenAiProvider implements RaceLlmProvider {
     // (QuestionPrompt.ts 주석 참고). 포커스가 없으면 결과는 기존과 바이트 동일하다.
     const { system, user } = buildQuestionPrompt({
       systemLines: [
-        SYSTEM_RULES,
+        QUESTION_SYSTEM_RULES,
         `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
         LEVEL_GUIDANCE[request.explanationLevel],
         'Return a JSON object: {"answer": string, "confidence": "low"|"medium"|"high", "insufficientData": boolean, "referencedDriverNumbers": number[]}.',
@@ -237,7 +231,7 @@ export class OpenAiProvider implements RaceLlmProvider {
 
     const facts: RaceSummaryData = request.summary;
     const system = [
-      SYSTEM_RULES,
+      SUMMARY_SYSTEM_RULES,
       `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
       "Write a short post-session recap (2-3 sentences) using only these facts.",
     ].join("\n");

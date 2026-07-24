@@ -161,8 +161,9 @@ describe("provider parity — 세 provider 가 같은 질문 이벤트 선별을
     for (const body of [claude, gemini, openai]) {
       // 사용자가 물은 pit_stop 이 컨텍스트에 있다.
       expect(body).toContain("pit_stop");
-      // 소음 overtake 는 선별에서 제거됐다 — slice(-8) 이었다면 반대였다.
-      expect(body).not.toContain("overtake");
+      // 소음 overtake 이벤트는 선별에서 제거됐다 — slice(-8) 이었다면 반대였다. 시스템 규칙에
+      // "overtakes" 라는 단어가 들어가므로 전체 본문이 아니라 이벤트 직렬화("type":"overtake")로 확인한다.
+      expect(body).not.toContain('"type":"overtake"');
     }
   });
 });

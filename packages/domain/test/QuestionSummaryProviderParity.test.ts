@@ -7,6 +7,8 @@ import { LiveRaceContextSummary } from "../src/LiveRaceContextSummary";
 import { MockRaceEngine } from "../src/mock/MockRaceEngine";
 import { DEFAULT_MOCK_SCENARIO } from "../src/mock/MockScenario";
 import { LiveRaceSnapshot } from "../src/LiveRaceSnapshot";
+import { SafetyCarKind } from "../src/SafetyCarKind";
+import { SessionStatus } from "../src/SessionStatus";
 import { SupportedLocale } from "../src/SupportedLocale";
 import { TireCompound } from "../src/TireCompound";
 
@@ -36,6 +38,27 @@ const SUMMARY: LiveRaceContextSummary = {
 const snapshotWithSummary: LiveRaceSnapshot = {
   ...baseSnapshot,
   contextSummary: SUMMARY,
+};
+
+// narrative 를 실은 요약. toQuestionSummaryContext 가 요약을 통째로 통과시키므로 narrative 도
+// 세 provider 컨텍스트에 자동 포함되어야 한다 (docs/25 §계약 확장, 수용기준6).
+const SUMMARY_WITH_NARRATIVE: LiveRaceContextSummary = {
+  ...SUMMARY,
+  narrative: {
+    progress: { currentLap: 26, totalLaps: 44, phase: SessionStatus.Green },
+    leadChanges: [1, 4, 1],
+    retirements: [{ driverNumber: 18, lap: 26 }],
+    pitWaves: [{ startLap: 14, endLap: 18, count: 8 }],
+    biggestMovers: [{ driverNumber: 63, from: 16, to: 5, delta: 11 }],
+    fastestLap: { driverNumber: 4, lapSeconds: 104.321, lap: 33 },
+    weatherShifts: [{ lap: 20, toWet: true }],
+    safetyCars: [{ kind: SafetyCarKind.Sc, startLap: 14 }],
+  },
+};
+
+const snapshotWithNarrative: LiveRaceSnapshot = {
+  ...baseSnapshot,
+  contextSummary: SUMMARY_WITH_NARRATIVE,
 };
 
 const captureClaudeBody = async (
@@ -146,6 +169,24 @@ describe("provider parity — 세 provider 가 요약을 질문 컨텍스트에 
       expect(body).toContain("mostActiveCount");
       // 스틴트 이력(직전 compound).
       expect(body).toContain("previousCompound");
+    }
+  });
+
+  it("narrative 가 있으면 세 provider 컨텍스트에 통째로 실린다 (자동 포함)", async () => {
+    const [claude, gemini, openai] = await Promise.all([
+      captureClaudeBody(snapshotWithNarrative),
+      captureGeminiBody(snapshotWithNarrative),
+      captureOpenAiBody(snapshotWithNarrative),
+    ]);
+
+    for (const body of [claude, gemini, openai]) {
+      // narrative 서브객체 키들이 컨텍스트에 실렸는지 확인한다 — 스키마·요약 통과 경로가 살아 있음.
+      expect(body).toContain("narrative");
+      expect(body).toContain("leadChanges");
+      expect(body).toContain("biggestMovers");
+      // 서사 값(피트웨이브 대수·SC 구분)도 실린다.
+      expect(body).toContain("pitWaves");
+      expect(body).toContain("safetyCars");
     }
   });
 

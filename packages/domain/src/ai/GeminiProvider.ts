@@ -11,6 +11,10 @@ import { buildQuestionPrompt } from "./QuestionPrompt";
 import { selectQuestionEvents } from "./QuestionEventSelection";
 import { toQuestionSummaryContext } from "./QuestionSummaryContext";
 import {
+  QUESTION_SYSTEM_RULES,
+  SUMMARY_SYSTEM_RULES,
+} from "./QuestionSystemRules";
+import {
   LLM_REQUEST_TIMEOUT_MS,
   withLlmRequestTimeout,
 } from "./LlmRequestTimeout";
@@ -62,16 +66,6 @@ const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 // 이 provider 는 1~2문장만 생성하므로 사고가 필요 없다 — 꺼야 현재 예산(300/120/200)으로 본문이 나온다.
 const THINKING_BUDGET_DISABLED = 0;
 const CONTEXT_DRIVER_LIMIT = 20;
-
-// AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다. ClaudeProvider 와 동일한 문구를 유지한다.
-const SYSTEM_RULES = [
-  "You are a reliable Formula 1 race engineer explaining live timing data on a second screen.",
-  "Rules you must follow:",
-  "- Use ONLY the data provided in the context. Never invent numbers, positions, or probabilities.",
-  "- Team strategy (pit calls, undercut) is an estimate — say it cannot be confirmed from the data.",
-  "- If the data is insufficient to answer, say you do not know.",
-  "- Be concise: 1-2 short sentences.",
-].join("\n");
 
 type DriverContext = {
   n: number;
@@ -263,7 +257,7 @@ export class GeminiProvider implements RaceLlmProvider {
     // (QuestionPrompt.ts 주석 참고). 포커스가 없으면 결과는 기존과 바이트 동일하다.
     const { system, user } = buildQuestionPrompt({
       systemLines: [
-        SYSTEM_RULES,
+        QUESTION_SYSTEM_RULES,
         `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
         LEVEL_GUIDANCE[request.explanationLevel],
         'Reply with ONLY a JSON object (no markdown, no prose around it): {"answer": string, "confidence": "low"|"medium"|"high", "insufficientData": boolean, "referencedDriverNumbers": number[]}.',
@@ -338,7 +332,7 @@ export class GeminiProvider implements RaceLlmProvider {
 
     const facts: RaceSummaryData = request.summary;
     const system = [
-      SYSTEM_RULES,
+      SUMMARY_SYSTEM_RULES,
       `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
       "Write a short post-session recap (2-3 sentences) using only these facts. Reply with only the recap.",
     ].join("\n");

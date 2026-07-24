@@ -65,6 +65,93 @@ describe("race schemas", () => {
     expect(parsed.contextSummary).toEqual(withSummary.contextSummary);
   });
 
+  it("narrative 가 있으면 파싱 후에도 보존된다 (경계에서 스트립되지 않음)", () => {
+    const { snapshot } = engine.snapshotAt(70);
+    const withNarrative = {
+      ...snapshot,
+      contextSummary: {
+        pits: { totalStops: 28, medianDurationSeconds: 24.7365 },
+        stints: [],
+        overtakes: {
+          total: 214,
+          mostActiveDriverNumber: 4,
+          mostActiveCount: 9,
+        },
+        narrative: {
+          progress: { currentLap: 26, totalLaps: 44, phase: "green" },
+          leadChanges: [1, 4, 1],
+          retirements: [
+            { driverNumber: 18, lap: 26 },
+            { driverNumber: 11, lap: 14 },
+          ],
+          pitWaves: [{ startLap: 14, endLap: 18, count: 8 }],
+          biggestMovers: [{ driverNumber: 63, from: 16, to: 5, delta: 11 }],
+          fastestLap: { driverNumber: 4, lapSeconds: 104.321, lap: 33 },
+          weatherShifts: [{ lap: 20, toWet: true }],
+          safetyCars: [{ kind: "sc", startLap: 14 }],
+        },
+      },
+    };
+
+    const parsed = parseLiveRaceSnapshot(withNarrative);
+
+    // narrative 를 스키마에 넣지 않으면 zod 가 조용히 스트립해 provider 까지 못 간다 (docs/25 §계약 확장).
+    expect(parsed.contextSummary?.narrative).toEqual(
+      withNarrative.contextSummary.narrative,
+    );
+  });
+
+  it("narrative 가 없는 contextSummary 도 통과한다 (narrative optional)", () => {
+    const { snapshot } = engine.snapshotAt(70);
+    const withSummaryNoNarrative = {
+      ...snapshot,
+      contextSummary: {
+        pits: { totalStops: 28, medianDurationSeconds: 24.7365 },
+        stints: [],
+        overtakes: {
+          total: 214,
+          mostActiveDriverNumber: 4,
+          mostActiveCount: 9,
+        },
+      },
+    };
+
+    const parsed = parseLiveRaceSnapshot(withSummaryNoNarrative);
+
+    expect(parsed.contextSummary?.narrative).toBeUndefined();
+  });
+
+  it("narrative 하위 필드가 비어도 안전하다 (빈 배열·fastestLap null)", () => {
+    const { snapshot } = engine.snapshotAt(70);
+    const withSparseNarrative = {
+      ...snapshot,
+      contextSummary: {
+        pits: { totalStops: 0, medianDurationSeconds: null },
+        stints: [],
+        overtakes: {
+          total: 0,
+          mostActiveDriverNumber: null,
+          mostActiveCount: 0,
+        },
+        narrative: {
+          progress: { currentLap: null, totalLaps: null, phase: "green" },
+          leadChanges: [],
+          retirements: [],
+          pitWaves: [],
+          biggestMovers: [],
+          fastestLap: null,
+          weatherShifts: [],
+          safetyCars: [],
+        },
+      },
+    };
+
+    const parsed = parseLiveRaceSnapshot(withSparseNarrative);
+
+    expect(parsed.contextSummary?.narrative?.fastestLap).toBeNull();
+    expect(parsed.contextSummary?.narrative?.retirements).toEqual([]);
+  });
+
   it("overtakeForecasts 가 없어도 통과한다 (optional — mock·옛 스냅샷 안전)", () => {
     const { snapshot } = engine.snapshotAt(70);
 
