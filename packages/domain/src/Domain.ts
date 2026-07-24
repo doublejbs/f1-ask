@@ -37,7 +37,16 @@ export type {
   PitContextSummary,
   StintContextSummary,
   OvertakeContextSummary,
+  RaceNarrative,
+  RaceProgress,
+  RaceRetirement,
+  PitWave,
+  RaceMover,
+  RaceFastestLap,
+  WeatherShift,
+  SafetyCarPeriod,
 } from "./LiveRaceContextSummary";
+export { SafetyCarKind } from "./SafetyCarKind";
 export type {
   RaceEvent,
   RaceEventParams,
