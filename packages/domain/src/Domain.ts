@@ -312,6 +312,26 @@ export {
   RECENT_QUESTION_EVENT_LIMIT,
 } from "./ai/QuestionEventSelection";
 export type {
+  DriverEventQuery,
+  DriverEventResult,
+} from "./ai/QueryDriverEvents";
+export {
+  queryDriverEvents,
+  DEFAULT_DRIVER_EVENT_LIMIT,
+} from "./ai/QueryDriverEvents";
+export { JsonSchemaType } from "./ai/JsonSchemaType";
+export type {
+  ToolPropertySchema,
+  ToolParameterSchema,
+  QuestionToolDefinition,
+  QuestionToolExecutor,
+} from "./ai/QuestionTools";
+export {
+  QUESTION_TOOL_DEFINITIONS,
+  QUERY_DRIVER_EVENTS_TOOL_NAME,
+  createDriverEventsExecutor,
+} from "./ai/QuestionTools";
+export type {
   CommentaryContext,
   CommentaryStandingsRow,
 } from "./ai/CommentaryContext";
