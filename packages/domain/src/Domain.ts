@@ -312,6 +312,14 @@ export {
   RECENT_QUESTION_EVENT_LIMIT,
 } from "./ai/QuestionEventSelection";
 export type {
+  DriverEventQuery,
+  DriverEventResult,
+} from "./ai/QueryDriverEvents";
+export {
+  queryDriverEvents,
+  DEFAULT_DRIVER_EVENT_LIMIT,
+} from "./ai/QueryDriverEvents";
+export type {
   CommentaryContext,
   CommentaryStandingsRow,
 } from "./ai/CommentaryContext";

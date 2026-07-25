@@ -37,14 +37,19 @@ const hasDriverCodeInList = (
 //   1) 번호 — event.driverNumber / event.targetDriverNumber
 //   2) 코드 — params.driverCode / params.targetDriverCode
 //   3) 다중 차량 — params.driverCodes(쉼표 목록)
+//
+// driverNumber 를 undefined 로 넘길 수 있다. 코드로만(번호 없이) 조회하는 호출자를 위해
+// 열어 둔다 — 번호가 없으면 번호 매칭을 건너뛰고 코드 매칭만 본다. undefined 를 그대로
+// 비교하면 번호 없는 이벤트끼리 오탐하므로 반드시 guard 한다.
 export const matchesDriverEvent = (
   event: RaceEvent,
-  driverNumber: number,
+  driverNumber: number | undefined,
   driverCode?: string,
 ): boolean => {
   if (
-    event.driverNumber === driverNumber ||
-    event.targetDriverNumber === driverNumber
+    driverNumber !== undefined &&
+    (event.driverNumber === driverNumber ||
+      event.targetDriverNumber === driverNumber)
   ) {
     return true;
   }
