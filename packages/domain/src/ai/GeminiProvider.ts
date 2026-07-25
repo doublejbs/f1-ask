@@ -11,6 +11,12 @@ import { buildQuestionPrompt } from "./QuestionPrompt";
 import { selectQuestionEvents } from "./QuestionEventSelection";
 import { toQuestionSummaryContext } from "./QuestionSummaryContext";
 import {
+  QUESTION_TOOL_DEFINITIONS,
+  QuestionToolDefinition,
+  QuestionToolExecutor,
+  ToolParameterSchema,
+} from "./QuestionTools";
+import {
   LLM_REQUEST_TIMEOUT_MS,
   withLlmRequestTimeout,
 } from "./LlmRequestTimeout";
@@ -25,10 +31,36 @@ import {
   RaceLlmProvider,
 } from "./RaceLlmProvider";
 
+// 모델이 낸 함수 호출 (응답 part 의 functionCall, 그리고 되돌려 실을 때의 값).
+type GeminiFunctionCall = { name: string; args: Record<string, unknown> };
+
+// Gemini 요청 본문의 한 발화 part. 텍스트 / 함수호출 / 함수응답 셋 중 하나다.
+// (기존은 text part 만이었다 — 툴 루프를 위해 functionCall·functionResponse 를 더한다.)
+type GeminiPart =
+  | { text: string }
+  | { functionCall: GeminiFunctionCall }
+  | { functionResponse: { name: string; response: Record<string, unknown> } };
+
 // Gemini 요청 본문의 한 발화 (contents[]).
 type GeminiContent = {
   role: GeminiChatRole;
-  parts: { text: string }[];
+  parts: GeminiPart[];
+};
+
+// Gemini functionDeclarations wire 형태. 공용 툴 정의를 이 구조로 변환해 요청에 싣는다.
+type GeminiToolDeclaration = {
+  functionDeclarations: {
+    name: string;
+    description: string;
+    parameters: ToolParameterSchema;
+  }[];
+};
+
+// generate 저수준 호출의 결과. text 조각과 functionCall 을 모두 노출한다
+// (기존 generate 는 functionCall part 를 버렸다 — 툴 루프가 이를 봐야 한다).
+type GeminiGeneration = {
+  text: string;
+  functionCalls: GeminiFunctionCall[];
 };
 
 // 주입 가능한 fetch (네트워크 없이 단위 테스트).
@@ -49,6 +81,9 @@ export type GeminiProviderOptions = {
   baseUrl?: string;
   // 요청 1회의 상한. 기본값은 워커의 해설 예산과 같은 출처다(LlmRequestTimeout.ts).
   timeoutMs?: number;
+  // 주입되면 answerQuestion 이 툴 루프를 돈다(모델이 전체 이력을 조회). 미주입이면
+  // 기존과 동일한 단발 동작이다 — tools 를 요청에 싣지 않는다(docs/26 §라우터).
+  toolExecutor?: QuestionToolExecutor;
 };
 
 // 현행 Flash 계열 모델. 해설/답변은 1~2문장으로 짧아 Flash 급으로 충분하다.
@@ -62,6 +97,17 @@ const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 // 이 provider 는 1~2문장만 생성하므로 사고가 필요 없다 — 꺼야 현재 예산(300/120/200)으로 본문이 나온다.
 const THINKING_BUDGET_DISABLED = 0;
 const CONTEXT_DRIVER_LIMIT = 20;
+
+// 툴 루프 종료 상한 (docs/26 운영 경계 D1). 모델의 자발적 중단만 믿으면 툴→툴→툴 무한
+// 반복으로 비용·지연이 무계다. 이 라운드 수만큼 툴 호출을 허용하고, 넘으면 tools 없이
+// 1회 더 호출해 강제로 최종 답변을 받는다 — 무한 루프를 구조적으로 막는다.
+const MAX_TOOL_ROUNDS = 3;
+
+// 라우터 오발동 억제 (docs/26 §라우터 "항상 열기"). 툴은 열어두되, 이미 컨텍스트에 실린
+// 스냅샷·이벤트로 답할 수 있으면 툴을 쓰지 말라고 못 박는다 — 단순 질문이 1콜에서
+// 2콜 왕복으로 비싸지는 오발동을 막는 것이 이 방식의 핵심 리스크다.
+const TOOL_USAGE_RULE =
+  "- You have a tool to query the full race history. Do NOT call a tool when the snapshot and events already in the context are enough to answer; only call a tool for facts that are missing from the context (for example an early pit lap that is no longer in the recent events).";
 
 // AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다. ClaudeProvider 와 동일한 문구를 유지한다.
 const SYSTEM_RULES = [
@@ -214,6 +260,37 @@ const toGeminiRole = (role: LlmChatRole): GeminiChatRole => {
   return GeminiChatRole.User;
 };
 
+// 공용 툴 정의 → Gemini functionDeclarations. 스키마(type object/properties/required)는
+// 이미 JSON-schema 형태라 그대로 싣는다 — provider 는 wire 변환만 하고 스키마는 손대지 않는다.
+const toGeminiTool = (
+  definitions: QuestionToolDefinition[],
+): GeminiToolDeclaration => ({
+  functionDeclarations: definitions.map((definition) => ({
+    name: definition.name,
+    description: definition.description,
+    parameters: definition.parameters,
+  })),
+});
+
+// 모델이 준 args 는 임의 값이다 — object 가 아니면 빈 인자로 안전 처리한다.
+const toArgs = (value: unknown): Record<string, unknown> => {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+};
+
+// functionResponse.response 는 JSON object(struct)여야 한다 (REST 규격). executor 가
+// 배열(queryDriverEvents 결과)이나 원시값을 주면 { result } 로 감싸 규격을 지킨다.
+const toResponseObject = (value: unknown): Record<string, unknown> => {
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return { result: value };
+};
+
 const SUGGESTED_QUESTIONS: Record<SupportedLocale, string[]> = {
   [SupportedLocale.En]: [
     "Who is leading now?",
@@ -241,6 +318,7 @@ export class GeminiProvider implements RaceLlmProvider {
   private readonly baseUrl: string;
   private readonly fetchImpl: GeminiFetch;
   private readonly timeoutMs: number;
+  private readonly toolExecutor?: QuestionToolExecutor;
 
   constructor(options: GeminiProviderOptions) {
     this.apiKey = options.apiKey;
@@ -250,6 +328,7 @@ export class GeminiProvider implements RaceLlmProvider {
       options.fetchImpl ??
       ((url, init) => fetch(url, init) as unknown as ReturnType<GeminiFetch>);
     this.timeoutMs = options.timeoutMs ?? LLM_REQUEST_TIMEOUT_MS;
+    this.toolExecutor = options.toolExecutor;
   }
 
   async answerQuestion(request: LlmQuestionRequest): Promise<LlmAnswer> {
@@ -259,6 +338,10 @@ export class GeminiProvider implements RaceLlmProvider {
       request.favoriteDriverNumbers,
     );
 
+    // 툴은 executor 가 주입됐을 때만 연다(docs/26 §라우터). 열 때만 오발동 억제 규칙을
+    // 시스템 프롬프트에 더한다 — 미주입 경로의 프롬프트는 기존과 바이트 동일하게 유지한다.
+    const toolsEnabled = this.toolExecutor !== undefined;
+
     // 골격·포커스 조립은 세 provider 공용이다. 여기서 따로 만들면 문구가 갈라진다
     // (QuestionPrompt.ts 주석 참고). 포커스가 없으면 결과는 기존과 바이트 동일하다.
     const { system, user } = buildQuestionPrompt({
@@ -266,6 +349,7 @@ export class GeminiProvider implements RaceLlmProvider {
         SYSTEM_RULES,
         `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
         LEVEL_GUIDANCE[request.explanationLevel],
+        ...(toolsEnabled ? [TOOL_USAGE_RULE] : []),
         'Reply with ONLY a JSON object (no markdown, no prose around it): {"answer": string, "confidence": "low"|"medium"|"high", "insufficientData": boolean, "referencedDriverNumbers": number[]}.',
       ],
       question: request.question,
@@ -283,7 +367,17 @@ export class GeminiProvider implements RaceLlmProvider {
       { role: GeminiChatRole.User, parts: [{ text: user }] },
     ];
 
-    const content = await this.generate(system, contents, 300);
+    // 툴 미주입이면 기존 단발 경로 그대로. 주입되면 툴 루프를 돈다.
+    const content =
+      this.toolExecutor === undefined
+        ? await this.generate(system, contents, 300)
+        : await this.runToolLoop(system, contents, this.toolExecutor);
+
+    return this.toAnswer(content, request);
+  }
+
+  // 최종 텍스트(JSON) → LlmAnswer. 단발 경로와 툴 루프 경로가 같은 파서를 쓴다.
+  private toAnswer(content: string, request: LlmQuestionRequest): LlmAnswer {
     const parsed = this.safeJson(content);
 
     const answer =
@@ -301,6 +395,88 @@ export class GeminiProvider implements RaceLlmProvider {
       referencedEventIds: [],
       suggestedQuestions: SUGGESTED_QUESTIONS[request.locale],
     };
+  }
+
+  // 툴 루프 (docs/26 §툴 호출 추상화). 툴 상태는 이 호출 안에서만 산다(D3 질문 독립) —
+  // conversation 은 로컬 복제본이라 크로스턴 이월이 없다.
+  //
+  // 주의: 이 루프는 최악의 경우 (MAX_TOOL_ROUNDS + 1) 회 호출 = 4 × timeoutMs 까지
+  // 소요될 수 있다(D2). 각 라운드는 timeoutMs 예산을 새로 잡으므로, 호출자(/api/ask)가
+  // 이 최대 지연을 감내해야 한다. 예: MAX_TOOL_ROUNDS=3 × 12s=36s + 최종 12s = 최악 48s.
+  private async runToolLoop(
+    system: string,
+    contents: GeminiContent[],
+    executor: QuestionToolExecutor,
+  ): Promise<string> {
+    const tools = [toGeminiTool(QUESTION_TOOL_DEFINITIONS)];
+    const conversation: GeminiContent[] = [...contents];
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+      const { text, functionCalls } = await this.generateWithTools(
+        system,
+        conversation,
+        300,
+        tools,
+      );
+
+      // 툴 호출이 없으면 그대로 최종 답변이다.
+      if (functionCalls.length === 0) {
+        if (text.length === 0) {
+          throw new Error("Gemini response has no text part");
+        }
+
+        return text;
+      }
+
+      // Gemini 는 functionCall 발화와 functionResponse 발화가 짝을 이뤄야 한다 —
+      // 모델의 호출을 model 롤로 먼저 남기고, 실행 결과를 user 롤(REST 규격)로 되돌린다.
+      conversation.push({
+        role: GeminiChatRole.Model,
+        parts: functionCalls.map((call) => ({ functionCall: call })),
+      });
+
+      // 왜: executor 가 네트워크 오류 등으로 reject 하면 Promise.all 이 죽어 전체
+      // 루프가 중단된다. 각 호출을 독립적으로 try/catch 해 **에러를 functionResponse
+      // 페이로드**로 되돌려야 한다 — 그러면 모델이 "그 데이터는 못 가져왔다"로
+      // 이어갈 수 있고, 답변 생성이 계속된다. 후속 Firestore executor 도 이를 기대한다.
+      const responseParts = await Promise.all(
+        functionCalls.map(async (call) => {
+          try {
+            const result = await executor(call.name, call.args);
+
+            return {
+              functionResponse: {
+                name: call.name,
+                response: toResponseObject(result),
+              },
+            };
+          } catch (error) {
+            // 에러를 에러 페이로드로 되돌린다. 모델이 처리할 수 있는 구조.
+            const message =
+              error instanceof Error ? error.message : String(error);
+
+            return {
+              functionResponse: {
+                name: call.name,
+                response: { error: message },
+              },
+            };
+          }
+        }),
+      );
+
+      conversation.push({ role: GeminiChatRole.User, parts: responseParts });
+    }
+
+    // 라운드 캡 초과 (D1): tools 를 빼고 1회 더 호출해 강제로 최종 텍스트를 받는다.
+    // 툴을 못 쓰게 하니 모델은 그때까지 모은 tool-result 만으로 답할 수밖에 없다.
+    const { text } = await this.generateWithTools(system, conversation, 300);
+
+    if (text.length === 0) {
+      throw new Error("Gemini response has no text part");
+    }
+
+    return text;
   }
 
   async generateCommentary(
@@ -362,14 +538,41 @@ export class GeminiProvider implements RaceLlmProvider {
     return { text: text.trim() };
   }
 
-  // Google Generative Language API 의 generateContent 호출.
-  // system 은 systemInstruction 으로, 대화는 contents[] 로 전달한다.
-  // API 키는 URL query 대신 헤더로 보내 로그에 남지 않도록 한다.
+  // 텍스트만 필요한 경로(요약·해설·툴 미사용 질문)의 얇은 래퍼.
+  // 저수준 호출과 달리 "텍스트가 없으면 오류"를 여기서 강제한다 — 기존 동작을 그대로 보존한다.
   private async generate(
     system: string,
     contents: GeminiContent[],
     maxOutputTokens: number,
   ): Promise<string> {
+    const { text } = await this.generateWithTools(
+      system,
+      contents,
+      maxOutputTokens,
+    );
+
+    if (text.length === 0) {
+      throw new Error("Gemini response has no text part");
+    }
+
+    return text;
+  }
+
+  // Google Generative Language API 의 generateContent 저수준 호출.
+  // system 은 systemInstruction 으로, 대화는 contents[] 로 전달한다.
+  // API 키는 URL query 대신 헤더로 보내 로그에 남지 않도록 한다.
+  //
+  // 기존 generate 와 두 가지가 다르다:
+  //   (1) tools 를 선택적으로 싣는다 — 미전달이면 body 에 tools 키가 없어 요청이 기존과
+  //       바이트 동일하다(요약·해설·툴 미사용 질문 경로 불변).
+  //   (2) text 뿐 아니라 functionCall part 도 노출한다 — 기존은 functionCall 을 버렸다.
+  //       "텍스트 없으면 오류"는 여기서 던지지 않는다(functionCall-only 응답이 정상이므로).
+  private async generateWithTools(
+    system: string,
+    contents: GeminiContent[],
+    maxOutputTokens: number,
+    tools?: GeminiToolDeclaration[],
+  ): Promise<GeminiGeneration> {
     const body = {
       contents,
       systemInstruction: { parts: [{ text: system }] },
@@ -379,13 +582,17 @@ export class GeminiProvider implements RaceLlmProvider {
         // 사고를 끈다 — 켜두면 사고 토큰이 예산을 다 써 본문이 비어 나온다 (상수 주석 참고).
         thinkingConfig: { thinkingBudget: THINKING_BUDGET_DISABLED },
       },
+      // tools 미전달이면 키 자체를 넣지 않는다 — 기존 요청 본문과 바이트 동일하게 유지한다.
+      ...(tools === undefined ? {} : { tools }),
     };
     // 모델은 REST 경로 파라미터(models/{model})로만 전달한다.
     // GenerateContentRequest 본문에는 model 필드가 없어 넣으면 400 이 난다.
 
     // 응답 본문 읽기까지 한 덩어리로 타임아웃에 넣는다. 헤더만 온 뒤 본문이 멈춰도
-    // 예산을 넘기면 안 되기 때문이다.
-    const requestOnce = async (signal: AbortSignal): Promise<string> => {
+    // 예산을 넘기면 안 되기 때문이다. 툴 루프는 라운드마다 이 예산을 새로 잡는다(D2).
+    const requestOnce = async (
+      signal: AbortSignal,
+    ): Promise<GeminiGeneration> => {
       const response = await this.fetchImpl(
         `${this.baseUrl}/models/${this.model}:generateContent`,
         {
@@ -412,7 +619,12 @@ export class GeminiProvider implements RaceLlmProvider {
 
       const data = (await response.json()) as {
         candidates?: {
-          content?: { parts?: { text?: string }[] };
+          content?: {
+            parts?: {
+              text?: string;
+              functionCall?: { name?: string; args?: unknown };
+            }[];
+          };
         }[];
       };
 
@@ -436,11 +648,19 @@ export class GeminiProvider implements RaceLlmProvider {
         .map((part) => part.text)
         .join("");
 
-      if (text.length === 0) {
-        throw new Error("Gemini response has no text part");
-      }
+      // functionCall part 를 뽑아 노출한다(이름이 문자열인 것만).
+      const functionCalls: GeminiFunctionCall[] = parts
+        .filter(
+          (part): part is { functionCall: { name: string; args?: unknown } } =>
+            part.functionCall !== undefined &&
+            typeof part.functionCall.name === "string",
+        )
+        .map((part) => ({
+          name: part.functionCall.name,
+          args: toArgs(part.functionCall.args),
+        }));
 
-      return text;
+      return { text, functionCalls };
     };
 
     return withLlmRequestTimeout(requestOnce, {
