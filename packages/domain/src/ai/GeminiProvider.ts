@@ -22,6 +22,7 @@ import {
   withLlmRequestTimeout,
 } from "./LlmRequestTimeout";
 import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
+import { parseJsonSafely } from "./JsonParser";
 import {
   LlmAnswer,
   LlmCommentary,
@@ -32,21 +33,62 @@ import {
   RaceLlmProvider,
 } from "./RaceLlmProvider";
 
-// 모델이 낸 함수 호출 (응답 part 의 functionCall, 그리고 되돌려 실을 때의 값).
-type GeminiFunctionCall = { name: string; args: Record<string, unknown> };
+// 모델이 낸 함수 호출을 **executor 실행 입력**으로 정규화한 값.
+// 되돌리는 본문에는 이 값을 쓰지 않는다 — 모델 턴은 응답 content 원형을 그대로 싣는다
+// (GeminiModelContent 주석 참고). args 정규화(toArgs)는 executor 쪽에만 적용된다.
+// id 는 Gemini 3.x 가 붙여 주는 호출 식별자다 — 병렬 호출에서 functionResponse 를
+// 어느 호출의 결과인지 짝지어 주므로 받은 그대로 보존해 되돌린다.
+type GeminiFunctionCall = {
+  name: string;
+  args: Record<string, unknown>;
+  id?: string;
+};
 
-// Gemini 요청 본문의 한 발화 part. 텍스트 / 함수호출 / 함수응답 셋 중 하나다.
-// (기존은 text part 만이었다 — 툴 루프를 위해 functionCall·functionResponse 를 더한다.)
+// **우리가 만들어** 요청에 싣는 part. 텍스트 또는 함수응답 둘 중 하나다.
+// 모델의 함수호출 part 는 여기 없다 — 재구성하지 않고 응답 원형을 그대로 되돌리기 때문이다.
 type GeminiPart =
   | { text: string }
-  | { functionCall: GeminiFunctionCall }
-  | { functionResponse: { name: string; response: Record<string, unknown> } };
+  | {
+      functionResponse: {
+        name: string;
+        id?: string;
+        response: Record<string, unknown>;
+      };
+    };
+
+// 응답 candidate 의 part wire 형태. 우리가 만들지 않고 **읽기만** 하므로 모든 키가 선택적이다.
+// 되돌릴 때 이 객체를 손대지 않고 그대로 실으므로, 우리가 모르는 필드까지 자동으로 보존된다.
+type GeminiResponsePart = {
+  text?: string;
+  functionCall?: { name?: string; args?: unknown; id?: unknown };
+  thoughtSignature?: unknown;
+};
+
+// 응답의 model 턴 원형. 요청 contents[] 에 **통째로 그대로** 되돌려 싣는다.
+//
+// 왜 part 를 골라 담지 않고 content 를 통째로 되돌리는가 (정본 패턴):
+// thoughtSignature 는 functionCall 안이 아니라 **part 의 형제 키**이고, functionCall part
+// 뿐 아니라 그 **앞의 text/thought part 에도** 붙어 온다 (Google thinking guide: "signatures
+// are metadata that can be attached to any part"). functionCall part 만 골라 되돌리면
+// 선행 text part 와 거기 붙은 서명이 통째로 사라져 Gemini 3.x 가 400 을 던진다:
+//   INVALID_ARGUMENT: Function call is missing a thought_signature in functionCall parts.
+//   This is required for tools to work correctly... position 2
+// (position 2 = 우리가 되돌려 만든 model 턴). content 를 통째로 되돌리면 서명이 **어느 part 에
+// 붙어 오든**, part 가 몇 개든(병렬 호출), 앞으로 필드가 늘어나든 자동으로 안전하다.
+type GeminiModelContent = {
+  role: GeminiChatRole;
+  parts: GeminiResponsePart[];
+};
 
 // Gemini 요청 본문의 한 발화 (contents[]).
 type GeminiContent = {
   role: GeminiChatRole;
   parts: GeminiPart[];
 };
+
+// 요청 contents[] 의 한 발화. 우리가 조립한 발화이거나, 응답에서 받아 원형 그대로
+// 되돌리는 모델 턴이다. 두 형태를 한 배열에 담아야 툴 루프의 대화가 구성된다.
+type GeminiTurn = GeminiContent | GeminiModelContent;
 
 // Gemini functionDeclarations wire 형태. 공용 툴 정의를 이 구조로 변환해 요청에 싣는다.
 type GeminiToolDeclaration = {
@@ -57,11 +99,14 @@ type GeminiToolDeclaration = {
   }[];
 };
 
-// generate 저수준 호출의 결과. text 조각과 functionCall 을 모두 노출한다
-// (기존 generate 는 functionCall part 를 버렸다 — 툴 루프가 이를 봐야 한다).
+// generate 저수준 호출의 결과.
+//   text          — parts[] 의 text 조각을 합친 값 (최종 답변 경로).
+//   functionCalls — **executor 실행용**으로 정규화한 호출 목록 (기존 generate 는 이를 버렸다).
+//   modelContent  — 응답 candidate 의 content 원형. 모델 턴을 되돌릴 때 그대로 push 한다.
 type GeminiGeneration = {
   text: string;
   functionCalls: GeminiFunctionCall[];
+  modelContent: GeminiModelContent;
 };
 
 // 주입 가능한 fetch (네트워크 없이 단위 테스트).
@@ -292,6 +337,10 @@ const toGeminiTool = (
 });
 
 // 모델이 준 args 는 임의 값이다 — object 가 아니면 빈 인자로 안전 처리한다.
+//
+// 이 정규화는 **executor 입력에만** 적용한다. 모델에게 되돌리는 model 턴은 응답 content
+// 원형이라 args 가 없던 응답은 없는 그대로 되돌아간다 — 원형을 손대면 thoughtSignature
+// 서명 대상 본문이 달라져 서명 검증이 깨질 수 있기 때문이다.
 const toArgs = (value: unknown): Record<string, unknown> => {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;
@@ -431,10 +480,10 @@ export class GeminiProvider implements RaceLlmProvider {
     executor: QuestionToolExecutor,
   ): Promise<string> {
     const tools = [toGeminiTool(QUESTION_TOOL_DEFINITIONS)];
-    const conversation: GeminiContent[] = [...contents];
+    const conversation: GeminiTurn[] = [...contents];
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-      const { text, functionCalls } = await this.generateWithTools(
+      const { text, functionCalls, modelContent } = await this.generateWithTools(
         system,
         conversation,
         300,
@@ -452,23 +501,36 @@ export class GeminiProvider implements RaceLlmProvider {
 
       // Gemini 는 functionCall 발화와 functionResponse 발화가 짝을 이뤄야 한다 —
       // 모델의 호출을 model 롤로 먼저 남기고, 실행 결과를 user 롤(REST 규격)로 되돌린다.
-      conversation.push({
-        role: GeminiChatRole.Model,
-        parts: functionCalls.map((call) => ({ functionCall: call })),
-      });
+      //
+      // 왜 응답 content 를 통째로 싣는가 (정본 패턴): part 를 골라 담거나 { name, args } 로
+      // 재구성하면 형제 키 thoughtSignature 가 사라져 Gemini 3.x 가 400 을 던진다. 서명은
+      // part 단위 메타데이터라 functionCall part 가 아니라 **선행 text/thought part** 에
+      // 붙어 올 수도 있다 — content 원형을 그대로 되돌리면 서명이 어느 part 에 붙어 오든,
+      // 병렬 호출이든, 앞으로 필드가 늘어나든 자동으로 안전하다.
+      conversation.push(modelContent);
 
       // 왜: executor 가 네트워크 오류 등으로 reject 하면 Promise.all 이 죽어 전체
       // 루프가 중단된다. 각 호출을 독립적으로 try/catch 해 **에러를 functionResponse
       // 페이로드**로 되돌려야 한다 — 그러면 모델이 "그 데이터는 못 가져왔다"로
       // 이어갈 수 있고, 답변 생성이 계속된다. 후속 Firestore executor 도 이를 기대한다.
+      //
+      // 왜 id 를 functionResponse 에도 싣는가: REST 의 FunctionResponse.id 는 "이 응답이
+      // 어느 functionCall 에 대한 것인지" 를 가리키는 필드다. 병렬 호출이 오면 이름만으로는
+      // 같은 툴을 두 번 부른 경우를 구분할 수 없다 — 모델이 준 id 가 있을 때만 그대로 되돌린다
+      // (없으면 키 자체를 넣지 않아 구 모델·mock 경로의 요청 본문을 바꾸지 않는다).
       const responseParts = await Promise.all(
-        functionCalls.map(async (call) => {
+        functionCalls.map(async (call): Promise<GeminiPart> => {
+          const identity = {
+            name: call.name,
+            ...(call.id === undefined ? {} : { id: call.id }),
+          };
+
           try {
             const result = await executor(call.name, call.args);
 
             return {
               functionResponse: {
-                name: call.name,
+                ...identity,
                 response: toResponseObject(result),
               },
             };
@@ -479,7 +541,7 @@ export class GeminiProvider implements RaceLlmProvider {
 
             return {
               functionResponse: {
-                name: call.name,
+                ...identity,
                 response: { error: message },
               },
             };
@@ -564,7 +626,7 @@ export class GeminiProvider implements RaceLlmProvider {
   // 저수준 호출과 달리 "텍스트가 없으면 오류"를 여기서 강제한다 — 기존 동작을 그대로 보존한다.
   private async generate(
     system: string,
-    contents: GeminiContent[],
+    contents: GeminiTurn[],
     maxOutputTokens: number,
   ): Promise<string> {
     const { text } = await this.generateWithTools(
@@ -587,11 +649,12 @@ export class GeminiProvider implements RaceLlmProvider {
   // 기존 generate 와 두 가지가 다르다:
   //   (1) tools 를 선택적으로 싣는다 — 미전달이면 body 에 tools 키가 없어 요청이 기존과
   //       바이트 동일하다(요약·해설·툴 미사용 질문 경로 불변).
-  //   (2) text 뿐 아니라 functionCall part 도 노출한다 — 기존은 functionCall 을 버렸다.
-  //       "텍스트 없으면 오류"는 여기서 던지지 않는다(functionCall-only 응답이 정상이므로).
+  //   (2) text 뿐 아니라 functionCall 과 **응답 content 원형(modelContent)** 도 노출한다 —
+  //       기존은 functionCall 을 버렸다. "텍스트 없으면 오류"는 여기서 던지지 않는다
+  //       (functionCall-only 응답이 정상이므로).
   private async generateWithTools(
     system: string,
-    contents: GeminiContent[],
+    contents: GeminiTurn[],
     maxOutputTokens: number,
     tools?: GeminiToolDeclaration[],
   ): Promise<GeminiGeneration> {
@@ -640,14 +703,7 @@ export class GeminiProvider implements RaceLlmProvider {
       }
 
       const data = (await response.json()) as {
-        candidates?: {
-          content?: {
-            parts?: {
-              text?: string;
-              functionCall?: { name?: string; args?: unknown };
-            }[];
-          };
-        }[];
+        candidates?: { content?: { parts?: GeminiResponsePart[] } }[];
       };
 
       const candidate = data.candidates?.[0];
@@ -670,19 +726,35 @@ export class GeminiProvider implements RaceLlmProvider {
         .map((part) => part.text)
         .join("");
 
-      // functionCall part 를 뽑아 노출한다(이름이 문자열인 것만).
+      // functionCall part 를 뽑아 **executor 실행용**으로만 정규화한다(이름이 문자열인 것만).
+      // 이 값은 모델에게 되돌리지 않는다 — 되돌리는 것은 아래 modelContent 원형이다.
       const functionCalls: GeminiFunctionCall[] = parts
         .filter(
-          (part): part is { functionCall: { name: string; args?: unknown } } =>
+          (
+            part,
+          ): part is GeminiResponsePart & {
+            functionCall: { name: string; args?: unknown; id?: unknown };
+          } =>
             part.functionCall !== undefined &&
             typeof part.functionCall.name === "string",
         )
         .map((part) => ({
           name: part.functionCall.name,
           args: toArgs(part.functionCall.args),
+          ...(typeof part.functionCall.id === "string"
+            ? { id: part.functionCall.id }
+            : {}),
         }));
 
-      return { text, functionCalls };
+      // 응답 content 를 손대지 않고 그대로 들고 나간다. 캐스팅도 재구성도 없다 —
+      // 그래서 서명이 어느 part 에 붙어 오든 모델 턴을 되돌릴 때 전부 보존된다.
+      // role 은 candidate content 의 규격상 항상 "model" 이다.
+      const modelContent: GeminiModelContent = {
+        role: GeminiChatRole.Model,
+        parts,
+      };
+
+      return { text, functionCalls, modelContent };
     };
 
     return withLlmRequestTimeout(requestOnce, {
@@ -699,11 +771,7 @@ export class GeminiProvider implements RaceLlmProvider {
     insufficientData?: unknown;
     referencedDriverNumbers?: unknown;
   } | null {
-    try {
-      return JSON.parse(content) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
+    return parseJsonSafely(content);
   }
 
   private numberArray(value: unknown): number[] {
