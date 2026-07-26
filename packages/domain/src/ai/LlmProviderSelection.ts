@@ -3,7 +3,11 @@ import {
   CLAUDE_DEFAULT_MODEL,
 } from "./ClaudeProvider";
 import { FallbackLlmProvider, LlmFailureHandler } from "./FallbackLlmProvider";
-import { GeminiProvider, GEMINI_DEFAULT_MODEL } from "./GeminiProvider";
+import {
+  GeminiProvider,
+  GEMINI_DEFAULT_MODEL,
+  QuestionToolExecutorFactory,
+} from "./GeminiProvider";
 import { MockLlmProvider } from "./MockLlmProvider";
 import { OpenAiProvider, OPENAI_DEFAULT_MODEL } from "./OpenAiProvider";
 import { RaceLlmProvider } from "./RaceLlmProvider";
@@ -29,6 +33,14 @@ export type SelectedLlmProvider = {
   provider: RaceLlmProvider;
 };
 
+// provider 선택에 실어 보내는 런타임 고유 옵션. 지금은 Gemini 의 요청 스코프 툴 팩토리만 있다.
+//
+// 왜 Gemini 만: 서버 Firestore 툴 배선(docs/26 2단계)은 Gemini 경로만 대상이다. 워커(functions)는
+// 이 옵션을 넘기지 않으므로 툴 없이 기존과 동일하게 동작한다. Claude/OpenAI 는 이번 범위 밖이다.
+export type LlmProviderOptions = {
+  toolExecutorFactory?: QuestionToolExecutorFactory;
+};
+
 // 빈 문자열을 "설정됨" 으로 보지 않도록 정규화한다.
 export const normalizeEnvValue = (
   value: string | undefined,
@@ -51,6 +63,7 @@ export const createProcessEnvReader = (
 // Gemini 를 앞에 둔 이유는 무료 티어로 실제 LLM 경로를 검증하기 위함이다.
 export const selectPrimaryLlmProvider = (
   readEnv: LlmEnvReader,
+  options?: LlmProviderOptions,
 ): SelectedLlmProvider | null => {
   const geminiKey = readEnv("GEMINI_API_KEY");
 
@@ -64,6 +77,8 @@ export const selectPrimaryLlmProvider = (
         apiKey: geminiKey,
         model,
         baseUrl: readEnv("GEMINI_BASE_URL"),
+        // 요청 스코프 툴 팩토리는 Gemini 에만 스레딩한다(docs/26 2단계 범위).
+        toolExecutorFactory: options?.toolExecutorFactory,
       }),
     };
   }
@@ -111,8 +126,9 @@ export const selectPrimaryLlmProvider = (
 export const createRaceLlmProvider = (
   readEnv: LlmEnvReader,
   onFailure?: LlmFailureHandler,
+  options?: LlmProviderOptions,
 ): SelectedLlmProvider => {
-  const primary = selectPrimaryLlmProvider(readEnv);
+  const primary = selectPrimaryLlmProvider(readEnv, options);
 
   if (primary === null) {
     return {

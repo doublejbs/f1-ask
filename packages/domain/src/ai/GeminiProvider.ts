@@ -74,6 +74,16 @@ export type GeminiFetch = (
   },
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
+// 요청별 툴 executor 를 만드는 팩토리 (docs/26 §서버측 Firestore).
+//
+// 왜 정적 executor 가 아니라 팩토리인가: provider 는 캐시되어 프로세스 수명 내내 한 번만
+// 만들어지지만, 툴이 읽어야 할 전체 이력은 요청의 snapshot.sessionId 마다 다르다. executor 를
+// 생성자에 고정하면 모든 요청이 같은 이력을 보게 된다 — 팩토리를 받아 요청마다 그 요청의
+// sessionId 로 executor 를 만든다. 팩토리 자체는 정적(캐시 provider 유지)이다.
+export type QuestionToolExecutorFactory = (
+  request: LlmQuestionRequest,
+) => QuestionToolExecutor;
+
 export type GeminiProviderOptions = {
   apiKey: string;
   model?: string;
@@ -81,9 +91,9 @@ export type GeminiProviderOptions = {
   baseUrl?: string;
   // 요청 1회의 상한. 기본값은 워커의 해설 예산과 같은 출처다(LlmRequestTimeout.ts).
   timeoutMs?: number;
-  // 주입되면 answerQuestion 이 툴 루프를 돈다(모델이 전체 이력을 조회). 미주입이면
-  // 기존과 동일한 단발 동작이다 — tools 를 요청에 싣지 않는다(docs/26 §라우터).
-  toolExecutor?: QuestionToolExecutor;
+  // 주입되면 answerQuestion 이 요청마다 executor 를 만들어 툴 루프를 돈다(모델이 전체 이력을
+  // 조회). 미주입이면 기존과 동일한 단발 동작이다 — tools 를 요청에 싣지 않는다(docs/26 §라우터).
+  toolExecutorFactory?: QuestionToolExecutorFactory;
 };
 
 // 현행 Flash 계열 모델. 해설/답변은 1~2문장으로 짧아 Flash 급으로 충분하다.
@@ -318,7 +328,7 @@ export class GeminiProvider implements RaceLlmProvider {
   private readonly baseUrl: string;
   private readonly fetchImpl: GeminiFetch;
   private readonly timeoutMs: number;
-  private readonly toolExecutor?: QuestionToolExecutor;
+  private readonly toolExecutorFactory?: QuestionToolExecutorFactory;
 
   constructor(options: GeminiProviderOptions) {
     this.apiKey = options.apiKey;
@@ -328,7 +338,7 @@ export class GeminiProvider implements RaceLlmProvider {
       options.fetchImpl ??
       ((url, init) => fetch(url, init) as unknown as ReturnType<GeminiFetch>);
     this.timeoutMs = options.timeoutMs ?? LLM_REQUEST_TIMEOUT_MS;
-    this.toolExecutor = options.toolExecutor;
+    this.toolExecutorFactory = options.toolExecutorFactory;
   }
 
   async answerQuestion(request: LlmQuestionRequest): Promise<LlmAnswer> {
@@ -338,9 +348,12 @@ export class GeminiProvider implements RaceLlmProvider {
       request.favoriteDriverNumbers,
     );
 
-    // 툴은 executor 가 주입됐을 때만 연다(docs/26 §라우터). 열 때만 오발동 억제 규칙을
-    // 시스템 프롬프트에 더한다 — 미주입 경로의 프롬프트는 기존과 바이트 동일하게 유지한다.
-    const toolsEnabled = this.toolExecutor !== undefined;
+    // 툴은 팩토리가 주입됐을 때만 연다(docs/26 §라우터). executor 는 이 요청의 sessionId 로
+    // 만들어진다 — 팩토리가 lazy·memoize 하면 라우터가 "툴 안 씀"으로 답할 때 Firestore 읽기 0.
+    // 열 때만 오발동 억제 규칙을 시스템 프롬프트에 더한다 — 미주입 경로의 프롬프트는 기존과
+    // 바이트 동일하게 유지한다.
+    const executor = this.toolExecutorFactory?.(request);
+    const toolsEnabled = executor !== undefined;
 
     // 골격·포커스 조립은 세 provider 공용이다. 여기서 따로 만들면 문구가 갈라진다
     // (QuestionPrompt.ts 주석 참고). 포커스가 없으면 결과는 기존과 바이트 동일하다.
@@ -367,11 +380,11 @@ export class GeminiProvider implements RaceLlmProvider {
       { role: GeminiChatRole.User, parts: [{ text: user }] },
     ];
 
-    // 툴 미주입이면 기존 단발 경로 그대로. 주입되면 툴 루프를 돈다.
+    // 툴 미주입이면 기존 단발 경로 그대로. 주입되면 이 요청의 executor 로 툴 루프를 돈다.
     const content =
-      this.toolExecutor === undefined
+      executor === undefined
         ? await this.generate(system, contents, 300)
-        : await this.runToolLoop(system, contents, this.toolExecutor);
+        : await this.runToolLoop(system, contents, executor);
 
     return this.toAnswer(content, request);
   }
