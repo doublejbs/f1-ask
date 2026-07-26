@@ -20,10 +20,13 @@ const frame = new MockRaceEngine(
 
 type Call = { url: string; body: string };
 
-// 스크립트의 한 라운드 응답: 텍스트(최종 답) 또는 함수 호출.
+// 스크립트의 한 라운드 응답: 텍스트(최종 답), 함수 호출, 또는 응답 part 원형(parts).
+// parts 변형은 Gemini 3.x 가 실제로 주는 형태(thoughtSignature 형제 키, functionCall.id,
+// 병렬 호출)를 그대로 흉내 내기 위한 것이다.
 type ScriptedResponse =
   | { text: string }
-  | { functionCall: { name: string; args: Record<string, unknown> } };
+  | { functionCall: { name: string; args: Record<string, unknown> } }
+  | { parts: Record<string, unknown>[] };
 
 // 라운드별 응답을 순서대로 돌려주는 fake fetch. 스크립트 끝에 도달하면 마지막 응답을 반복한다.
 const makeScriptedFetch = (
@@ -39,10 +42,19 @@ const makeScriptedFetch = (
 
     index += 1;
 
-    const parts =
-      "text" in response
-        ? [{ text: response.text }]
-        : [{ functionCall: response.functionCall }];
+    const toParts = (): unknown[] => {
+      if ("text" in response) {
+        return [{ text: response.text }];
+      }
+
+      if ("parts" in response) {
+        return response.parts;
+      }
+
+      return [{ functionCall: response.functionCall }];
+    };
+
+    const parts = toParts();
 
     return {
       ok: true,
@@ -313,6 +325,231 @@ describe("GeminiProvider 툴 루프", () => {
   });
 });
 
+// 되돌린 model 턴의 part 들을 꺼낸다 (요청 body → contents 중 model 롤).
+type WireParts = {
+  text?: string;
+  functionCall?: { name: string; args?: unknown; id?: string };
+  functionResponse?: { name: string; id?: string; response: unknown };
+  thoughtSignature?: string;
+}[];
+
+const modelTurnParts = (body: string): WireParts => {
+  const parsed = JSON.parse(body) as {
+    contents: { role: string; parts: WireParts }[];
+  };
+
+  return parsed.contents.find(
+    (content) =>
+      content.role === "model" &&
+      content.parts.some((part) => part.functionCall !== undefined),
+  )!.parts;
+};
+
+const functionResponseParts = (body: string): WireParts => {
+  const parsed = JSON.parse(body) as {
+    contents: { role: string; parts: WireParts }[];
+  };
+
+  return parsed.contents.find((content) =>
+    content.parts.some((part) => part.functionResponse !== undefined),
+  )!.parts;
+};
+
+describe("GeminiProvider thoughtSignature 보존", () => {
+  it("functionCall 앞의 text part 와 그 서명까지 통째로 되돌린다", async () => {
+    // 이 테스트가 content 통째 되돌리기(정본 패턴)의 존재 이유다. functionCall part 만
+    // 골라 담으면 선행 text part 와 거기 붙은 서명이 사라져 같은 클래스의 400 이 남는다.
+    const { fetchImpl, calls } = makeScriptedFetch([
+      {
+        parts: [
+          { text: "확인해볼게요", thoughtSignature: "sig-on-text" },
+          {
+            functionCall: {
+              name: QUERY_DRIVER_EVENTS_TOOL_NAME,
+              args: { driverNumber: 44, types: ["pit_stop"] },
+              id: "call-with-preamble",
+            },
+            thoughtSignature: "sig-on-call",
+          },
+        ],
+      },
+      { text: '{"answer":"HAM pitted on lap 5."}' },
+    ]);
+
+    await askWithTools(fetchImpl, buildEventsWithOldPit());
+
+    const parts = modelTurnParts(calls[1]!.body);
+
+    // 두 part 가 **각자의 서명과 함께** 순서 그대로 실린다.
+    expect(parts).toHaveLength(2);
+    expect(parts[0]!.text).toBe("확인해볼게요");
+    expect(parts[0]!.thoughtSignature).toBe("sig-on-text");
+    expect(parts[1]!.thoughtSignature).toBe("sig-on-call");
+    expect(parts[1]!.functionCall!.id).toBe("call-with-preamble");
+    expect(parts[1]!.functionCall!.name).toBe(QUERY_DRIVER_EVENTS_TOOL_NAME);
+
+    // 텍스트가 함께 왔어도 툴 호출은 정상 실행되어 결과가 되돌아간다.
+    const responses = functionResponseParts(calls[1]!.body);
+
+    expect(responses[0]!.functionResponse!.id).toBe("call-with-preamble");
+  });
+
+  it("args 없는 functionCall 은 원형 그대로 되돌리고 executor 에는 {} 로 넘긴다", async () => {
+    const { fetchImpl, calls } = makeScriptedFetch([
+      {
+        parts: [
+          {
+            functionCall: { name: QUERY_DRIVER_EVENTS_TOOL_NAME, id: "no-args" },
+            thoughtSignature: "sig-no-args",
+          },
+        ],
+      },
+      { text: '{"answer":"done"}' },
+    ]);
+
+    const executor = vi.fn(async () => []);
+
+    const provider = new GeminiProvider({
+      apiKey: "gemini-test-key",
+      fetchImpl,
+      toolExecutorFactory: () => executor,
+    });
+
+    await provider.answerQuestion({
+      question: "VER pitted on which lap?",
+      locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+    });
+
+    const parts = modelTurnParts(calls[1]!.body);
+
+    // 되돌린 본문은 원형이다 — args 키를 우리가 새로 만들어 넣지 않는다.
+    expect(Object.keys(parts[0]!.functionCall!)).toEqual(["name", "id"]);
+    expect(parts[0]!.thoughtSignature).toBe("sig-no-args");
+
+    // executor 에는 정규화된 빈 인자가 전달된다.
+    expect(executor).toHaveBeenCalledWith(QUERY_DRIVER_EVENTS_TOOL_NAME, {});
+  });
+
+  it("모델 턴을 되돌릴 때 thoughtSignature 와 functionCall.id 를 그대로 싣는다", async () => {
+    // Gemini 3.x 실제 응답 형태: thoughtSignature 는 functionCall 의 **형제 키**다.
+    const signature = "EjQKMgERTTIP2OQdj5hmd1jdP9tEISPdU+NdGwZm";
+    const { fetchImpl, calls } = makeScriptedFetch([
+      {
+        parts: [
+          {
+            functionCall: {
+              name: QUERY_DRIVER_EVENTS_TOOL_NAME,
+              args: { driverNumber: 44, types: ["pit_stop"] },
+              id: "g7dnyyhj",
+            },
+            thoughtSignature: signature,
+          },
+        ],
+      },
+      { text: '{"answer":"HAM pitted on lap 5."}' },
+    ]);
+
+    await askWithTools(fetchImpl, buildEventsWithOldPit());
+
+    const parts = modelTurnParts(calls[1]!.body);
+
+    // 이 두 단언이 회귀 가드다. 빠지면 Gemini 가 400 을 던진다:
+    // "Function call is missing a thought_signature in functionCall parts".
+    expect(parts).toHaveLength(1);
+    expect(parts[0]!.thoughtSignature).toBe(signature);
+    expect(parts[0]!.functionCall!.id).toBe("g7dnyyhj");
+    expect(parts[0]!.functionCall!.name).toBe(QUERY_DRIVER_EVENTS_TOOL_NAME);
+    expect(parts[0]!.functionCall!.args).toEqual({
+      driverNumber: 44,
+      types: ["pit_stop"],
+    });
+
+    // functionResponse 는 같은 id 로 짝지어 되돌린다 (병렬 호출 매칭).
+    const responses = functionResponseParts(calls[1]!.body);
+
+    expect(responses[0]!.functionResponse!.id).toBe("g7dnyyhj");
+  });
+
+  it("병렬 functionCall 은 각 part 의 thoughtSignature 를 각자 유지한다", async () => {
+    const { fetchImpl, calls } = makeScriptedFetch([
+      {
+        parts: [
+          {
+            functionCall: {
+              name: QUERY_DRIVER_EVENTS_TOOL_NAME,
+              args: { driverNumber: 44 },
+              id: "call-a",
+            },
+            thoughtSignature: "signature-a",
+          },
+          {
+            functionCall: {
+              name: QUERY_DRIVER_EVENTS_TOOL_NAME,
+              args: { driverNumber: 1 },
+              id: "call-b",
+            },
+            thoughtSignature: "signature-b",
+          },
+        ],
+      },
+      { text: '{"answer":"done"}' },
+    ]);
+
+    await askWithTools(fetchImpl, buildEventsWithOldPit());
+
+    const parts = modelTurnParts(calls[1]!.body);
+
+    expect(parts).toHaveLength(2);
+    expect(parts.map((part) => part.thoughtSignature)).toEqual([
+      "signature-a",
+      "signature-b",
+    ]);
+    expect(parts.map((part) => part.functionCall!.id)).toEqual([
+      "call-a",
+      "call-b",
+    ]);
+
+    // 응답도 호출 순서대로 각자의 id 를 달고 되돌아간다.
+    const responses = functionResponseParts(calls[1]!.body);
+
+    expect(responses.map((part) => part.functionResponse!.id)).toEqual([
+      "call-a",
+      "call-b",
+    ]);
+  });
+
+  it("thoughtSignature·id 가 없는 응답이면 그 키 없이 되돌린다 (구 모델·mock 안전)", async () => {
+    const { fetchImpl, calls } = makeScriptedFetch([
+      {
+        functionCall: {
+          name: QUERY_DRIVER_EVENTS_TOOL_NAME,
+          args: { driverNumber: 44 },
+        },
+      },
+      { text: '{"answer":"done"}' },
+    ]);
+
+    await askWithTools(fetchImpl, buildEventsWithOldPit());
+
+    const parts = modelTurnParts(calls[1]!.body);
+
+    expect(parts).toHaveLength(1);
+    expect(Object.keys(parts[0]!)).toEqual(["functionCall"]);
+    expect(Object.keys(parts[0]!.functionCall!)).toEqual(["name", "args"]);
+
+    const responses = functionResponseParts(calls[1]!.body);
+
+    expect(Object.keys(responses[0]!.functionResponse!)).toEqual([
+      "name",
+      "response",
+    ]);
+  });
+});
+
 describe("GeminiProvider 툴 하위호환", () => {
   const makeTextFetch = (
     text: string,
@@ -365,6 +602,166 @@ describe("GeminiProvider 툴 하위호환", () => {
     );
     expect(calls).toHaveLength(1);
     expect(result.answer).toBe("VER leads.");
+  });
+});
+
+describe("GeminiProvider JSON 파싱 (마크다운·산문 처리)", () => {
+  const makeJsonFetch = (
+    text: string,
+  ): { fetchImpl: GeminiFetch; calls: Call[] } => {
+    const calls: Call[] = [];
+
+    const fetchImpl: GeminiFetch = async (url, init) => {
+      calls.push({ url, body: init.body });
+
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          candidates: [{ content: { role: "model", parts: [{ text }] } }],
+        }),
+      };
+    };
+
+    return { fetchImpl, calls };
+  };
+
+  const makeNoToolProvider = (
+    fetchImpl: GeminiFetch,
+  ): GeminiProvider => {
+    return new GeminiProvider({
+      apiKey: "gemini-test-key",
+      fetchImpl,
+    });
+  };
+
+  it("펜스 없는 순수 JSON 은 기존대로 파싱한다 (회귀)", async () => {
+    const jsonText = JSON.stringify({
+      answer: "Pure JSON without fences.",
+      confidence: "high",
+      insufficientData: false,
+      referencedDriverNumbers: [44],
+    });
+    const { fetchImpl } = makeJsonFetch(jsonText);
+    const provider = makeNoToolProvider(fetchImpl);
+
+    const result = await provider.answerQuestion({
+      question: "Test?",
+      locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+    });
+
+    expect(result.answer).toBe("Pure JSON without fences.");
+    expect(result.confidence).toBe("high");
+    expect(result.referencedDriverNumbers).toEqual([44]);
+  });
+
+  it("```json 펜스로 감싼 JSON 을 파싱한다 (fenced with language tag)", async () => {
+    const jsonText = `\`\`\`json
+{"answer": "HAM(해밀턴)은 9랩에 충돌을 유발한 혐의로 5초 페널티를 받았습니다.", "confidence": "high", "insufficientData": false, "referencedDriverNumbers": [44]}
+\`\`\``;
+    const { fetchImpl } = makeJsonFetch(jsonText);
+    const provider = makeNoToolProvider(fetchImpl);
+
+    const result = await provider.answerQuestion({
+      question: "Test?",
+      locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+    });
+
+    expect(result.answer).toBe(
+      "HAM(해밀턴)은 9랩에 충돌을 유발한 혐의로 5초 페널티를 받았습니다.",
+    );
+    expect(result.confidence).toBe("high");
+    expect(result.referencedDriverNumbers).toEqual([44]);
+  });
+
+  it("``` 펜스로 감싼 JSON 을 파싱한다 (언어 태그 없음)", async () => {
+    const jsonText = `\`\`\`
+{"answer": "Fenced without language tag.", "confidence": "medium", "insufficientData": false, "referencedDriverNumbers": [1]}
+\`\`\``;
+    const { fetchImpl } = makeJsonFetch(jsonText);
+    const provider = makeNoToolProvider(fetchImpl);
+
+    const result = await provider.answerQuestion({
+      question: "Test?",
+      locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+    });
+
+    expect(result.answer).toBe("Fenced without language tag.");
+    expect(result.confidence).toBe("medium");
+    expect(result.referencedDriverNumbers).toEqual([1]);
+  });
+
+  it("펜스 앞뒤 공백·개행을 허용한다", async () => {
+    const jsonText = `
+  \`\`\`json
+  {"answer": "Whitespace handling.", "confidence": "low", "insufficientData": true, "referencedDriverNumbers": []}
+  \`\`\`
+  `;
+    const { fetchImpl } = makeJsonFetch(jsonText);
+    const provider = makeNoToolProvider(fetchImpl);
+
+    const result = await provider.answerQuestion({
+      question: "Test?",
+      locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+    });
+
+    expect(result.answer).toBe("Whitespace handling.");
+    expect(result.confidence).toBe("low");
+    expect(result.insufficientData).toBe(true);
+  });
+
+  it("앞뒤 산문 + JSON 에서 중괄호 범위를 추출해 파싱한다", async () => {
+    const jsonText =
+      'Here is the response for you: {"answer": "From prose extraction.", "confidence": "high", "insufficientData": false, "referencedDriverNumbers": [33]} I hope this helps!';
+    const { fetchImpl } = makeJsonFetch(jsonText);
+    const provider = makeNoToolProvider(fetchImpl);
+
+    const result = await provider.answerQuestion({
+      question: "Test?",
+      locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+    });
+
+    expect(result.answer).toBe("From prose extraction.");
+    expect(result.confidence).toBe("high");
+    expect(result.referencedDriverNumbers).toEqual([33]);
+  });
+
+  it("파싱 완전 실패하면 content 전체를 answer 로 폴백한다", async () => {
+    const invalidText = "This is not JSON at all, just plain text.";
+    const { fetchImpl } = makeJsonFetch(invalidText);
+    const provider = makeNoToolProvider(fetchImpl);
+
+    const result = await provider.answerQuestion({
+      question: "Test?",
+      locale: SupportedLocale.En,
+      explanationLevel: ExplanationLevel.Standard,
+      snapshot: frame.snapshot,
+      recentEvents: frame.events,
+      favoriteDriverNumbers: [],
+    });
+
+    // safeJson 이 null 을 반환하면 toAnswer 폴백이 content.trim() 을 answer 로 사용한다.
+    expect(result.answer).toBe(invalidText);
   });
 });
 

@@ -13,6 +13,7 @@ import { buildQuestionPrompt } from "./QuestionPrompt";
 import { selectQuestionEvents } from "./QuestionEventSelection";
 import { toQuestionSummaryContext } from "./QuestionSummaryContext";
 import { LEVEL_GUIDANCE, LOCALE_LANGUAGE } from "./PromptGuidance";
+import { parseJsonSafely } from "./JsonParser";
 import {
   LlmAnswer,
   LlmCommentary,
@@ -309,11 +310,7 @@ export class OpenAiProvider implements RaceLlmProvider {
   private safeJson(
     content: string,
   ): { answer?: unknown; confidence?: unknown; insufficientData?: unknown; referencedDriverNumbers?: unknown } | null {
-    try {
-      return JSON.parse(content) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
+    return parseJsonSafely(content);
   }
 
   private numberArray(value: unknown): number[] {
