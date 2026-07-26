@@ -28,12 +28,13 @@ export const CommentaryAskFooterView = ({
 
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
+      {/* iOS Safari 는 입력 글꼴이 16px 미만이면 포커스 시 자동 확대한다. 확대를 막으려고 viewport 를 잠그면 사용자 확대까지 막히므로, 글꼴을 16px 로 올려 해결한다. */}
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={dictionary.commentarySheet.placeholder}
         aria-label={dictionary.commentarySheet.placeholder}
-        className="h-11 flex-1 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        className="h-11 flex-1 rounded-md border border-input bg-background px-3 text-base outline-none focus-visible:ring-1 focus-visible:ring-ring"
       />
       <Button type="submit" disabled={isLoading || value.trim() === ""}>
         {isLoading ? dictionary.askAi.thinking : dictionary.commentarySheet.ask}

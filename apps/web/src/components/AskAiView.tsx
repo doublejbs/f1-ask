@@ -193,12 +193,13 @@ export const AskAiView = ({
         ) : null}
 
         <form onSubmit={handleSubmit} className="flex gap-2">
+          {/* iOS Safari 는 입력 글꼴이 16px 미만이면 포커스 시 자동 확대한다. 확대를 막으려고 viewport 를 잠그면 사용자 확대까지 막히므로, 글꼴을 16px 로 올려 해결한다. */}
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder={dictionary.askAi.placeholder}
             aria-label={dictionary.askAi.title}
-            className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-base outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <Button type="submit" disabled={isLoading || input.trim() === ""}>
             {isLoading ? dictionary.askAi.thinking : dictionary.askAi.ask}
