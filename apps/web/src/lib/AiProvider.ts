@@ -1,12 +1,15 @@
 import {
   createProcessEnvReader,
   createRaceLlmProvider,
+  LOOKUP_F1_KNOWLEDGE_TOOL_NAME,
   LlmQuestionRequest,
+  QUERY_DRIVER_EVENTS_TOOL_NAME,
   QuestionToolExecutorFactory,
   RaceEvent,
   RaceLlmProvider,
   SelectedLlmProvider,
   createDriverEventsExecutor,
+  createKnowledgeExecutor,
 } from "@f1/domain";
 import { hasServerFirestoreCredentials } from "@/firebase/ServerFirestore";
 import { fetchSessionEvents } from "./SessionEventFetcher";
@@ -43,22 +46,59 @@ const warnFallback = (error: unknown) => {
 // **sessionId 신뢰 경계**: sessionId 는 클라이언트가 보낸 스냅샷에서 온다(라우트에 이미
 // authoritative-read TODO 있음). events 는 공개 읽기 자원이라 저위험이나, 클라이언트가 임의
 // sessionId 를 넣을 수 있음을 인지한다 (docs/26 §sessionId 신뢰 경계).
-const createServerToolExecutorFactory = (): QuestionToolExecutorFactory => {
+//
+// **eventsEnabled 로 이벤트 툴만 끈다.** 예전에는 Firestore 자격이 없으면 팩토리 자체를
+// 넘기지 않아 정적 지식 툴까지 함께 사라졌다 — 지식은 Firestore 와 무관한데 조립이 둘을
+// 묶어 버린 것이다. 자격이 없어도 지식 툴은 그대로 열고, queryDriverEvents 만 빈 결과로
+// 응답한다(모델은 "그 정보는 없다"로 답할 수 있다).
+//
+// TODO(리뷰 권고 2): 이 이름 분기는 도메인의 createQuestionToolExecutor 와 모양이 겹친다.
+// 합치려면 도메인 팩토리가 "이벤트 배열" 대신 "이벤트를 주는 lazy 공급자"를 받도록 시그니처를
+// 바꿔야 하는데(그 lazy·memoize 가 이 파일의 존재 이유다) 워커·테스트 호출부까지 함께
+// 손대야 해 이번 수정 범위를 넘는다. 지금은 의도적으로 중복을 남긴다.
+const createServerToolExecutorFactory = (
+  eventsEnabled: boolean,
+): QuestionToolExecutorFactory => {
   return (request: LlmQuestionRequest) => {
     const sessionId = request.snapshot.sessionId;
+    // 지식은 정적 도메인 데이터라 Firestore 를 타지 않는다 (docs/26 §C). 서킷 항목은
+    // 이 세션의 circuitName 으로 고정한다 — 모델이 서킷을 고르지 않는다.
+    const knowledgeExecutor = createKnowledgeExecutor(
+      request.snapshot.circuitName,
+    );
     let eventsPromise: Promise<RaceEvent[]> | null = null;
 
     return async (name, args) => {
+      // 지식 툴만 쓴 질문은 Firestore 읽기 0 이다 — lazy fetch 를 건드리지 않는다.
+      if (name === LOOKUP_F1_KNOWLEDGE_TOOL_NAME) {
+        return knowledgeExecutor(name, args);
+      }
+
+      // 아는 툴 이름일 때만 Firestore 를 읽는다. 모델의 오타·환각 툴 이름이 세션 이벤트
+      // 전체 읽기를 유발하면 비용·지연이 모델 실수에 좌우된다.
+      if (name !== QUERY_DRIVER_EVENTS_TOOL_NAME) {
+        return [];
+      }
+
+      // 서비스 계정 자격이 없는 환경(로컬·미설정)에서는 이벤트 조회만 비활성이다.
+      if (!eventsEnabled) {
+        return [];
+      }
+
       if (eventsPromise === null) {
         eventsPromise = fetchSessionEvents(sessionId);
       }
 
-      const events = await eventsPromise;
-      const executor = createDriverEventsExecutor(events);
-
       // Firestore 또는 executor 에러를 모델에 노출하지 않는다. 원본 오류는 서버 로그에만
       // 남기고 고정 문구로 응답한다 (프로젝트 ID·자격 정보 유출 방지).
+      //
+      // **fetch 도 try 안이다.** 예전에는 await 가 밖에 있어 Firestore 자격·권한 오류가
+      // 마스킹을 건너뛰고 그대로 올라갔다 — 유출을 막으려 만든 경계가 정작 유출 가능성이
+      // 가장 큰 호출을 덮지 못했다.
       try {
+        const events = await eventsPromise;
+        const executor = createDriverEventsExecutor(events);
+
         return await executor(name, args);
       } catch (error) {
         const errorMessage =
@@ -80,11 +120,11 @@ const getSelectedRaceLlmProvider = (): SelectedLlmProvider => {
     return cached;
   }
 
-  // 서비스 계정 자격이 있을 때만 툴을 연다. 로컬·미설정 환경에서는 팩토리를 넘기지 않아
-  // 기존 단발 경로(툴 비활성)로 안전하게 동작한다.
-  const toolExecutorFactory = hasServerFirestoreCredentials()
-    ? createServerToolExecutorFactory()
-    : undefined;
+  // 툴은 항상 연다 — 지식 툴은 정적 도메인 데이터라 Firestore 자격과 무관하다.
+  // 자격 유무는 이벤트 조회 하나만 켜고 끈다.
+  const toolExecutorFactory = createServerToolExecutorFactory(
+    hasServerFirestoreCredentials(),
+  );
 
   cached = createRaceLlmProvider(
     createProcessEnvReader(process.env),

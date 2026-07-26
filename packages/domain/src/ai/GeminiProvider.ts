@@ -11,6 +11,7 @@ import { buildQuestionPrompt } from "./QuestionPrompt";
 import { selectQuestionEvents } from "./QuestionEventSelection";
 import { toQuestionSummaryContext } from "./QuestionSummaryContext";
 import {
+  LOOKUP_F1_KNOWLEDGE_TOOL_NAME,
   QUESTION_TOOL_DEFINITIONS,
   QuestionToolDefinition,
   QuestionToolExecutor,
@@ -117,7 +118,15 @@ const MAX_TOOL_ROUNDS = 3;
 // 스냅샷·이벤트로 답할 수 있으면 툴을 쓰지 말라고 못 박는다 — 단순 질문이 1콜에서
 // 2콜 왕복으로 비싸지는 오발동을 막는 것이 이 방식의 핵심 리스크다.
 const TOOL_USAGE_RULE =
-  "- You have a tool to query the full race history. Do NOT call a tool when the snapshot and events already in the context are enough to answer; only call a tool for facts that are missing from the context (for example an early pit lap that is no longer in the recent events).";
+  "- You have tools to query the full race history and to look up curated rules and circuit knowledge. Do NOT call a tool when the snapshot and events already in the context are enough to answer; only call a tool for facts that are missing from the context (for example an early pit lap that is no longer in the recent events).";
+
+// 지식 툴의 신뢰 경계 (docs/26 R5·수용 기준 6). 규정·서킷은 결정론이 지켜주지 않으므로
+// **큐레이션 결과만 인용**하게 못 박는다. 모델이 자기 기억으로 규정을 말하면 검증된 지식
+// 파일을 둔 의미가 사라지고, 틀린 규정이 "지식"으로 세탁된다.
+//
+// 툴 이름은 상수에서 조립한다 — 리터럴로 박아 두면 QuestionTools 에서 이름을 바꿨을 때
+// 프롬프트만 옛 이름을 가리켜 모델이 존재하지 않는 툴을 부른다.
+const KNOWLEDGE_TOOL_RULE = `- For questions about rules, regulations or circuit characteristics, use ${LOOKUP_F1_KNOWLEDGE_TOOL_NAME} and cite ONLY what it returns. Never state a rule or a circuit fact from your own memory, and if the lookup returns nothing, say you do not know.`;
 
 // AI 규칙 (PRD §14) 을 프롬프트로 인코딩한다. ClaudeProvider 와 동일한 문구를 유지한다.
 const SYSTEM_RULES = [
@@ -362,7 +371,7 @@ export class GeminiProvider implements RaceLlmProvider {
         SYSTEM_RULES,
         `Respond in ${LOCALE_LANGUAGE[request.locale]}.`,
         LEVEL_GUIDANCE[request.explanationLevel],
-        ...(toolsEnabled ? [TOOL_USAGE_RULE] : []),
+        ...(toolsEnabled ? [TOOL_USAGE_RULE, KNOWLEDGE_TOOL_RULE] : []),
         'Reply with ONLY a JSON object (no markdown, no prose around it): {"answer": string, "confidence": "low"|"medium"|"high", "insufficientData": boolean, "referencedDriverNumbers": number[]}.',
       ],
       question: request.question,
