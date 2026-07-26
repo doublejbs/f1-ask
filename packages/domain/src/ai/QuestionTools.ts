@@ -1,5 +1,6 @@
 import { RaceEvent } from "../RaceEvent";
 import { RaceEventType } from "../RaceEventType";
+import { lookupF1Knowledge } from "./F1Knowledge";
 import { JsonSchemaType } from "./JsonSchemaType";
 import { DriverEventQuery, queryDriverEvents } from "./QueryDriverEvents";
 
@@ -42,6 +43,7 @@ export type QuestionToolExecutor = (
 
 // 툴 이름은 한곳에서 상수로 — provider 어댑터·executor·정의가 같은 문자열을 참조하게 한다.
 export const QUERY_DRIVER_EVENTS_TOOL_NAME = "queryDriverEvents";
+export const LOOKUP_F1_KNOWLEDGE_TOOL_NAME = "lookupF1Knowledge";
 
 // enum 전체 값을 스키마 enum 으로 노출한다. 모델이 유효한 type 만 넣도록 유도한다.
 const EVENT_TYPE_VALUES: string[] = Object.values(RaceEventType);
@@ -87,6 +89,31 @@ export const QUESTION_TOOL_DEFINITIONS: QuestionToolDefinition[] = [
           description: "Maximum number of results (default 50).",
         },
       },
+    },
+  },
+  {
+    // 지식 툴 (docs/26 §C). C 유형 질문 100% 가 이 툴에만 의존한다 — 경기 데이터에 없는
+    // 정적 사실이기 때문이다. description 에 "결과만 인용하라"를 못 박는 이유는 R5 다:
+    // 모델이 제 기억으로 규정을 말하면 큐레이션의 의미가 사라진다.
+    name: LOOKUP_F1_KNOWLEDGE_TOOL_NAME,
+    description: [
+      "Look up curated Formula 1 rules, regulations and circuit knowledge that the race data does not contain —",
+      "for example what overtake mode is, how championship points are awarded, what a safety car does, or what characterises this circuit.",
+      "Pass a short topic keyword such as 'overtake_mode', 'points', 'tyre_compounds', 'safety_car', 'virtual_safety_car', 'track_limits', or a circuit name.",
+      "Everyday terms work too: 'drs' reaches the overtake mode entry, 'tires' the tyre compound entry.",
+      "Knowledge about the circuit of the current session is added automatically, so a circuit question needs no circuit name.",
+      "Answer rules and circuit questions ONLY from what this tool returns; if it returns an empty list, say you do not know instead of recalling the rules yourself.",
+    ].join(" "),
+    parameters: {
+      type: JsonSchemaType.Object,
+      properties: {
+        topic: {
+          type: JsonSchemaType.String,
+          description:
+            "Topic keyword to look up (e.g. 'overtake_mode', 'points', 'safety_car').",
+        },
+      },
+      required: ["topic"],
     },
   },
 ];
@@ -190,5 +217,50 @@ export const createDriverEventsExecutor = (
     const query = toDriverEventQuery(args);
 
     return queryDriverEvents(events, query);
+  };
+};
+
+// 지식 조회 executor. 조회 대상이 정적 데이터라 Firestore·네트워크가 필요 없다 —
+// 서버는 이 executor 를 이벤트 조회와 달리 lazy fetch 없이 곧바로 쓸 수 있다.
+//
+// circuitName 은 세션 메타(LiveRaceSnapshot.circuitName)에서 온다. 모델 인자로 받지 않는
+// 이유는 결정론이다 — "이 서킷"은 언제나 현재 세션의 서킷이어야 하고, 모델이 다른 서킷을
+// 넣어 엉뚱한 항목을 인용하는 경로를 아예 열지 않는다.
+export const createKnowledgeExecutor = (
+  circuitName?: string,
+): QuestionToolExecutor => {
+  return async (name, args) => {
+    if (name !== LOOKUP_F1_KNOWLEDGE_TOOL_NAME) {
+      return [];
+    }
+
+    // topic 이 없거나 문자열이 아니면 빈 문자열로 둔다 — circuitName 만으로도 서킷 항목이
+    // 나오므로 크래시 없이 유용한 결과가 된다.
+    const topic = toNonEmptyString(args.topic) ?? "";
+
+    return lookupF1Knowledge(topic, circuitName);
+  };
+};
+
+// 두 툴을 모두 처리하는 executor (docs/26 §툴 세트 "프로토타입 최소 세트").
+//
+// **이름으로 분기하는 한 벌**이어야 provider 의 툴 루프가 그대로 돈다 — 루프는 executor
+// 하나만 알고, 어떤 툴이 몇 개인지 모른다. 두 팩토리를 합성만 하므로 각 툴의 조회 로직은
+// 여전히 한 곳에 있다.
+export const createQuestionToolExecutor = (
+  events: RaceEvent[],
+  circuitName?: string,
+): QuestionToolExecutor => {
+  const driverEventsExecutor = createDriverEventsExecutor(events);
+  const knowledgeExecutor = createKnowledgeExecutor(circuitName);
+
+  return async (name, args) => {
+    if (name === LOOKUP_F1_KNOWLEDGE_TOOL_NAME) {
+      return knowledgeExecutor(name, args);
+    }
+
+    // 알 수 없는 이름은 driverEvents executor 가 빈 결과로 처리한다 — 모델의 오타·미지원
+    // 툴 호출이 루프를 깨지 않게 하는 기존 동작을 유지한다.
+    return driverEventsExecutor(name, args);
   };
 };

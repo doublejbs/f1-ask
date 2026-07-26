@@ -331,8 +331,17 @@ export type {
 export {
   QUESTION_TOOL_DEFINITIONS,
   QUERY_DRIVER_EVENTS_TOOL_NAME,
+  LOOKUP_F1_KNOWLEDGE_TOOL_NAME,
   createDriverEventsExecutor,
+  createKnowledgeExecutor,
+  createQuestionToolExecutor,
 } from "./ai/QuestionTools";
+export type { F1KnowledgeEntry } from "./ai/F1Knowledge";
+export {
+  F1_KNOWLEDGE,
+  CIRCUIT_TOPIC_PREFIX,
+  lookupF1Knowledge,
+} from "./ai/F1Knowledge";
 export type {
   CommentaryContext,
   CommentaryStandingsRow,

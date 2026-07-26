@@ -272,6 +272,11 @@ describe("GeminiProvider 툴 루프", () => {
       "Do NOT call a tool",
     );
 
+    // 규정·서킷은 결정론이 안 지켜주므로(docs/26 R5) 큐레이션 결과만 인용하게 못 박는다.
+    expect(body.systemInstruction.parts[0]!.text).toContain(
+      "cite ONLY what it returns",
+    );
+
     // 툴 자체는 요청에 실린다(functionDeclarations).
     expect(body.tools).toBeDefined();
   });
@@ -292,8 +297,13 @@ describe("GeminiProvider 툴 루프", () => {
       }[];
     };
 
-    const declaration = body.tools[0]!.functionDeclarations[0]!;
+    const declarations = body.tools[0]!.functionDeclarations;
+    const declaration = declarations[0]!;
 
+    // 지식 툴도 같은 wire 로 함께 실린다 (docs/26 §툴 세트 최소 2개).
+    expect(declarations.map((item) => item.name)).toContain(
+      "lookupF1Knowledge",
+    );
     expect(declaration.name).toBe(QUERY_DRIVER_EVENTS_TOOL_NAME);
     expect(declaration.parameters.type).toBe("object");
     expect(Object.keys(declaration.parameters.properties)).toContain(
@@ -349,6 +359,9 @@ describe("GeminiProvider 툴 하위호환", () => {
     expect(body.tools).toBeUndefined();
     expect(body.systemInstruction.parts[0]!.text).not.toContain(
       "Do NOT call a tool",
+    );
+    expect(body.systemInstruction.parts[0]!.text).not.toContain(
+      "lookupF1Knowledge",
     );
     expect(calls).toHaveLength(1);
     expect(result.answer).toBe("VER leads.");
