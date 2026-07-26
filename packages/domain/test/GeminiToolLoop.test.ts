@@ -111,7 +111,8 @@ const askWithTools = async (
   const provider = new GeminiProvider({
     apiKey: "gemini-test-key",
     fetchImpl,
-    toolExecutor: createDriverEventsExecutor(events),
+    // 팩토리는 요청마다 executor 를 만든다 — 테스트는 고정 이벤트로 만든 executor 를 그대로 돌려준다.
+    toolExecutorFactory: () => createDriverEventsExecutor(events),
   });
 
   return provider.answerQuestion({
@@ -228,7 +229,7 @@ describe("GeminiProvider 툴 루프", () => {
     const provider = new GeminiProvider({
       apiKey: "gemini-test-key",
       fetchImpl,
-      toolExecutor: executor,
+      toolExecutorFactory: () => executor,
     });
 
     const result = await provider.answerQuestion({
@@ -431,7 +432,7 @@ describe("GeminiProvider 에러 처리", () => {
     const provider = new GeminiProvider({
       apiKey: "gemini-test-key",
       fetchImpl,
-      toolExecutor: throwingExecutor,
+      toolExecutorFactory: () => throwingExecutor,
     });
 
     const result = await provider.answerQuestion({
@@ -488,7 +489,7 @@ describe("GeminiProvider 에러 처리", () => {
     const provider = new GeminiProvider({
       apiKey: "gemini-test-key",
       fetchImpl,
-      toolExecutor: createDriverEventsExecutor(buildEventsWithOldPit()),
+      toolExecutorFactory: () => createDriverEventsExecutor(buildEventsWithOldPit()),
     });
 
     await expect(
@@ -514,7 +515,7 @@ describe("GeminiProvider 에러 처리", () => {
     const provider = new GeminiProvider({
       apiKey: "gemini-test-key",
       fetchImpl,
-      toolExecutor: createDriverEventsExecutor(buildEventsWithOldPit()),
+      toolExecutorFactory: () => createDriverEventsExecutor(buildEventsWithOldPit()),
     });
 
     await expect(

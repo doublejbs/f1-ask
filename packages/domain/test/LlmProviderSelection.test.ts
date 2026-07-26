@@ -9,6 +9,11 @@ import {
 } from "../src/ai/LlmProviderSelection";
 import { MockLlmProvider } from "../src/ai/MockLlmProvider";
 import { OpenAiProvider } from "../src/ai/OpenAiProvider";
+import { ExplanationLevel } from "../src/ExplanationLevel";
+import { LlmQuestionRequest } from "../src/ai/RaceLlmProvider";
+import { MockRaceEngine } from "../src/mock/MockRaceEngine";
+import { DEFAULT_MOCK_SCENARIO } from "../src/mock/MockScenario";
+import { SupportedLocale } from "../src/SupportedLocale";
 
 // provider 선택 로직 (docs/02-architecture.md §2.6).
 // 웹 라우트와 폴러 워커가 같은 함수를 쓴다 — 두 런타임이 서로 다른 provider 를 고르면
@@ -69,6 +74,50 @@ describe("selectPrimaryLlmProvider", () => {
     );
 
     expect(selected?.model).toBe("gemini-x");
+  });
+});
+
+describe("toolExecutorFactory 스레딩 (docs/26 2단계)", () => {
+  const frame = new MockRaceEngine(
+    DEFAULT_MOCK_SCENARIO,
+    Date.parse("2026-07-19T05:00:00.000Z"),
+  ).snapshotAt(70);
+
+  const makeRequest = (): LlmQuestionRequest => ({
+    question: "Who is leading?",
+    locale: SupportedLocale.En,
+    explanationLevel: ExplanationLevel.Standard,
+    snapshot: frame.snapshot,
+    recentEvents: frame.events,
+    favoriteDriverNumbers: [],
+  });
+
+  it("selectPrimaryLlmProvider 가 팩토리를 Gemini provider 까지 스레딩하고, 요청별로 호출한다", async () => {
+    const seenSessionIds: string[] = [];
+
+    const selected = selectPrimaryLlmProvider(readerOf({ GEMINI_API_KEY: "g" }), {
+      // 팩토리가 실제 provider 에 도달했음을 네트워크 없이 증명한다 —
+      // answerQuestion 은 fetch 전에 팩토리를 요청과 함께 부르므로, 여기서 던지면
+      // 어떤 HTTP 호출도 없이 즉시 실패한다. seenSessionIds 로 "요청 스코프"도 확인한다.
+      toolExecutorFactory: (request) => {
+        seenSessionIds.push(request.snapshot.sessionId);
+
+        throw new Error("factory-reached");
+      },
+    });
+
+    await expect(
+      selected!.provider.answerQuestion(makeRequest()),
+    ).rejects.toThrow("factory-reached");
+
+    expect(seenSessionIds).toEqual([frame.snapshot.sessionId]);
+  });
+
+  it("팩토리를 안 넘기면 Gemini 는 툴 없이 동작한다 (요청 스코프 executor 미생성)", () => {
+    const selected = selectPrimaryLlmProvider(readerOf({ GEMINI_API_KEY: "g" }));
+
+    // 팩토리 미주입이면 provider 는 여전히 GeminiProvider 이나 answerQuestion 은 단발 경로다.
+    expect(selected?.provider).toBeInstanceOf(GeminiProvider);
   });
 });
 

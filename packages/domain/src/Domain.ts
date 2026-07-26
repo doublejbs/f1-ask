@@ -273,6 +273,7 @@ export { GeminiProvider } from "./ai/GeminiProvider";
 export type {
   GeminiFetch,
   GeminiProviderOptions,
+  QuestionToolExecutorFactory,
 } from "./ai/GeminiProvider";
 export { GeminiChatRole } from "./ai/GeminiChatRole";
 export { FallbackLlmProvider } from "./ai/FallbackLlmProvider";
@@ -280,6 +281,7 @@ export type { LlmFailureHandler } from "./ai/FallbackLlmProvider";
 export type {
   LlmEnvReader,
   SelectedLlmProvider,
+  LlmProviderOptions,
 } from "./ai/LlmProviderSelection";
 export {
   createRaceLlmProvider,
