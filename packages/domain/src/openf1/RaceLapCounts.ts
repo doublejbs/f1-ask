@@ -40,10 +40,25 @@ const RACE_LAPS_BY_CIRCUIT: Record<string, number> = {
 };
 
 // Race 세션의 예정 총 랩 수. 알 수 없는 서킷이면 null.
+//
+// 입력이 nullable 인 이유: 두 값 모두 OpenF1 sessions 응답(circuit_short_name / session_type)에서
+// 그대로 흘러온다. 타입은 non-null 이지만 외부 API 가 실제로 null 을 준 전례가 있다
+// (어제 헝가리 GP 장애: stints.compound 를 `string` 으로 믿고 toUpperCase 를 불러 워커가
+// 랩 40 부터 종료까지 약 30 분 정지). 이 함수는 정규화 경로 한복판(normalizeOpenF1SnapshotAt)에서
+// 매 폴링 호출되므로 같은 사고가 나면 똑같이 워커 전체가 멈춘다.
 export const scheduledRaceLaps = (
-  circuitShortName: string,
-  sessionType: string,
+  circuitShortName: string | null | undefined,
+  sessionType: string | null | undefined,
 ): number | null => {
+  if (
+    circuitShortName === null ||
+    circuitShortName === undefined ||
+    sessionType === null ||
+    sessionType === undefined
+  ) {
+    return null;
+  }
+
   if (sessionType.toLowerCase() !== "race") {
     return null;
   }

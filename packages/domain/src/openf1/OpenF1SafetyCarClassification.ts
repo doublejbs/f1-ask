@@ -24,9 +24,17 @@ const ENDING_TEXTS = ["IN THIS LAP", "ENDING"];
 
 // 판정 불가(배치도 해제도 아닌 문구)는 null 을 돌려준다.
 // 두 호출부 모두 이 경우 아무것도 하지 않는다 — 이벤트는 미발행, 상태는 직전 값 유지.
+// message 가 null 일 수 있어 nullable 로 받는다. 판정할 문구가 없으면 "판정 불가"(null)와
+// 결과가 같으므로 호출부가 추가로 분기할 필요가 없다.
+// 근거: 어제 헝가리 GP 장애가 stints.compound 의 null 을 string 으로 믿고 toUpperCase 를
+// 부른 데서 났다. race_control message 도 같은 형태의 타입 거짓말이라 미리 닫는다.
 export const classifySafetyCarMessage = (
-  message: string,
+  message: string | null | undefined,
 ): SessionStatus | null => {
+  if (message === null || message === undefined) {
+    return null;
+  }
+
   const text = message.toUpperCase();
 
   if (text.includes(DEPLOYED_TEXT)) {

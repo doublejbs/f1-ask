@@ -17,6 +17,17 @@ const INCIDENT_REASON_VALUES = new Set<string>(
   Object.values(RaceIncidentReason),
 );
 
+// race_control 문구를 대문자 텍스트로 정규화한다. null/undefined 는 빈 문자열이 되어
+// 어떤 키워드에도 걸리지 않는다 — "해석할 문구가 없다"는 뜻이라 무시가 정답이다.
+//
+// 왜 한 곳에 모았나: 어제 헝가리 GP 장애는 stints.compound 가 `string` 으로 선언돼 있는데
+// 실제로는 null 이 와서 toUpperCase() 가 그대로 터진 것이었다(워커가 랩 40 부터 종료까지
+// 약 30 분 정지). race_control 의 message 도 같은 형태의 타입 거짓말이고 대문자화 호출부가
+// 여러 곳이라, 한 군데만 막으면 나머지가 그대로 남는다. 문구 → 텍스트 변환은 여기에만 둔다.
+export const toUpperRaceControlText = (
+  message: string | null | undefined,
+): string => (message === null || message === undefined ? "" : message.toUpperCase());
+
 // 알 수 없는 값은 예외 대신 null 로 흘려 무시한다.
 export const parseRaceControlCategory = (
   value: string | null | undefined,

@@ -9,6 +9,7 @@ import { parseRaceControlCategory } from "./OpenF1RaceControlParsing";
 import { classifySafetyCarMessage } from "./OpenF1SafetyCarClassification";
 import { scheduledRaceLaps } from "./RaceLapCounts";
 import {
+  OpenF1Driver,
   OpenF1Interval,
   OpenF1Lap,
   OpenF1Pit,
@@ -25,10 +26,78 @@ const PIT_WINDOW_MS = 30_000;
 // 스냅샷에 담을 최근 팀 라디오 클립 최대 개수.
 const TEAM_RADIO_LIMIT = 12;
 
+// team_name 이 비어 온 드라이버의 표시용 팀명. 스냅샷 스키마가 min(1) 이라 빈 문자열을
+// 그대로 흘릴 수 없고, 드라이버 번호를 팀명 자리에 넣으면 팀명으로 오독된다.
+const UNKNOWN_TEAM_NAME = "Unknown";
+
 const numberOrNull = (value: number | string | null): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
-export const mapCompound = (compound: string): TireCompound => {
+// 정규화 경계의 규칙: **여기서 나가는 값은 반드시 스냅샷 스키마를 만족한다**
+// (packages/schemas/src/RaceSnapshotSchema.ts). "터지지만 않으면 된다"가 아니다.
+//
+// 왜 이 규칙인가: code / fullName / teamName 은 z.string().min(1), recordingUrl 은
+// z.string().url() 이다. 그래서 빈 문자열 폴백은 방어가 아니라 크래시의 이사다 —
+// 워커는 살아도 클라이언트가 onSnapshot 콜백 안에서 parseLiveRaceSnapshot 을 부르므로
+// (apps/web/src/firebase/FirestoreLiveRaceRepository.ts) 매 스냅샷마다 throw 해 화면이
+// 얼고, /api/ask · /api/commentary · /api/summary 도 같은 스키마라 400 이 된다.
+// 폴백은 "스키마를 통과하면서 뜻이 통하는 값"이어야 한다.
+const nonBlank = (value: string | null | undefined): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed === "" ? null : trimmed;
+};
+
+// driver_number 는 OpenF1 응답에 항상 있고 세션 안에서 유일하다. 그래서 코드가 비면
+// 번호 문자열이 유일하게 안전한 폴백이다("55" 는 min(1) 을 통과하고 UI 에서도 읽힌다).
+export const driverCodeOf = (driver: OpenF1Driver): string =>
+  nonBlank(driver.name_acronym) ?? String(driver.driver_number);
+
+// 이름이 비면 코드(→ 최종적으로 번호)로 내려간다. 팀명은 사람 이름으로 대체할 수 없으므로
+// 별도 상수를 쓴다.
+const driverIdentityOf = (
+  driver: OpenF1Driver,
+): { code: string; fullName: string; teamName: string } => {
+  const code = driverCodeOf(driver);
+
+  return {
+    code,
+    fullName: nonBlank(driver.full_name) ?? code,
+    teamName: nonBlank(driver.team_name) ?? UNKNOWN_TEAM_NAME,
+  };
+};
+
+type PlayableTeamRadio = OpenF1TeamRadio & { recording_url: string };
+
+// recording_url 은 형식까지 맞아야 스키마(z.string().url())를 통과한다. 대체 URL 을
+// 지어내면 UI 가 없는 파일을 재생하려 드므로, 재생 불가한 클립은 스냅샷에서 뺀다.
+export const isPlayableRadio = (
+  radio: OpenF1TeamRadio,
+): radio is PlayableTeamRadio => {
+  const url = nonBlank(radio.recording_url);
+
+  if (url === null) {
+    return false;
+  }
+
+  return /^https?:\/\/\S+$/i.test(url);
+};
+
+// 왜 nullable 을 받는가: OpenF1 stints 응답의 compound 는 피트인 직후 확정 전 상태로 null 이 온다
+// (실측 헝가리 GP 랩 40, VER 의 lap_start:40 스틴트). 예전 시그니처가 `string` 이라
+// compound.toUpperCase() 가 그대로 터졌고, 워커가 매 폴링마다 죽어 화면이 30 분 얼었다.
+// 컴파운드를 "모른다"는 건 정상 상태이므로 예외 대신 Unknown 으로 흘린다.
+export const mapCompound = (
+  compound: string | null | undefined,
+): TireCompound => {
+  if (compound === null || compound === undefined || compound.trim() === "") {
+    return TireCompound.Unknown;
+  }
+
   switch (compound.toUpperCase()) {
     case "SOFT":
       return TireCompound.Soft;
@@ -288,11 +357,14 @@ export const normalizeOpenF1SnapshotAt = (
       return max === null ? speed : Math.max(max, speed);
     }, null);
 
+    const identity = driverIdentityOf(driver);
+
     return {
       driverNumber: number,
-      code: driver.name_acronym,
-      fullName: driver.full_name,
-      teamName: driver.team_name,
+      // 세 값 모두 스키마가 min(1) 이라 driverIdentityOf 가 비지 않은 값을 보장한다.
+      code: identity.code,
+      fullName: identity.fullName,
+      teamName: identity.teamName,
       teamColour: driver.team_colour ?? null,
       headshotUrl: driver.headshot_url ?? null,
       lastSectorsSeconds,
@@ -384,17 +456,24 @@ export const normalizeOpenF1SnapshotAt = (
         };
 
   // 팀 라디오: atMs 이전 클립을 최신순으로 최대 TEAM_RADIO_LIMIT 개 담는다.
+  // 맵에는 이미 폴백까지 적용된 코드만 담는다. 빈 문자열을 담으면 아래 `??` 폴백이
+  // nullish 가 아니라서 도달하지 못해 driverCode 가 ""(스키마 실패)로 나간다.
   const codeByNumber = new Map(
-    data.drivers.map((driver) => [driver.driver_number, driver.name_acronym]),
+    data.drivers.map((driver) => [driver.driver_number, driverCodeOf(driver)]),
   );
+  // URL 필터는 slice 앞에 둔다 — 뒤에 두면 재생 불가 클립이 정원을 차지해
+  // 실제로 들려줄 수 있는 클립 수가 줄어든다.
   const teamRadios: TeamRadioClip[] = index.teamRadioSorted
     .filter((radio) => parseMs(radio.date) <= atMs)
+    .filter(isPlayableRadio)
     .slice(-TEAM_RADIO_LIMIT)
     .reverse()
     .map((radio) => ({
       driverNumber: radio.driver_number,
-      driverCode: codeByNumber.get(radio.driver_number) ?? String(radio.driver_number),
-      recordingUrl: radio.recording_url,
+      // drivers 목록에 없는 번호(중도 합류 등)까지 덮는 마지막 폴백.
+      driverCode:
+        codeByNumber.get(radio.driver_number) ?? String(radio.driver_number),
+      recordingUrl: radio.recording_url.trim(),
       timestamp: radio.date,
     }));
 

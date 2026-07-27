@@ -20,6 +20,7 @@ import {
   parseRaceControlScope,
   parseRainPercent,
   parseTurnNumber,
+  toUpperRaceControlText,
 } from "./OpenF1RaceControlParsing";
 import { OpenF1RaceControlScope } from "./OpenF1RaceControlScope";
 import { classifySafetyCarMessage } from "./OpenF1SafetyCarClassification";
@@ -113,7 +114,7 @@ export const buildRaceControlEvents = (
       (message) =>
         parseRaceControlCategory(message.category) ===
           OpenF1RaceControlCategory.SessionStatus &&
-        message.message.toUpperCase().includes(keyword),
+        toUpperRaceControlText(message.message).includes(keyword),
     );
 
   const hasSessionStartedMessage = hasSessionStatusText(SESSION_STARTED_TEXT);
@@ -129,7 +130,7 @@ export const buildRaceControlEvents = (
     const category = parseRaceControlCategory(message.category);
     const flag = parseRaceControlFlag(message.flag);
     const scope = parseRaceControlScope(message.scope);
-    const text = message.message.toUpperCase();
+    const text = toUpperRaceControlText(message.message);
     const lapNumber = message.lap_number ?? undefined;
 
     if (category === OpenF1RaceControlCategory.SessionStatus) {
