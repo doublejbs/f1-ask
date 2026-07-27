@@ -227,10 +227,32 @@ const fetchOptionalEndpoint = async <T>(
 };
 
 // 안정적인 세션 ID 슬러그 (예: "2026-sgp-race").
-export const toSessionId = (session: OpenF1Session): string =>
-  `${session.year}-${session.country_code.toLowerCase()}-${session.session_type
-    .toLowerCase()
-    .replace(/\s+/g, "-")}`;
+//
+// country_code / session_type 은 타입상 non-null 이지만 OpenF1 응답에서 비어 올 수 있다.
+// 여기서 던지면 세션 탐색 자체가 막혀 폴링이 통째로 멈춘다 — 어제 헝가리 GP 에서
+// stints.compound null 하나로 워커가 30 분 죽은 것과 같은 구조다.
+//
+// 다만 빈 조각을 그대로 두면 더 나쁘다: 이 문자열은 Firestore 문서 경로
+// (sessions/{sessionId})이자 아카이브 id 라, 같은 해에 조각이 빈 세션이 둘 나오면
+// "2026--race" 로 같은 id 를 갖고 서로의 데이터를 덮어쓴다. session_key 는 OpenF1 이
+// 항상 채워 주는 유일 키이므로 빈 조각의 자리를 대신한다.
+const toSlug = (value: string | null | undefined, fallback: string): string => {
+  const slug =
+    value === null || value === undefined
+      ? ""
+      : value.trim().toLowerCase().replace(/\s+/g, "-");
+
+  return slug === "" ? fallback : slug;
+};
+
+export const toSessionId = (session: OpenF1Session): string => {
+  const keyFallback = `k${session.session_key}`;
+
+  return `${session.year}-${toSlug(session.country_code, keyFallback)}-${toSlug(
+    session.session_type,
+    keyFallback,
+  )}`;
+};
 
 // sessions 행 → 내부 세션 메타.
 export const toOpenF1SessionMeta = (

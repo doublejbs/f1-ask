@@ -10,6 +10,8 @@ import { buildOverrideWindow } from "./OpenF1OverrideWindow";
 import { makeEvent, TimedRaceEvent } from "./OpenF1EventFactory";
 import {
   buildOpenF1Index,
+  driverCodeOf,
+  isPlayableRadio,
   normalizeOpenF1SnapshotAt,
   OpenF1Index,
 } from "./OpenF1Normalizer";
@@ -84,8 +86,11 @@ export const buildEvents = (
   endMs: number,
 ): OpenF1TimedEvent[] => {
   const sessionId = data.meta.sessionId;
+  // 코드 폴백(name_acronym 이 비면 드라이버 번호)은 driverCodeOf 한 곳에만 둔다.
+  // 맵에 null·빈 문자열을 담아 두고 호출부마다 `??` 로 막으면, 빈 문자열이 nullish 가
+  // 아니라서 폴백이 조용히 도달 불능이 된다.
   const codeOf = new Map(
-    data.drivers.map((driver) => [driver.driver_number, driver.name_acronym]),
+    data.drivers.map((driver) => [driver.driver_number, driverCodeOf(driver)]),
   );
   const timed: OpenF1TimedEvent[] = [];
 
@@ -130,6 +135,17 @@ export const buildEvents = (
 
     const compound = stintCompoundAtLap(data, pit.driver_number, pit.lap_number + 1);
 
+    // 컴파운드가 아직 확정되지 않았으면 이번 폴링에서는 발행하지 않는다.
+    //
+    // 왜 "UNKNOWN 으로라도 발행"이 아닌가: EventWriteCursor 는 deduplicationKey 기준
+    // write-once 다(selectUnwrittenEvents). 키는 `{번호}:{랩}` 으로 고정이라 한 번
+    // "UNKNOWN" 으로 쓰이면 다음 폴링에 compound 가 채워져도 다시 쓰이지 않아
+    // "VER가 UNKNOWN 타이어로 피트인했습니다"가 화면에 영구히 남는다.
+    // 같은 순간에 발화하는 형제 이벤트 StrategyNote 도 같은 이유로 스킵한다.
+    if (compound === null) {
+      continue;
+    }
+
     push(
       atMs,
       makeEvent(sessionId, RaceEventType.PitStop, RaceEventPriority.High, atMs, {
@@ -138,7 +154,7 @@ export const buildEvents = (
         key: `${pit.driver_number}:${pit.lap_number}`,
         params: {
           driverCode: codeOf.get(pit.driver_number) ?? "",
-          compound: compound ?? "UNKNOWN",
+          compound,
         },
       }),
     );
@@ -235,6 +251,12 @@ export const buildEvents = (
     const atMs = parseMs(radio.date);
 
     if (!withinWindow(atMs)) {
+      continue;
+    }
+
+    // 재생할 수 없는 클립은 이벤트로도 만들지 않는다 — 스냅샷의 teamRadios 와 같은 기준을
+    // 써야 "피드에는 있는데 눌러도 안 나는" 항목이 생기지 않는다.
+    if (!isPlayableRadio(radio)) {
       continue;
     }
 
@@ -449,6 +471,14 @@ export const buildEvents = (
 
   for (const stint of sortedStints) {
     if (stint.lap_start <= 1) {
+      continue;
+    }
+
+    // 컴파운드 미확정 스틴트(피트인 직후 compound:null, 실측 헝가리 GP 랩 40)로는
+    // "필드 다수와 다른 타이어"라는 전략 노트를 만들 수 없다.
+    // PitStop 과 같은 이유로 스킵한다 — 커서가 키 기준 write-once 라 미확정 상태로 한 번
+    // 쓰면 영구히 굳는다. 다음 폴링에서 값이 채워지면 그때 발행된다.
+    if (stint.compound === null) {
       continue;
     }
 

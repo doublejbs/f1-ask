@@ -3,6 +3,7 @@ import { OpenF1RaceControlFlag } from "./OpenF1RaceControlFlag";
 import {
   parseRaceControlCategory,
   parseRaceControlFlag,
+  toUpperRaceControlText,
 } from "./OpenF1RaceControlParsing";
 import { OpenF1RaceControl } from "./OpenF1Types";
 
@@ -63,7 +64,7 @@ export const buildOverrideWindow = (messages: OpenF1RaceControl[]): OverrideWind
       continue;
     }
 
-    const text = message.message.toUpperCase();
+    const text = toUpperRaceControlText(message.message);
 
     if (text.includes(OVERTAKE_ENABLED_TEXT)) {
       overrideToggles.push({ atMs, active: true });
