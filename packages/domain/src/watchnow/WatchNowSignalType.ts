@@ -9,6 +9,9 @@ export enum WatchNowSignalType {
   GapConvergence = "gap_convergence",
   // C. 순위가 인접한 뒤차가 피트인했고 나는 아직 안 들어갔다.
   UndercutThreat = "undercut_threat",
+  // F. 앞차와 언더컷 사거리 안이고 내 타이어가 낡았다 — 지금 피트하면 앞차를 언더컷할 기회다.
+  //    C(수비: 뒤차가 나를 위협)의 공격 짝이다. 주체는 피트해야 할 나, 상대는 앞차다.
+  PitWindow = "pit_window",
   // D. 기준점 대비 순위가 임계 이상 변동했다.
   PositionSwing = "position_swing",
   // E. 순위 인접 페어가 N랩 후 배틀 범위(1초 내)에 든다. 워커가 랩타임 추세로 계산해

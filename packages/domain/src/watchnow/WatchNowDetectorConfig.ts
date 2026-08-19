@@ -19,6 +19,12 @@ export const DEFAULT_GAP_REARM_MULTIPLIER = 2;
 export const DEFAULT_UNDERCUT_POSITION_GAP = 2;
 // D. 기준점 대비 이 계단 이상 순위가 변하면 발화한다.
 export const DEFAULT_POSITION_SWING_THRESHOLD = 3;
+// F. 앞차 간격이 이 값(초) 이하면 언더컷 사거리로 본다. B(1.0초)보다 넓다 — 언더컷은
+// 배틀 진입 전에도 성립하고, 새 타이어의 랩 이득이 피트 손실 + 이 간격을 상쇄하기 때문이다.
+export const DEFAULT_PIT_WINDOW_GAP_THRESHOLD_SECONDS = 2.5;
+// F. 내 타이어가 이 랩수 이상이어야 "피트할 때가 됐다"로 본다. 같은 값을 앞차에도 적용해
+// 앞차가 방금 새 타이어로 간 경우(언더컷이 무의미한 경우)를 배제한다.
+export const DEFAULT_PIT_WINDOW_MIN_TIRE_AGE_LAPS = 15;
 
 export type WatchNowDetectorConfig = {
   tireAgeThresholdLaps: number;
@@ -27,6 +33,10 @@ export type WatchNowDetectorConfig = {
   gapRearmMultiplier: number;
   undercutPositionGap: number;
   positionSwingThreshold: number;
+  // F. 언더컷 사거리로 보는 앞차 간격 상한(초).
+  pitWindowGapThresholdSeconds: number;
+  // F. "피트할 때가 됐다"로 보는 최소 타이어 나이(랩). 나와 앞차 양쪽에 적용한다.
+  pitWindowMinTireAgeLaps: number;
   // SC · VSC 중 간격 기반 감지(B)를 억제한다.
   //
   // SC 는 전 차량을 인위적으로 밀착시킨다 — 실측에서 동시 배틀 분포의 꼬리에 21 · 19 · 18개가
@@ -46,5 +56,7 @@ export const DEFAULT_WATCH_NOW_DETECTOR_CONFIG: WatchNowDetectorConfig = {
   gapRearmMultiplier: DEFAULT_GAP_REARM_MULTIPLIER,
   undercutPositionGap: DEFAULT_UNDERCUT_POSITION_GAP,
   positionSwingThreshold: DEFAULT_POSITION_SWING_THRESHOLD,
+  pitWindowGapThresholdSeconds: DEFAULT_PIT_WINDOW_GAP_THRESHOLD_SECONDS,
+  pitWindowMinTireAgeLaps: DEFAULT_PIT_WINDOW_MIN_TIRE_AGE_LAPS,
   suppressGapDuringSafetyCar: true,
 };

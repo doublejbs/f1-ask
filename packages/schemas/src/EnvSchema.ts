@@ -3,6 +3,8 @@ import {
   DEFAULT_GAP_CONSECUTIVE_SAMPLES,
   DEFAULT_GAP_REARM_MULTIPLIER,
   DEFAULT_GAP_THRESHOLD_SECONDS,
+  DEFAULT_PIT_WINDOW_GAP_THRESHOLD_SECONDS,
+  DEFAULT_PIT_WINDOW_MIN_TIRE_AGE_LAPS,
   DEFAULT_POSITION_SWING_THRESHOLD,
   DEFAULT_TIRE_AGE_THRESHOLD_LAPS,
   DEFAULT_UNDERCUT_POSITION_GAP,
@@ -84,6 +86,17 @@ export const publicAppEnvSchema = z.object({
     .int()
     .positive()
     .default(DEFAULT_POSITION_SWING_THRESHOLD),
+  // F. 언더컷 사거리로 보는 앞차 간격 상한(초).
+  NEXT_PUBLIC_WATCH_NOW_PIT_WINDOW_GAP_SECONDS: z.coerce
+    .number()
+    .positive()
+    .default(DEFAULT_PIT_WINDOW_GAP_THRESHOLD_SECONDS),
+  // F. "피트할 때가 됐다"로 보는 최소 타이어 나이(랩).
+  NEXT_PUBLIC_WATCH_NOW_PIT_WINDOW_MIN_TIRE_AGE: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_PIT_WINDOW_MIN_TIRE_AGE_LAPS),
   // SC · VSC 중 간격 기반 감지(B) 억제 여부.
   //
   // 끄는 스위치를 남기는 이유는 억제가 **가정**이기 때문이다 — SC 중 간격이 무의미하다는

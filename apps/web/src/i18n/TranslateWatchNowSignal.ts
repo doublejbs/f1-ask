@@ -63,6 +63,13 @@ export const translateWatchNowSignal = (
     });
   }
 
+  if (signal.type === WatchNowSignalType.PitWindow) {
+    return fill(texts.pitWindow, {
+      code,
+      rival: signal.rivalDriverCode ?? UNKNOWN_TEXT,
+    });
+  }
+
   if (signal.type === WatchNowSignalType.OvertakeForecast) {
     // 예측 랩이 1이면 단수 템플릿을 쓴다 — en "1 lap". 워커가 실은 값이라 정수다.
     const template =

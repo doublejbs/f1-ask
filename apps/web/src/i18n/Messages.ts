@@ -261,6 +261,8 @@ export type Dictionary = {
     gapConvergence: string;
     // {rival} 피트인해 위협이 된 뒤차 코드.
     undercutThreat: string;
+    // 피트 윈도우(F). {code} 피트해야 할 주체, {rival} 언더컷할 앞차 코드.
+    pitWindow: string;
     // {from} → {to} 순위.
     positionSwing: string;
     // 배틀 진입 예측(docs/23). {code} chaser, {rival} 따라잡히는 앞차, {laps} 예측 랩 수.
@@ -502,12 +504,14 @@ const en: Dictionary = {
       [WatchNowSignalType.TireAge]: "Tires",
       [WatchNowSignalType.GapConvergence]: "Closing",
       [WatchNowSignalType.UndercutThreat]: "Undercut",
+      [WatchNowSignalType.PitWindow]: "Pit now",
       [WatchNowSignalType.PositionSwing]: "Swing",
       [WatchNowSignalType.OvertakeForecast]: "Forecast",
     },
     tireAge: "{code} on {laps}-lap tires",
     gapConvergence: "{code} {gap}s to car ahead",
     undercutThreat: "{code} — {rival} pitted",
+    pitWindow: "{code} — pit to undercut {rival}",
     positionSwing: "{code} P{from} to P{to}",
     overtakeForecast: "{code} expected within 1s of {rival} in {laps} laps",
     overtakeForecastSingular: "{code} expected within 1s of {rival} in 1 lap",
@@ -769,12 +773,14 @@ const ko: Dictionary = {
       [WatchNowSignalType.TireAge]: "타이어",
       [WatchNowSignalType.GapConvergence]: "간격",
       [WatchNowSignalType.UndercutThreat]: "언더컷",
+      [WatchNowSignalType.PitWindow]: "피트 찬스",
       [WatchNowSignalType.PositionSwing]: "순위",
       [WatchNowSignalType.OvertakeForecast]: "예측",
     },
     tireAge: "{code} 타이어 {laps}랩째",
     gapConvergence: "{code} 앞차와 {gap}초",
     undercutThreat: "{code} — {rival} 피트인",
+    pitWindow: "{code} — 지금 피트하면 {rival} 언더컷",
     positionSwing: "{code} P{from} → P{to}",
     overtakeForecast: "{code}, {laps}랩 후 {rival} 1초 내 진입 예상",
     overtakeForecastSingular: "{code}, 1랩 후 {rival} 1초 내 진입 예상",
@@ -1036,12 +1042,14 @@ const ja: Dictionary = {
       [WatchNowSignalType.TireAge]: "タイヤ",
       [WatchNowSignalType.GapConvergence]: "接近",
       [WatchNowSignalType.UndercutThreat]: "アンダーカット",
+      [WatchNowSignalType.PitWindow]: "ピットチャンス",
       [WatchNowSignalType.PositionSwing]: "順位変動",
       [WatchNowSignalType.OvertakeForecast]: "予測",
     },
     tireAge: "{code} タイヤ{laps}周目",
     gapConvergence: "{code} 前車と{gap}秒",
     undercutThreat: "{code} — {rival} ピットイン",
+    pitWindow: "{code} — 今ピットで {rival} をアンダーカット",
     positionSwing: "{code} P{from} → P{to}",
     overtakeForecast: "{code}、{laps}周後に {rival} の1秒以内に接近見込み",
     overtakeForecastSingular: "{code}、1周後に {rival} の1秒以内に接近見込み",

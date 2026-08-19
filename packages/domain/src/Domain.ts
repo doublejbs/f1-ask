@@ -496,6 +496,8 @@ export {
   DEFAULT_GAP_REARM_MULTIPLIER,
   DEFAULT_UNDERCUT_POSITION_GAP,
   DEFAULT_POSITION_SWING_THRESHOLD,
+  DEFAULT_PIT_WINDOW_GAP_THRESHOLD_SECONDS,
+  DEFAULT_PIT_WINDOW_MIN_TIRE_AGE_LAPS,
 } from "./watchnow/WatchNowDetectorConfig";
 export { WatchNowDetector } from "./watchnow/WatchNowDetector";
 // 역할이 고정된 칸 3개. 점수 랭킹(감지기 기본 점수 · 스테이크 등급 · 희소성 · 즐겨찾기
