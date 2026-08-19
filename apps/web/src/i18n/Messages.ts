@@ -3,6 +3,7 @@ import {
   ArchiveResultStatus,
   DataFreshnessStatus,
   ExplanationLevel,
+  OvertakeForecastConfidence,
   RaceEventPriority,
   SessionStateSeverity,
   SessionStatus,
@@ -285,6 +286,8 @@ export type Dictionary = {
     laps: string;
     // 예측 랩이 1일 때. en 은 "1 lap" 단수, ko/ja 는 구조가 같지만 병렬로 둔다.
     lapsSingular: string;
+    // 예측 신뢰도 배지 라벨. 잡는 속도의 랩별 일관성으로 도출된 3단계(docs/23 §신뢰도).
+    confidence: Record<OvertakeForecastConfidence, string>;
   };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
@@ -517,6 +520,11 @@ const en: Dictionary = {
     title: "Overtake forecast",
     laps: "{laps} laps",
     lapsSingular: "1 lap",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "High",
+      [OvertakeForecastConfidence.Medium]: "Medium",
+      [OvertakeForecastConfidence.Low]: "Low",
+    },
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -779,6 +787,11 @@ const ko: Dictionary = {
     title: "추월 예측",
     laps: "{laps}랩",
     lapsSingular: "1랩",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "높음",
+      [OvertakeForecastConfidence.Medium]: "보통",
+      [OvertakeForecastConfidence.Low]: "낮음",
+    },
   },
   status: {
     [SessionStatus.Scheduled]: "예정",
@@ -1041,6 +1054,11 @@ const ja: Dictionary = {
     title: "オーバーテイク予測",
     laps: "{laps}周",
     lapsSingular: "1周",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "高",
+      [OvertakeForecastConfidence.Medium]: "中",
+      [OvertakeForecastConfidence.Low]: "低",
+    },
   },
   status: {
     [SessionStatus.Scheduled]: "予定",

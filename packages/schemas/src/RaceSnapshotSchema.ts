@@ -4,6 +4,7 @@ import {
   LiveRaceSnapshot,
   OvertakeContextSummary,
   OvertakeForecast,
+  OvertakeForecastConfidence,
   PitContextSummary,
   SessionStatus,
   StintContextSummary,
@@ -91,6 +92,7 @@ const overtakeForecastSchema = z.object({
   closingRateSecondsPerLap: z.number(),
   predictedLapsToBattle: z.number().int(),
   predictedLap: z.number().int(),
+  confidence: z.nativeEnum(OvertakeForecastConfidence),
 }) satisfies z.ZodType<OvertakeForecast>;
 
 export const liveRaceSnapshotSchema = z.object({

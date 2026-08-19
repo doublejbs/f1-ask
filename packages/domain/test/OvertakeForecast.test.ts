@@ -4,6 +4,7 @@ import { LiveRaceSnapshot } from "../src/LiveRaceSnapshot";
 import { SessionStatus } from "../src/SessionStatus";
 import { TireCompound } from "../src/TireCompound";
 import { buildOvertakeForecasts } from "../src/openf1/OvertakeForecast";
+import { OvertakeForecastConfidence } from "../src/openf1/OvertakeForecastConfidence";
 import { OpenF1Lap, OpenF1Pit, OpenF1SessionData, OpenF1SessionMeta } from "../src/openf1/OpenF1Types";
 
 // 랩 date_start 를 계산하기 위한 기준 시각과 랩당 명목 간격(90초).
@@ -140,6 +141,8 @@ describe("buildOvertakeForecasts — 잡는 속도 계산", () => {
     // ceil((3.0 - 1.0) / 0.5) = 4
     expect(forecast?.predictedLapsToBattle).toBe(4);
     expect(forecast?.predictedLap).toBe(14);
+    // 최근 3랩 모두 앞차가 0.5초씩 느려 매 랩 좁혔다 → 전부 양수 델타 → High.
+    expect(forecast?.confidence).toBe(OvertakeForecastConfidence.High);
   });
 
   it("피트 오염: target 인랩·아웃랩은 제외되고 클린 랩으로 계산한다", () => {

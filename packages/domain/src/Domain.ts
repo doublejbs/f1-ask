@@ -119,6 +119,10 @@ export {
 } from "./openf1/OvertakeForecastConfig";
 export type { OvertakeForecast } from "./openf1/OvertakeForecast";
 export { buildOvertakeForecasts } from "./openf1/OvertakeForecast";
+export {
+  OvertakeForecastConfidence,
+  deriveOvertakeForecastConfidence,
+} from "./openf1/OvertakeForecastConfidence";
 export { selectImminentOvertakeForecasts } from "./OvertakeForecastPanelSelector";
 export { OvertakeForecastTracker } from "./openf1/OvertakeForecastTracker";
 export { buildOvertakeForecastEvent } from "./openf1/OvertakeForecastEvent";

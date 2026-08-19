@@ -2,9 +2,21 @@
 
 import { Dictionary } from "@/i18n/Messages";
 import { teamColorHex } from "@/lib/Format";
-import { LiveDriverState, OvertakeForecast } from "@f1/domain";
+import {
+  LiveDriverState,
+  OvertakeForecast,
+  OvertakeForecastConfidence,
+} from "@f1/domain";
 import { ArrowRight } from "lucide-react";
 import { useMemo } from "react";
+
+// 신뢰도별 점 색상. 높음=초록(믿을 만함), 보통=앰버, 낮음=중립 회색.
+// 순위 행·상태 배지와 같은 톤의 절제된 팔레트를 쓴다 — 예측 패널이 소리치지 않게.
+const CONFIDENCE_DOT_CLASS: Record<OvertakeForecastConfidence, string> = {
+  [OvertakeForecastConfidence.High]: "bg-emerald-400",
+  [OvertakeForecastConfidence.Medium]: "bg-amber-400",
+  [OvertakeForecastConfidence.Low]: "bg-muted-foreground",
+};
 
 type Props = {
   dictionary: Dictionary;
@@ -74,14 +86,16 @@ export const ForecastPanelView = ({ dictionary, forecasts, drivers }: Props) => 
 
           // "NOR → PIA · 3랩"만으로는 "예측"이라는 뜻이 전달되지 않으므로
           // 스크린리더에는 카드용 온전한 문장(watchNow 키 유지분)을 싣는다.
-          const description = (
+          const confidenceText = texts.confidence[forecast.confidence];
+
+          const description = `${(
             singular
               ? dictionary.watchNow.overtakeForecastSingular
               : dictionary.watchNow.overtakeForecast
           )
             .replace("{code}", chaser.code)
             .replace("{rival}", target.code)
-            .replace("{laps}", laps);
+            .replace("{laps}", laps)} · ${confidenceText}`;
 
           const accent = teamColorHex(chaser.teamColour);
 
@@ -115,6 +129,17 @@ export const ForecastPanelView = ({ dictionary, forecasts, drivers }: Props) => 
                 className="text-sm font-semibold tabular-nums text-muted-foreground"
               >
                 · {lapsText}
+              </span>
+
+              {/* 신뢰도 배지 — 우측 정렬. 예측 랩 수를 얼마나 믿을지 색·라벨로 보조한다. */}
+              <span
+                aria-hidden
+                className="ml-auto flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"
+              >
+                <span
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${CONFIDENCE_DOT_CLASS[forecast.confidence]}`}
+                />
+                {confidenceText}
               </span>
             </div>
           );

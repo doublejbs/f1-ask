@@ -4,6 +4,7 @@ import { LiveRaceSnapshot } from "../src/LiveRaceSnapshot";
 import { SessionStatus } from "../src/SessionStatus";
 import { TireCompound } from "../src/TireCompound";
 import { OvertakeForecast } from "../src/openf1/OvertakeForecast";
+import { OvertakeForecastConfidence } from "../src/openf1/OvertakeForecastConfidence";
 import { OvertakeForecastTracker } from "../src/openf1/OvertakeForecastTracker";
 
 const makeDriver = (
@@ -59,6 +60,7 @@ const makeForecast = (
   closingRateSecondsPerLap: 0.5,
   predictedLapsToBattle: 4,
   predictedLap: 14,
+  confidence: OvertakeForecastConfidence.High,
 });
 
 // chaser·target 두 드라이버만 담은 스냅샷을 만든다.
