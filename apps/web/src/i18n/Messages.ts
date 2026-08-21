@@ -3,6 +3,8 @@ import {
   ArchiveResultStatus,
   DataFreshnessStatus,
   ExplanationLevel,
+  NewsCategory,
+  NewsFilter,
   OvertakeForecastConfidence,
   RaceEventPriority,
   SessionStateSeverity,
@@ -111,7 +113,20 @@ export type Dictionary = {
   tabs: {
     race: string;
     archive: string;
-    ask: string;
+    news: string;
+  };
+  // 뉴스 탭 — 경기 전후 소식 (docs/28-news-tab.md).
+  news: {
+    title: string;
+    // 탭이 무엇인지 한 줄로.
+    subtitle: string;
+    loading: string;
+    empty: string;
+    error: string;
+    // 상단 필터 칩 라벨. enum 을 키로 써서 필터가 늘면 타입 에러로 잡힌다.
+    filter: Record<NewsFilter, string>;
+    // 카드의 카테고리 배지 라벨.
+    category: Record<NewsCategory, string>;
   };
   // 지난 레이스 기록 (docs/17-race-archive.md).
   archive: {
@@ -387,7 +402,28 @@ const en: Dictionary = {
   tabs: {
     race: "Race",
     archive: "Archive",
-    ask: "AI",
+    news: "News",
+  },
+  news: {
+    title: "News",
+    subtitle: "Results, rules, and team updates around the weekend",
+    loading: "Loading news…",
+    empty: "Nothing here yet",
+    error: "Couldn't load news",
+    filter: {
+      [NewsFilter.All]: "All",
+      [NewsFilter.Result]: "Results",
+      [NewsFilter.Rule]: "Rules",
+      [NewsFilter.TeamUpdate]: "Teams",
+      [NewsFilter.Video]: "Video",
+      [NewsFilter.Social]: "Social",
+    },
+    category: {
+      [NewsCategory.Result]: "Result",
+      [NewsCategory.Rule]: "Rules",
+      [NewsCategory.TeamUpdate]: "Team",
+      [NewsCategory.General]: "General",
+    },
   },
   archive: {
     title: "Race Archive",
@@ -656,7 +692,28 @@ const ko: Dictionary = {
   tabs: {
     race: "경기",
     archive: "기록",
-    ask: "AI",
+    news: "뉴스",
+  },
+  news: {
+    title: "뉴스",
+    subtitle: "경기 전후의 결과·규정·팀 소식을 한데 모아",
+    loading: "뉴스를 불러오는 중…",
+    empty: "아직 소식이 없어요",
+    error: "뉴스를 불러오지 못했어요",
+    filter: {
+      [NewsFilter.All]: "전체",
+      [NewsFilter.Result]: "결과",
+      [NewsFilter.Rule]: "규정",
+      [NewsFilter.TeamUpdate]: "팀",
+      [NewsFilter.Video]: "영상",
+      [NewsFilter.Social]: "소셜",
+    },
+    category: {
+      [NewsCategory.Result]: "결과",
+      [NewsCategory.Rule]: "규정",
+      [NewsCategory.TeamUpdate]: "팀",
+      [NewsCategory.General]: "일반",
+    },
   },
   archive: {
     title: "지난 레이스",
@@ -925,7 +982,28 @@ const ja: Dictionary = {
   tabs: {
     race: "レース",
     archive: "記録",
-    ask: "AI",
+    news: "ニュース",
+  },
+  news: {
+    title: "ニュース",
+    subtitle: "週末前後の結果・規則・チーム情報をまとめて",
+    loading: "ニュースを読み込み中…",
+    empty: "まだ情報がありません",
+    error: "ニュースを読み込めませんでした",
+    filter: {
+      [NewsFilter.All]: "すべて",
+      [NewsFilter.Result]: "結果",
+      [NewsFilter.Rule]: "規則",
+      [NewsFilter.TeamUpdate]: "チーム",
+      [NewsFilter.Video]: "動画",
+      [NewsFilter.Social]: "SNS",
+    },
+    category: {
+      [NewsCategory.Result]: "結果",
+      [NewsCategory.Rule]: "規則",
+      [NewsCategory.TeamUpdate]: "チーム",
+      [NewsCategory.General]: "一般",
+    },
   },
   archive: {
     title: "過去のレース",

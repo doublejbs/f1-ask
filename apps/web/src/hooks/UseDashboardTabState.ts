@@ -23,9 +23,10 @@ export const useDashboardTabState = (): DashboardTabController => {
   }, []);
 
   // 순위 시트·이벤트 피드의 탭투애스크가 경유하는 진입점.
-  // AI 탭으로 전환하며 nonce 를 증가시켜 AskAiView 자동 제출을 유발한다.
+  // AskAiView 는 경기 탭에 있으므로(docs/28) 경기 탭으로 전환하며 nonce 를 증가시켜
+  // 자동 제출을 유발한다. 데스크톱은 경기 탭에서 2컬럼으로 상시 노출된다.
   const switchToAskWithQuestion = useCallback((text: string) => {
-    setActiveTab(DashboardTab.Ask);
+    setActiveTab(DashboardTab.Race);
     setAskPrefill((prev) => ({
       text,
       nonce: (prev?.nonce ?? 0) + 1,

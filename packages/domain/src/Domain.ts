@@ -208,6 +208,18 @@ export {
   DEFAULT_FAVORITE_EVENT_LIMIT,
 } from "./FavoriteDriverDetail";
 
+// 뉴스 탭 — 경기 전후 소식 (docs/28-news-tab.md).
+export { NewsSourceKind } from "./news/NewsSourceKind";
+export { NewsCategory } from "./news/NewsCategory";
+export { NewsFilter, NEWS_FILTERS } from "./news/NewsFilter";
+export type { NewsItem, NewsSource } from "./news/NewsItem";
+export {
+  dedupeNewsItems,
+  sortNewsItems,
+  selectNewsFeed,
+} from "./news/NewsFeedSelector";
+export { MockNewsSource, buildMockNewsItems } from "./news/MockNewsSource";
+
 export {
   filterEventsByDriver,
   matchesDriverEvent,

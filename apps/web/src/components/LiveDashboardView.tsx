@@ -3,6 +3,7 @@
 import { AmbientWashView } from "@/components/AmbientWashView";
 import { ArchiveTabView } from "@/components/ArchiveTabView";
 import { AskAiTabView } from "@/components/AskAiTabView";
+import { NewsTabView } from "@/components/NewsTabView";
 import { NoLiveSessionView } from "@/components/NoLiveSessionView";
 import { RaceTabView } from "@/components/RaceTabView";
 import { SettingsSheetView } from "@/components/SettingsSheetView";
@@ -27,10 +28,9 @@ type Props = {
 };
 
 // 라이브 경기 대시보드 조립 컴포넌트.
-// 모바일: 상태바 + 활성 탭(경기 / 기록 / AI) + 하단 탭바.
-// 데스크톱(lg): 경기·AI 는 2컬럼[순위|AI]으로 함께 보이고, 기록은 전체 폭을 쓰는
-// 별도 화면이라 탭 전환으로만 연다. 가운데 이벤트 피드 컬럼은 피드를 분해하며
-// 사라졌다 (docs/14-event-placement.md).
+// 모바일: 상태바 + 활성 탭(경기 / 기록 / 뉴스) + 하단 탭바. AI 질문은 경기 탭 안에 있다.
+// 데스크톱(lg): 경기·AI 는 2컬럼[순위|AI]으로 함께 보이고, 기록·뉴스는 전체 폭을 쓰는
+// 별도 화면이라 탭 전환으로만 연다 (docs/28-news-tab.md §3번째 탭을 뉴스로).
 // 비활성 탭은 언마운트하지 않고 display 로만 숨겨 AskAiView 대화 상태와
 // 기록 탭의 목록·선택 상태를 보존한다.
 export const LiveDashboardView = ({ locale }: Props) => {
@@ -84,6 +84,10 @@ export const LiveDashboardView = ({ locale }: Props) => {
     cn(activeTab === tab ? "block" : "hidden", "lg:block");
 
   const isArchiveActive = activeTab === DashboardTab.Archive;
+  const isNewsActive = activeTab === DashboardTab.News;
+
+  // 기록·뉴스는 전체 폭을 쓰므로 활성일 때 경기·AI 2컬럼 그리드를 통째로 접는다.
+  const isFullWidthTakeover = isArchiveActive || isNewsActive;
 
   // 모바일 하단 패딩은 떠 있는 탭바(알약 약 64px + pb-safe 24px)에 여유를 더해 확보한다.
   return (
@@ -99,11 +103,11 @@ export const LiveDashboardView = ({ locale }: Props) => {
         />
       )}
 
-      {/* 기록은 전체 폭을 쓰므로 활성일 때 2컬럼 그리드를 통째로 접는다. */}
+      {/* 기록·뉴스는 전체 폭이라 활성일 때 2컬럼 그리드를 통째로 접는다. */}
       {/* lg:grid 는 hidden 을 이기므로 두 상태를 한 분기에서 통째로 고른다. */}
       <div
         className={
-          isArchiveActive
+          isFullWidthTakeover
             ? "hidden"
             : "block lg:grid lg:grid-cols-2 lg:items-start lg:gap-5"
         }
@@ -131,7 +135,9 @@ export const LiveDashboardView = ({ locale }: Props) => {
           )}
         </div>
 
-        <div className={getTabPanelClass(DashboardTab.Ask)}>
+        {/* AI 는 경기 탭에 귀속된다(docs/28) — 모바일은 경기 탭 하단, 데스크톱은 2번째
+            컬럼(lg:block). 그래서 가시성을 Race 탭에 맞춘다. */}
+        <div className={getTabPanelClass(DashboardTab.Race)}>
           {race === null ? (
             // 세션이 없으면 AI 가 근거로 쓸 경기 데이터도 없다.
             <p className="max-w-md py-12 text-sm leading-relaxed text-muted-foreground">
@@ -157,6 +163,11 @@ export const LiveDashboardView = ({ locale }: Props) => {
           locale={locale}
           isActive={isArchiveActive}
         />
+      </div>
+
+      {/* 뉴스는 세션 유무와 무관하게 항상 볼 수 있다 (경기 전후 소식이 목적). */}
+      <div className={isNewsActive ? "block" : "hidden"}>
+        <NewsTabView dictionary={dictionary} locale={locale} />
       </div>
 
       <TabBarView

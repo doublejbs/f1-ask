@@ -3,7 +3,7 @@
 import { Dictionary } from "@/i18n/Messages";
 import { DashboardTab } from "@/lib/DashboardTab";
 import { cn } from "@/lib/Utils";
-import { Flag, History, type LucideIcon, Sparkles } from "lucide-react";
+import { Flag, History, type LucideIcon, Newspaper } from "lucide-react";
 
 type Props = {
   dictionary: Dictionary;
@@ -20,10 +20,10 @@ type TabConfig = {
 const TAB_CONFIGS: TabConfig[] = [
   { tab: DashboardTab.Race, labelKey: "race", Icon: Flag },
   { tab: DashboardTab.Archive, labelKey: "archive", Icon: History },
-  { tab: DashboardTab.Ask, labelKey: "ask", Icon: Sparkles },
+  { tab: DashboardTab.News, labelKey: "news", Icon: Newspaper },
 ];
 
-// 하단 탭바. 경기 / 기록 / AI 3버튼.
+// 하단 탭바. 경기 / 기록 / 뉴스 3버튼. (AI 질문은 경기 탭으로 이전 — docs/28)
 // 데스크톱에서도 노출한다 — 「기록」은 2컬럼 레이아웃에 들어가지 않는 전체 폭
 // 화면이라, 탭바를 숨기면 데스크톱에서 도달할 방법이 사라진다.
 // 바닥에 붙지 않고 좌우 여백을 둔 떠 있는 알약이다 — 콘텐츠가 그 아래로 흘러 비친다.
