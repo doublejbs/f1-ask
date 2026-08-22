@@ -36,6 +36,7 @@ export type {
   LiveRaceContextSummary,
   PitContextSummary,
   StintContextSummary,
+  StintCompoundUse,
   OvertakeContextSummary,
 } from "./LiveRaceContextSummary";
 export type {
@@ -207,6 +208,26 @@ export {
   selectFavoriteDriverEvents,
   DEFAULT_FAVORITE_EVENT_LIMIT,
 } from "./FavoriteDriverDetail";
+
+// 타이어 할당·반납 규정 + 남은 타이어 경우의 수.
+export { WeekendFormat } from "./tire/TireAllocation";
+export type {
+  TireSetCounts,
+  TireReturnStage,
+  TireCompoundRange,
+  RemainingTireRanges,
+} from "./tire/TireAllocation";
+export {
+  DRY_TIRE_ALLOCATION,
+  TIRE_RETURN_SCHEDULE,
+  TIRE_SET_COMPOUNDS,
+  totalTireSets,
+  returnedSetsThrough,
+  totalReturnedSets,
+  remainingSetCount,
+  remainingTirePossibilities,
+  summarizeRemainingRanges,
+} from "./tire/TireAllocation";
 
 // 뉴스 탭 — 경기 전후 소식 (docs/28-news-tab.md).
 export { NewsSourceKind } from "./news/NewsSourceKind";

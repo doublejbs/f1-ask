@@ -2,6 +2,7 @@
 
 import { BottomSheetView } from "@/components/BottomSheetView";
 import { DriverAvatarView } from "@/components/DriverAvatarView";
+import { DriverTireStrategyView } from "@/components/DriverTireStrategyView";
 import { EventCommentaryLineView } from "@/components/EventCommentaryLineView";
 import { SectorChipsView } from "@/components/SectorChipsView";
 import { TireCompoundView } from "@/components/TireCompoundView";
@@ -28,6 +29,7 @@ import {
   AiCommentary,
   LiveDriverState,
   RaceEvent,
+  StintCompoundUse,
   SupportedLocale,
   TeamRadioClip,
   attachCommentary,
@@ -54,6 +56,8 @@ type Props = {
   locale: SupportedLocale;
   // 시트를 여는 대상 드라이버. null 이면 닫힘.
   driver: LiveDriverState | null;
+  // 이 드라이버가 이번 세션에서 쓴 타이어 이력. 스틴트 요약이 없으면 null.
+  usedCompounds: StintCompoundUse[] | null;
   // 필드 전체 섹터 최속(퍼플 판정용).
   fieldBestSectors: (number | null)[];
   // 이 드라이버의 팀 라디오 클립(최신순). 비어 있으면 섹션을 렌더링하지 않는다.
@@ -75,6 +79,7 @@ type ContentProps = {
   dictionary: Dictionary;
   locale: SupportedLocale;
   driver: LiveDriverState;
+  usedCompounds: StintCompoundUse[] | null;
   fieldBestSectors: (number | null)[];
   radioClips: TeamRadioClip[];
   playingRadioUrl: string | null;
@@ -311,6 +316,7 @@ const DriverDetailContent = ({
   dictionary,
   locale,
   driver,
+  usedCompounds,
   fieldBestSectors,
   radioClips,
   playingRadioUrl,
@@ -429,6 +435,11 @@ const DriverDetailContent = ({
         </StatRow>
       </div>
 
+      <DriverTireStrategyView
+        dictionary={dictionary}
+        usedCompounds={usedCompounds}
+      />
+
       {radioClips.length > 0 ? (
         <DriverRadioSection
           dictionary={dictionary}
@@ -471,6 +482,7 @@ export const DriverDetailSheetView = ({
   dictionary,
   locale,
   driver,
+  usedCompounds,
   fieldBestSectors,
   radioClips,
   playingRadioUrl,
@@ -501,6 +513,7 @@ export const DriverDetailSheetView = ({
         dictionary={dictionary}
         locale={locale}
         driver={driver}
+        usedCompounds={usedCompounds}
         fieldBestSectors={fieldBestSectors}
         radioClips={radioClips}
         playingRadioUrl={playingRadioUrl}

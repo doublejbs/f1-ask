@@ -68,6 +68,12 @@ const stintContextSummarySchema = z.object({
   currentStintStartLap: z.number().int().nullable(),
   previousCompound: z.nativeEnum(TireCompound).nullable(),
   lastPitLap: z.number().int().nullable(),
+  usedCompounds: z.array(
+    z.object({
+      compound: z.nativeEnum(TireCompound),
+      startedNew: z.boolean(),
+    }),
+  ),
 }) satisfies z.ZodType<StintContextSummary>;
 
 const overtakeContextSummarySchema = z.object({

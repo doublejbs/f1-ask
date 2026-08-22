@@ -169,6 +169,20 @@ export const RaceTabView = ({
       ? EMPTY_RADIO_CLIPS
       : (radiosByDriver.get(selectedDriver.driverNumber) ?? EMPTY_RADIO_CLIPS);
 
+  // 선택된 드라이버가 이번 세션에서 쓴 타이어 이력. 워커가 스틴트 요약에 실어 준다
+  // (mock 모드엔 contextSummary 가 없어 null → 타이어 전략 섹션이 "데이터 없음"으로 뜬다).
+  const selectedUsedCompounds = useMemo(() => {
+    if (selectedDriver === null) {
+      return null;
+    }
+
+    const stint = snapshot.contextSummary?.stints.find(
+      (entry) => entry.driverNumber === selectedDriver.driverNumber,
+    );
+
+    return stint?.usedCompounds ?? null;
+  }, [selectedDriver, snapshot.contextSummary]);
+
   const handleCloseSheet = () => {
     setSelectedDriver(null);
   };
@@ -273,6 +287,7 @@ export const RaceTabView = ({
         dictionary={dictionary}
         locale={locale}
         driver={selectedDriver}
+        usedCompounds={selectedUsedCompounds}
         fieldBestSectors={fieldBestSectors}
         radioClips={selectedRadioClips}
         playingRadioUrl={playingUrl}

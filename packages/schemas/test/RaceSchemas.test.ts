@@ -52,6 +52,10 @@ describe("race schemas", () => {
             currentStintStartLap: 21,
             previousCompound: "MEDIUM",
             lastPitLap: 20,
+            usedCompounds: [
+              { compound: "MEDIUM", startedNew: true },
+              { compound: "HARD", startedNew: true },
+            ],
           },
         ],
         overtakes: {

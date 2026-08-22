@@ -306,6 +306,23 @@ export type Dictionary = {
     // 예측 신뢰도 배지 라벨. 잡는 속도의 랩별 일관성으로 도출된 3단계(docs/23 §신뢰도).
     confidence: Record<OvertakeForecastConfidence, string>;
   };
+  // 드라이버 상세 시트의 타이어 전략(사용한 타이어 + 남은 타이어 경우의 수).
+  tireStrategy: {
+    title: string;
+    usedTitle: string;
+    remainingTitle: string;
+    // 스틴트 데이터가 없을 때(예: 아직 주행 전).
+    noData: string;
+    // 신품/중고 스틴트 표기.
+    new: string;
+    used: string;
+    // 보유 세트 수. {count} 치환.
+    setsCount: string;
+    // 가능한 구성 개수. {count} 치환.
+    possibilities: string;
+    // 계산 한계 안내(규정 기반·경우의 수·퀄리/프랙티스 미반영).
+    note: string;
+  };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
   eventPriority: Record<RaceEventPriority, string>;
@@ -565,6 +582,17 @@ const en: Dictionary = {
       [OvertakeForecastConfidence.Medium]: "Medium",
       [OvertakeForecastConfidence.Low]: "Low",
     },
+  },
+  tireStrategy: {
+    title: "Tire strategy",
+    usedTitle: "Used this session",
+    remainingTitle: "Remaining sets",
+    noData: "No tire data yet",
+    new: "new",
+    used: "used",
+    setsCount: "{count} sets",
+    possibilities: "· {count} possible",
+    note: "Estimate from a conventional weekend's mandatory returns; the returned compounds are the team's choice, and qualifying/practice use isn't included yet.",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -856,6 +884,17 @@ const ko: Dictionary = {
       [OvertakeForecastConfidence.Low]: "낮음",
     },
   },
+  tireStrategy: {
+    title: "타이어 전략",
+    usedTitle: "이번 세션 사용",
+    remainingTitle: "남은 세트",
+    noData: "아직 타이어 데이터가 없어요",
+    new: "신품",
+    used: "중고",
+    setsCount: "{count}세트 보유",
+    possibilities: "· {count}가지",
+    note: "일반 주말 반납 규정 기준 추정이에요. 어떤 컴파운드를 반납할지는 팀 선택이라 경우의 수로 표시하며, 퀄리·프랙티스 사용분은 아직 반영하지 않았어요.",
+  },
   status: {
     [SessionStatus.Scheduled]: "예정",
     [SessionStatus.Green]: "그린 플래그",
@@ -1145,6 +1184,17 @@ const ja: Dictionary = {
       [OvertakeForecastConfidence.Medium]: "中",
       [OvertakeForecastConfidence.Low]: "低",
     },
+  },
+  tireStrategy: {
+    title: "タイヤ戦略",
+    usedTitle: "今セッションの使用",
+    remainingTitle: "残りセット",
+    noData: "タイヤデータがまだありません",
+    new: "新品",
+    used: "中古",
+    setsCount: "{count}セット保有",
+    possibilities: "· {count}通り",
+    note: "通常週末の返却ルールに基づく推定です。どのコンパウンドを返却するかはチーム次第のため場合の数で示し、予選・フリー走行の使用分はまだ反映していません。",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",

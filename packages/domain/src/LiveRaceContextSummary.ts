@@ -25,6 +25,13 @@ export type PitContextSummary = {
 // 드라이버 한 명의 스틴트 맥락. 현재 compound·tireAgeLaps 는 스냅샷 driver 에 이미 있으므로
 // 중복 저장하지 않는다 — 스냅샷만으로는 알 수 없는 값(몇 번째 스틴트·직전 compound·시작 랩·
 // 마지막 피트 랩)만 추가한다.
+// 한 스틴트에서 쓴 타이어. startedNew 는 그 스틴트를 새 타이어로 시작했는지
+// (tyre_age_at_start === 0). 중고로 시작했으면 false — 남은 타이어·전략 맥락에 쓴다.
+export type StintCompoundUse = {
+  compound: TireCompound;
+  startedNew: boolean;
+};
+
 export type StintContextSummary = {
   driverNumber: number;
   // 지금까지 시작한 스틴트 수(현재 스틴트 포함). "몇 번째 스틴트인가"의 맥락.
@@ -36,6 +43,8 @@ export type StintContextSummary = {
   previousCompound: TireCompound | null;
   // 마지막 피트 정지 랩. 스냅샷엔 pitStopCount 만 있고 랩은 없다. 피트 전이면 null.
   lastPitLap: number | null;
+  // 지금까지 쓴 타이어 이력(시작 순서대로). "그동안 사용한 타이어" 표시에 쓴다.
+  usedCompounds: StintCompoundUse[];
 };
 
 // 추월 집계. 개별 추월 214건을 한 덩어리로 압축한다(docs/22 §2).

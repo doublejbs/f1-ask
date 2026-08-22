@@ -28,6 +28,10 @@ const SUMMARY: LiveRaceContextSummary = {
       currentStintStartLap: 21,
       previousCompound: TireCompound.Medium,
       lastPitLap: 20,
+      usedCompounds: [
+        { compound: TireCompound.Medium, startedNew: true },
+        { compound: TireCompound.Hard, startedNew: true },
+      ],
     },
   ],
   overtakes: { total: 214, mostActiveDriverNumber: 4, mostActiveCount: 9 },
