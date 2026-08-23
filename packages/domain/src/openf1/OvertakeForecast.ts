@@ -176,6 +176,57 @@ const computeClosingStats = (
   return { rate: deltaSum / deltas.length, deltas };
 };
 
+// 타이어 열화를 반영해 배틀 진입까지 랩 수를 예측한다(B1). 잡는 속도를 매 미래 랩마다
+// 감쇠시키며 lap-by-lap 으로 간격을 좁힌다. 앞차 타이어가 같거나 더 낡았으면(또는 나이 미상)
+// 감쇠 0 → 기존 선형(ceil(distance/rate))과 정확히 같다. maxLapsAhead 안에 못 좁히거나
+// 열화로 잡는 속도가 노이즈 수준 아래로 떨어지면 null(예측하지 않는다).
+export const predictLapsToBattle = (
+  interval: number,
+  closingRate: number,
+  chaserTireAgeLaps: number | null,
+  targetTireAgeLaps: number | null,
+  config: OvertakeForecastConfig,
+): number | null => {
+  const distance = interval - config.battleThresholdSeconds;
+
+  if (distance <= 0) {
+    return 0;
+  }
+
+  // 타이어 나이 열세 = 쫓는 차가 앞차보다 낡은 정도. 정보가 없으면 0(열화 미반영).
+  const disadvantage =
+    chaserTireAgeLaps === null || targetTireAgeLaps === null
+      ? 0
+      : Math.max(0, chaserTireAgeLaps - targetTireAgeLaps);
+
+  const decayPerLap =
+    closingRate *
+    Math.min(
+      disadvantage * config.tireDegradationPerAgeLap,
+      config.maxTireDegradationFraction,
+    );
+
+  let remaining = distance;
+  let rate = closingRate;
+
+  for (let laps = 1; laps <= config.maxLapsAhead; laps += 1) {
+    remaining -= rate;
+
+    if (remaining <= 0) {
+      return laps;
+    }
+
+    rate -= decayPerLap;
+
+    // 열화로 잡는 속도가 노이즈 수준 아래로 떨어지면 사실상 못 잡는다.
+    if (rate < config.minClosingRateSecondsPerLap) {
+      return null;
+    }
+  }
+
+  return null;
+};
+
 export const buildOvertakeForecasts = (
   snapshot: LiveRaceSnapshot,
   data: OpenF1SessionData,
@@ -262,12 +313,17 @@ export const buildOvertakeForecasts = (
 
     const closingRate = closingStats.rate;
 
-    // 예측 랩 수는 올림한다 — 낙관해서 한 랩 빨리 잡힌다고 말하지 않는다.
-    const predictedLapsToBattle = Math.ceil(
-      (interval - config.battleThresholdSeconds) / closingRate,
+    // 타이어 열화를 반영해 배틀 진입 랩을 낸다(B1). maxLapsAhead 안에 못 좁히면 null →
+    // 발화하지 않는다. 앞차가 같거나 더 낡았으면 기존 선형 예측과 같다.
+    const predictedLapsToBattle = predictLapsToBattle(
+      interval,
+      closingRate,
+      chaser.tireAgeLaps,
+      target.tireAgeLaps,
+      config,
     );
 
-    if (predictedLapsToBattle > config.maxLapsAhead) {
+    if (predictedLapsToBattle === null) {
       continue;
     }
 

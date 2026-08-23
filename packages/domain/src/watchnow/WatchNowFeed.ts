@@ -21,6 +21,20 @@ import { WatchNowSignal } from "./WatchNowSignal";
 // 경우에만 걸리는 안전장치이며, 넘치면 오래된 것부터 버린다.
 const MAX_BUFFERED_SIGNALS = 500;
 
+// 지난 신호 이력 상한(더보기용). 화면엔 최대 5개만 보이지만 최근 활동을 넉넉히 든다.
+const MAX_HISTORY_SIGNALS = 40;
+
+// 이력 중복 제거 키. 같은 발화(같은 예측 랩·같은 순위 변동)는 한 번만 남긴다.
+const historyKey = (signal: WatchNowSignal): string =>
+  [
+    signal.type,
+    signal.driverNumber,
+    signal.rivalDriverNumber ?? "-",
+    signal.lapNumber ?? "-",
+    signal.positionFrom ?? "-",
+    signal.positionTo ?? "-",
+  ].join(":");
+
 export type WatchNowFeedOptions = {
   detectorConfig?: WatchNowDetectorConfig;
   laneConfig?: WatchNowLaneConfig;
@@ -47,6 +61,10 @@ export class WatchNowFeed {
   private readonly laneConfig: WatchNowLaneConfig;
   private detector: WatchNowDetector;
   private signals: WatchNowSignal[] = [];
+  // 지난 신호 이력(더보기용, B5). 후보 창 밖으로 밀려난 신호도 여기엔 남는다. 중복 키를
+  // 걸러(예측이 매 프레임 반복되므로) 새로 발화한 것만 쌓고, 상한을 넘으면 오래된 것부터 버린다.
+  private history: WatchNowSignal[] = [];
+  private readonly historyKeys = new Set<string>();
   // 마지막으로 관측한 프레임 식별자. 같은 프레임이 다시 들어오면 통째로 건너뛴다.
   private lastFrameKey: string | null = null;
   private lastSessionId: string | null = null;
@@ -80,16 +98,51 @@ export class WatchNowFeed {
     this.lastFrameKey = frameKey;
     this.lastSessionId = snapshot.sessionId;
 
-    this.signals.push(...this.detector.observe(snapshot));
+    const detected = this.detector.observe(snapshot);
+    this.signals.push(...detected);
 
     // 예측은 감지가 아니라 변환이다 — 워커가 스냅샷에 실은 overtakeForecasts 를 신호로 옮겨
     // 감지 신호와 같은 버퍼에 넣는다. 프레임 식별자 중복 방지가 이미 걸려 있어 같은 프레임을
     // 두 번 관측해도 예측 신호가 두 번 쌓이지 않는다(docs/23 §UI).
-    this.signals.push(...buildOvertakeForecastSignals(snapshot));
+    const forecasts = buildOvertakeForecastSignals(snapshot);
+    this.signals.push(...forecasts);
 
+    this.recordHistory([...detected, ...forecasts]);
     this.pruneSignals(this.resolveReferenceMs(snapshot));
 
     return true;
+  }
+
+  // 지난 신호 이력에 새 발화만 더한다(중복 키 제외). 예측이 매 프레임 반복 변환되므로
+  // 키(종류·주체·상대·랩·순위)로 접어야 이력이 예측으로 도배되지 않는다.
+  private recordHistory(signals: WatchNowSignal[]): void {
+    for (const signal of signals) {
+      const key = historyKey(signal);
+
+      if (this.historyKeys.has(key)) {
+        continue;
+      }
+
+      this.historyKeys.add(key);
+      this.history.push(signal);
+    }
+
+    const overflow = this.history.length - MAX_HISTORY_SIGNALS;
+
+    if (overflow > 0) {
+      for (const removed of this.history.splice(0, overflow)) {
+        this.historyKeys.delete(historyKey(removed));
+      }
+    }
+  }
+
+  // 최근 발화 순(최신 먼저)으로 지난 신호를 돌려준다(더보기용, B5).
+  recentHistory(limit: number): WatchNowSignal[] {
+    if (limit <= 0) {
+      return [];
+    }
+
+    return [...this.history].slice(-limit).reverse();
   }
 
   // 지금 화면에 올릴 칸 3개를 만든다. 부수효과가 없으므로 몇 번을 불러도 결과가 같다.
@@ -115,6 +168,8 @@ export class WatchNowFeed {
   reset(): void {
     this.detector = new WatchNowDetector(this.detectorConfig);
     this.signals = [];
+    this.history = [];
+    this.historyKeys.clear();
     this.lastFrameKey = null;
     this.lastSessionId = null;
   }

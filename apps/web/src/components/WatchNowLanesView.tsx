@@ -2,16 +2,35 @@
 
 import { WatchNowLaneRowView } from "@/components/WatchNowLaneRowView";
 import { Dictionary } from "@/i18n/Messages";
-import { LiveDriverState, WatchNowLaneGroup, WatchNowLanes } from "@f1/domain";
-import { useMemo } from "react";
+import {
+  LiveDriverState,
+  WatchNowLaneGroup,
+  WatchNowLanes,
+  WatchNowSignal,
+  WatchNowSignalType,
+} from "@f1/domain";
+import { History, Info } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type Props = {
   dictionary: Dictionary;
   // 레이스 중이 아니면 훅이 null 을 준다. 그때는 섹션 자체가 없다.
   lanes: WatchNowLanes | null;
+  // 후보 창 밖으로 밀려난 지난 신호(최신 먼저, 최대 5개 — B5).
+  history: WatchNowSignal[];
   drivers: LiveDriverState[];
   onSelectDriver: (driver: LiveDriverState) => void;
 };
+
+// 범례·이력에 쓰는 신호 종류 순서(docs/19 §감지기: 방송 보완도 순).
+const SIGNAL_TYPE_ORDER: WatchNowSignalType[] = [
+  WatchNowSignalType.TireAge,
+  WatchNowSignalType.UndercutThreat,
+  WatchNowSignalType.PitWindow,
+  WatchNowSignalType.OvertakeForecast,
+  WatchNowSignalType.GapConvergence,
+  WatchNowSignalType.PositionSwing,
+];
 
 // "지금 볼 것" — 역할이 고정된 칸 3개 (docs/19-watch-now.md §화면).
 //
@@ -29,10 +48,13 @@ type Props = {
 export const WatchNowLanesView = ({
   dictionary,
   lanes,
+  history,
   drivers,
   onSelectDriver,
 }: Props) => {
   const texts = dictionary.watchNow;
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // 신호는 드라이버 번호만 들고 있다. 행 탭으로 상세 시트를 열려면 로스터가 필요하다.
   const driverByNumber = useMemo(() => {
@@ -95,19 +117,86 @@ export const WatchNowLanesView = ({
       aria-label={texts.title}
       className="glass-float animate-fade-up overflow-hidden rounded-2xl"
     >
-      <div className="flex items-baseline justify-between gap-2 border-b border-white/[0.08] px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-b border-white/[0.08] px-3 py-2">
         <h2 className="text-[12px] font-semibold text-foreground">
           {texts.title}
         </h2>
 
-        <p className="truncate text-[11px] text-muted-foreground/80">
-          {texts.subtitle}
-        </p>
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="truncate text-[11px] text-muted-foreground/80">
+            {texts.subtitle}
+          </p>
+
+          {/* 신호 종류 안내 토글(B5). "어떤 설명들이 나오는지"를 여기서 편다. */}
+          <button
+            type="button"
+            onClick={() => setIsLegendOpen((open) => !open)}
+            aria-expanded={isLegendOpen}
+            aria-label={texts.legendToggle}
+            className="press shrink-0 rounded-full p-1 text-muted-foreground hover:text-foreground"
+          >
+            <Info className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
       </div>
+
+      {/* 범례 — 신호 종류별 한 줄 설명 (B5). */}
+      {isLegendOpen ? (
+        <div className="flex flex-col gap-1.5 border-b border-white/[0.06] bg-white/[0.02] px-3 py-2">
+          {SIGNAL_TYPE_ORDER.map((type) => (
+            <div key={type} className="flex items-baseline gap-2 text-[11px]">
+              <span className="w-16 shrink-0 font-semibold text-foreground">
+                {texts.signalType[type]}
+              </span>
+              <span className="text-muted-foreground">
+                {texts.signalHelp[type]}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="divide-y divide-white/[0.06]">
         {visibleLanes.map(renderLane)}
       </div>
+
+      {/* 지난 신호 더보기 (B5) — 후보 창 밖으로 밀려난 최근 신호 최대 5개. */}
+      {history.length > 0 ? (
+        <div className="border-t border-white/[0.06]">
+          <button
+            type="button"
+            onClick={() => setIsHistoryOpen((open) => !open)}
+            aria-expanded={isHistoryOpen}
+            className="press flex min-h-[2.25rem] w-full items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            <History className="h-3.5 w-3.5" aria-hidden />
+            {isHistoryOpen ? texts.historyHide : texts.historyShow}
+          </button>
+
+          {isHistoryOpen ? (
+            <div className="flex flex-col gap-1 px-3 pb-2">
+              {history.map((signal, index) => (
+                <div
+                  key={`${signal.type}:${signal.driverNumber}:${signal.lapNumber ?? index}`}
+                  className="flex items-center gap-2 text-[12px]"
+                >
+                  <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                    {texts.signalType[signal.type]}
+                  </span>
+                  <span className="font-semibold tracking-tight text-foreground">
+                    {signal.driverCode}
+                  </span>
+                  {signal.rivalDriverCode !== null ? (
+                    <span className="text-muted-foreground">
+                      · {signal.rivalDriverCode}
+                    </span>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 };
