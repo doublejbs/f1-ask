@@ -21,8 +21,9 @@ import { WatchNowSignal } from "./WatchNowSignal";
 // 경우에만 걸리는 안전장치이며, 넘치면 오래된 것부터 버린다.
 const MAX_BUFFERED_SIGNALS = 500;
 
-// 지난 신호 이력 상한(더보기용). 화면엔 최대 5개만 보이지만 최근 활동을 넉넉히 든다.
-const MAX_HISTORY_SIGNALS = 40;
+// 지난 신호 이력 상한(더보기용, B4). 경기 시작부터 전부 보여 주므로 넉넉히 든다 — 중복 제거된
+// 발화만 쌓이므로 한 레이스에 이 상한에 닿는 일은 드물고, 넘치면 오래된 것부터 버리는 안전장치다.
+const MAX_HISTORY_SIGNALS = 200;
 
 // 이력 중복 제거 키. 같은 발화(같은 예측 랩·같은 순위 변동)는 한 번만 남긴다.
 const historyKey = (signal: WatchNowSignal): string =>
@@ -143,6 +144,11 @@ export class WatchNowFeed {
     }
 
     return [...this.history].slice(-limit).reverse();
+  }
+
+  // 경기 시작부터의 전체 지난 신호(최신 먼저, 중복 제거됨). "더보기"로 다 펼칠 때 쓴다(B4).
+  allHistory(): WatchNowSignal[] {
+    return [...this.history].reverse();
   }
 
   // 지금 화면에 올릴 칸 3개를 만든다. 부수효과가 없으므로 몇 번을 불러도 결과가 같다.

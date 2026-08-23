@@ -343,3 +343,18 @@ describe("WatchNowFeed — 지난 신호 이력 (B5)", () => {
     expect(feed.recentHistory(5)).toEqual([]);
   });
 });
+
+describe("WatchNowFeed — allHistory 경기 시작부터 (B4)", () => {
+  it("발화한 지난 신호를 전부(최신 먼저) 돌려주고, reset 이 비운다", () => {
+    const feed = new WatchNowFeed();
+
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+
+    const all = feed.allHistory();
+    expect(all.length).toBeGreaterThanOrEqual(1);
+    expect(all[0]?.type).toBe(WatchNowSignalType.TireAge);
+
+    feed.reset();
+    expect(feed.allHistory()).toEqual([]);
+  });
+});

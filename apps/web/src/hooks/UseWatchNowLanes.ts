@@ -10,12 +10,9 @@ import {
 } from "@f1/domain";
 import { useMemo, useRef } from "react";
 
-// 화면에 보이는 지난 신호(더보기) 최대 개수 (B5).
-const WATCH_NOW_HISTORY_LIMIT = 5;
-
 export type WatchNowView = {
   lanes: WatchNowLanes;
-  // 후보 창 밖으로 밀려난 지난 신호(최신 먼저, 최대 5개).
+  // 경기 시작부터의 지난 신호(최신 먼저, 중복 제거). 화면이 접힘=5개/펼침=전체로 자른다(B4).
   history: WatchNowSignal[];
 };
 
@@ -74,7 +71,7 @@ export const useWatchNowLanes = ({
 
     return {
       lanes: feed.buildLanes(snapshot, favoriteDriverNumbers),
-      history: feed.recentHistory(WATCH_NOW_HISTORY_LIMIT),
+      history: feed.allHistory(),
     };
   }, [feed, snapshot, favoriteDriverNumbers]);
 };
