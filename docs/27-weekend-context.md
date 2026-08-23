@@ -212,3 +212,18 @@ type QualifyingResult = { driverNumber; driverCode; finalPosition | null;
 16. `ARCHIVE_CACHE_VERSION` 이 올라간다. `points` 가 optional 로 정정된다
 17. 도메인 테스트는 **저장된 픽스처**로 돈다(네트워크 금지). 실측 인용값 고정
 18. 실 LLM e2e: "휠켄버그 Q1 몇 위?" 가 **Q1 6위**로 답된다(값까지 검증)
+
+## 개정 — 프랙티스·퀄리 결과 표 (E1 구현)
+
+「기록」 상세에 프랙티스·퀄리 **결과 표**를 더했다(주말 타이어 격자·docs/29 옆).
+
+- **온디맨드**: `loadWeekendResults(meetingKey)` — sessions·session_result·drivers 를
+  meeting_key 3요청으로 받아 `buildWeekendResults` 로 정규화. `getWeekendResults` 캐시.
+- **형태 분기**: `duration` 이 스칼라(프랙티스 베스트랩)/배열(퀄리 세그먼트)임을 타입·정규화
+  에서 다룬다. `OpenF1SessionResult.duration` 을 `number | (number|null)[] | null` 로,
+  `gap_to_leader` 를 배열 포함으로, `points` 를 optional 로 정정.
+- **세그먼트 랭크 계산**: 각 세그먼트에서 기록(non-null)한 드라이버끼리 랩타임 오름차순 순위
+  (동률 driver_number). `position`(최종 분류)과 혼동하지 않는다.
+- **실측 검증(헝가리 GP)**: HUL 최종 P10 인데 **Q1 P6** — docs 회귀값과 일치.
+- UI: 세션별 표(프랙티스=순위/베스트/갭, 퀄리=Q1/Q2/Q3 랩타임+세그먼트 랭크). i18n 3로케일.
+- **범위 밖(유지)**: reachedSegment 판정·라이브 진행 퀄리·AI 툴 적재는 이후.

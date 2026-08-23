@@ -6,10 +6,15 @@ import {
   ArchiveResultRow,
   ArchiveResultStatus,
   DriverWeekendTires,
+  PracticeResult,
+  QualifyingResult,
+  QualifyingSegment,
   SessionTireUse,
   TireCompound,
   WeekendFormat,
+  WeekendResults,
   WeekendSessionKind,
+  WeekendSessionResults,
   WeekendTireSession,
   WeekendTireUsage,
 } from "@f1/domain";
@@ -115,3 +120,49 @@ export const weekendTireUsageSchema = z.object({
 
 export const parseWeekendTireUsage = (value: unknown): WeekendTireUsage =>
   weekendTireUsageSchema.parse(value);
+
+// 주말 프랙티스·퀄리 결과 (docs/27, E1).
+const practiceResultSchema = z.object({
+  driverNumber: z.number().int(),
+  code: z.string(),
+  position: z.number().int().nullable(),
+  bestLapSeconds: z.number().nullable(),
+  gapToLeaderSeconds: z.number().nullable(),
+}) satisfies z.ZodType<PracticeResult>;
+
+const qualifyingSegmentSchema = z.object({
+  index: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  lapSeconds: z.number().nullable(),
+  rank: z.number().int().nullable(),
+}) satisfies z.ZodType<QualifyingSegment>;
+
+const qualifyingResultSchema = z.object({
+  driverNumber: z.number().int(),
+  code: z.string(),
+  finalPosition: z.number().int().nullable(),
+  segments: z.array(qualifyingSegmentSchema),
+}) satisfies z.ZodType<QualifyingResult>;
+
+const weekendSessionResultsSchema = z.discriminatedUnion("type", [
+  z.object({
+    sessionKey: z.number().int(),
+    name: z.string(),
+    kind: z.nativeEnum(WeekendSessionKind),
+    type: z.literal("practice"),
+    practice: z.array(practiceResultSchema),
+  }),
+  z.object({
+    sessionKey: z.number().int(),
+    name: z.string(),
+    kind: z.nativeEnum(WeekendSessionKind),
+    type: z.literal("qualifying"),
+    qualifying: z.array(qualifyingResultSchema),
+  }),
+]) satisfies z.ZodType<WeekendSessionResults>;
+
+export const weekendResultsSchema = z.object({
+  sessions: z.array(weekendSessionResultsSchema),
+}) satisfies z.ZodType<WeekendResults>;
+
+export const parseWeekendResults = (value: unknown): WeekendResults =>
+  weekendResultsSchema.parse(value);

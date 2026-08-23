@@ -368,6 +368,19 @@ export const fetchOpenF1MeetingDrivers = async (
 ): Promise<OpenF1Driver[]> =>
   fetchEndpoint<OpenF1Driver>("drivers", "meeting_key", meetingKey, options);
 
+// 한 미팅의 전 세션 결과(프랙티스·퀄리·레이스). 행마다 session_key 로 나눈다. 취소 세션은
+// 행이 없을 뿐이라 optional 로 흡수한다(docs/27 §실측 — 취소 세션 session_result 404).
+export const fetchOpenF1MeetingSessionResults = async (
+  meetingKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1SessionResult[]> =>
+  fetchOptionalEndpoint<OpenF1SessionResult>(
+    "session_result",
+    "meeting_key",
+    meetingKey,
+    options,
+  );
+
 // 세션의 원본 데이터 묶음 조회 (순차 + rate-limit 대비).
 export const fetchOpenF1SessionData = async (
   meta: OpenF1SessionMeta,
