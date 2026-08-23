@@ -21,7 +21,8 @@ import { DashboardTab } from "@/lib/DashboardTab";
 import { LiveRaceStatus } from "@/lib/LiveRaceStatus";
 import { cn } from "@/lib/Utils";
 import { LiveDriverState, SupportedLocale } from "@f1/domain";
-import { useMemo, useState } from "react";
+import { Sparkles, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 type Props = {
   locale: SupportedLocale;
@@ -48,6 +49,19 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const { activeTab, handleChangeTab, askPrefill, switchToAskWithQuestion } =
     useDashboardTabState();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // 모바일 AI 플로팅 패널 열림 상태. 데스크톱(lg)에서는 2컬럼으로 상시 노출되므로 무의미하다.
+  const [isAskOpen, setIsAskOpen] = useState(false);
+
+  // 탭투애스크(드라이버·이벤트 탭)로 질문이 자동 제출되면 모바일 패널을 함께 띄운다 —
+  // 안 그러면 답이 닫힌 패널 뒤에서 조용히 쌓인다. 데스크톱에선 시각적 효과가 없다.
+  useEffect(() => {
+    if (askPrefill === undefined) {
+      return;
+    }
+
+    setIsAskOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askPrefill?.nonce]);
 
   // Set 을 배열로 편 값. 소비자가 둘이고 둘 다 의존성으로 쓰므로 identity 를 고정한다 —
   // 매 렌더 새 배열을 만들면 "지금 볼 것" 칸이 프레임과 무관하게 재계산된다.
@@ -62,7 +76,17 @@ export const LiveDashboardView = ({ locale }: Props) => {
 
   const handleAskDriver = (driver: LiveDriverState) => handleAskCode(driver.code);
 
-  const handleOpenArchive = () => handleChangeTab(DashboardTab.Archive);
+  // 경기 탭을 벗어나면 모바일 AI 패널을 닫는다 — 안 그러면 기록·뉴스에서 돌아올 때
+  // 패널이 스스로 다시 떠오른다(경기 그리드가 다시 표시되므로).
+  const handleTabChange = (tab: DashboardTab) => {
+    if (tab !== DashboardTab.Race) {
+      setIsAskOpen(false);
+    }
+
+    handleChangeTab(tab);
+  };
+
+  const handleOpenArchive = () => handleTabChange(DashboardTab.Archive);
 
   // 연결 중에만 로딩 문구를 보여 준다. 세션이 없는 상태는 아래에서 설명한다 —
   // 두 상태를 합치면 고장 난 것처럼 보인다 (docs/17-race-archive.md §배경).
@@ -135,9 +159,33 @@ export const LiveDashboardView = ({ locale }: Props) => {
           )}
         </div>
 
-        {/* AI 는 경기 탭에 귀속된다(docs/28) — 모바일은 경기 탭 하단, 데스크톱은 2번째
-            컬럼(lg:block). 그래서 가시성을 Race 탭에 맞춘다. */}
-        <div className={getTabPanelClass(DashboardTab.Race)}>
+        {/* AI 는 경기 탭에 귀속된다(docs/28). 데스크톱(lg)은 2번째 컬럼으로 상시 노출하고,
+            모바일은 하단 플로팅 버튼으로 열고 닫는 시트로 띄운다. AskAiView 는 항상
+            마운트 상태를 유지한다(translate/display 로만 숨김) — 대화 스레드가 보존된다. */}
+        <div
+          aria-label={dictionary.askAi.title}
+          className={cn(
+            // 모바일: 아래에서 떠오르는 플로팅 패널.
+            "fixed inset-x-0 bottom-0 z-[70] max-h-[82dvh] overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-1 transition-transform duration-300 ease-out",
+            isAskOpen
+              ? "pointer-events-auto translate-y-0"
+              : "pointer-events-none translate-y-[110%]",
+            // 데스크톱: 정적 2번째 컬럼으로 되돌린다.
+            "lg:pointer-events-auto lg:static lg:inset-auto lg:bottom-auto lg:z-auto lg:max-h-none lg:translate-y-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0 lg:transition-none",
+          )}
+        >
+          {/* 모바일 전용 닫기 핸들. 데스크톱 컬럼에선 숨긴다. */}
+          <div className="mb-1 flex justify-end lg:hidden">
+            <button
+              type="button"
+              onClick={() => setIsAskOpen(false)}
+              aria-label={dictionary.askAi.closePanel}
+              className="press rounded-full bg-white/[0.08] p-2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
+
           {race === null ? (
             // 세션이 없으면 AI 가 근거로 쓸 경기 데이터도 없다.
             <p className="max-w-md py-12 text-sm leading-relaxed text-muted-foreground">
@@ -170,10 +218,32 @@ export const LiveDashboardView = ({ locale }: Props) => {
         <NewsTabView dictionary={dictionary} locale={locale} />
       </div>
 
+      {/* 모바일 AI 플로팅 버튼 — 경기 탭 + 세션 있을 때만. 패널이 열려 있으면 숨긴다. */}
+      {race !== null && activeTab === DashboardTab.Race && !isAskOpen ? (
+        <button
+          type="button"
+          onClick={() => setIsAskOpen(true)}
+          aria-label={dictionary.askAi.openPanel}
+          className="press fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/40 lg:hidden"
+        >
+          <Sparkles className="h-6 w-6" aria-hidden />
+        </button>
+      ) : null}
+
+      {/* 패널 뒤 배경 딤 — 탭하면 닫는다. 탭바(z-40) 위를 덮도록 더 높은 층이다. */}
+      {isAskOpen && activeTab === DashboardTab.Race ? (
+        <button
+          type="button"
+          onClick={() => setIsAskOpen(false)}
+          aria-label={dictionary.askAi.closePanel}
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm lg:hidden"
+        />
+      ) : null}
+
       <TabBarView
         dictionary={dictionary}
         activeTab={activeTab}
-        onChangeTab={handleChangeTab}
+        onChangeTab={handleTabChange}
       />
 
       {race === null ? null : (

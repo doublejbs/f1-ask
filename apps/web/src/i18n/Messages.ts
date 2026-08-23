@@ -95,6 +95,9 @@ export type Dictionary = {
     confidenceLabel: string;
     reset: string;
     emptyHint: string;
+    // 모바일 AI 플로팅 버튼·패널 접근성 라벨.
+    openPanel: string;
+    closePanel: string;
     // {code} 를 드라이버 코드로 치환하는 탭투애스크 질문 템플릿.
     driverTapQuestion: string;
     confidence: Record<AiConfidence, string>;
@@ -441,6 +444,8 @@ const en: Dictionary = {
     suggestions: "Try asking",
     confidenceLabel: "Confidence",
     reset: "New chat",
+    openPanel: "Ask AI",
+    closePanel: "Close AI panel",
     emptyHint: "Ask a question, or tap a driver or event below.",
     driverTapQuestion: "How is {code} doing right now?",
     confidence: {
@@ -787,6 +792,8 @@ const ko: Dictionary = {
     suggestions: "이렇게 물어보세요",
     confidenceLabel: "신뢰도",
     reset: "새 대화",
+    openPanel: "AI 질문 열기",
+    closePanel: "AI 패널 닫기",
     emptyHint: "질문을 입력하거나 아래 드라이버·이벤트를 탭해 보세요.",
     driverTapQuestion: "{code} 지금 상황 어때?",
     confidence: {
@@ -1133,6 +1140,8 @@ const ja: Dictionary = {
     suggestions: "質問例",
     confidenceLabel: "信頼度",
     reset: "新しい会話",
+    openPanel: "AI に質問",
+    closePanel: "AI パネルを閉じる",
     emptyHint: "質問を入力するか、下のドライバー・イベントをタップしてください。",
     driverTapQuestion: "{code} は今どんな状況？",
     confidence: {
