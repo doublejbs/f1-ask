@@ -73,6 +73,55 @@ describe("race schemas", () => {
     expect(parsed.contextSummary).toEqual(withSummary.contextSummary);
   });
 
+  it("옛 워커 스냅샷(stint.usedCompounds 없음)을 보정해 통과시킨다", () => {
+    const { snapshot } = engine.snapshotAt(70);
+    // 원저자 워커(옛 버전)가 쓴 stint 는 usedCompounds 필드가 아예 없다 — 우리가 추가한 필드.
+    const legacy = {
+      ...snapshot,
+      contextSummary: {
+        pits: { totalStops: 12, medianDurationSeconds: 24.5 },
+        stints: [
+          {
+            driverNumber: 44,
+            stintCount: 2,
+            currentStintStartLap: 21,
+            previousCompound: "MEDIUM",
+            lastPitLap: 20,
+          },
+        ],
+        overtakes: { total: 30, mostActiveDriverNumber: 4, mostActiveCount: 5 },
+      },
+    };
+
+    const parsed = parseLiveRaceSnapshot(legacy);
+
+    // 없던 필드는 빈 배열로 보정된다.
+    expect(parsed.contextSummary?.stints[0]?.usedCompounds).toEqual([]);
+  });
+
+  it("옛 워커 스냅샷(forecast.confidence 없음)을 Low 로 보정해 통과시킨다", () => {
+    const { snapshot } = engine.snapshotAt(70);
+    const legacy = {
+      ...snapshot,
+      overtakeForecasts: [
+        {
+          chaserNumber: 4,
+          targetNumber: 1,
+          intervalSeconds: 3.0,
+          closingRateSecondsPerLap: 0.5,
+          predictedLapsToBattle: 4,
+          predictedLap: 14,
+        },
+      ],
+    };
+
+    const parsed = parseLiveRaceSnapshot(legacy);
+
+    expect(parsed.overtakeForecasts?.[0]?.confidence).toBe(
+      OvertakeForecastConfidence.Low,
+    );
+  });
+
   it("overtakeForecasts 가 없어도 통과한다 (optional — mock·옛 스냅샷 안전)", () => {
     const { snapshot } = engine.snapshotAt(70);
 
