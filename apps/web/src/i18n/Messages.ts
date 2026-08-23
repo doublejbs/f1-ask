@@ -323,6 +323,16 @@ export type Dictionary = {
     // 계산 한계 안내(규정 기반·경우의 수·퀄리/프랙티스 미반영).
     note: string;
   };
+  // 「기록」 상세의 주말 타이어 격자(드라이버 × 세션 사용 compound).
+  weekendTires: {
+    title: string;
+    subtitle: string;
+    loading: string;
+    empty: string;
+    error: string;
+    // 격자 첫 열 헤더(드라이버).
+    driverColumn: string;
+  };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
   eventPriority: Record<RaceEventPriority, string>;
@@ -593,6 +603,14 @@ const en: Dictionary = {
     setsCount: "{count} sets",
     possibilities: "· {count} possible",
     note: "Estimate from a conventional weekend's mandatory returns; the returned compounds are the team's choice, and qualifying/practice use isn't included yet.",
+  },
+  weekendTires: {
+    title: "Weekend tires",
+    subtitle: "Compounds each driver ran, session by session",
+    loading: "Loading weekend tires…",
+    empty: "No tire data for this weekend",
+    error: "Couldn't load weekend tires",
+    driverColumn: "Driver",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -895,6 +913,14 @@ const ko: Dictionary = {
     possibilities: "· {count}가지",
     note: "일반 주말 반납 규정 기준 추정이에요. 어떤 컴파운드를 반납할지는 팀 선택이라 경우의 수로 표시하며, 퀄리·프랙티스 사용분은 아직 반영하지 않았어요.",
   },
+  weekendTires: {
+    title: "주말 타이어",
+    subtitle: "세션별로 각 드라이버가 쓴 컴파운드",
+    loading: "주말 타이어를 불러오는 중…",
+    empty: "이 주말의 타이어 데이터가 없어요",
+    error: "주말 타이어를 불러오지 못했어요",
+    driverColumn: "드라이버",
+  },
   status: {
     [SessionStatus.Scheduled]: "예정",
     [SessionStatus.Green]: "그린 플래그",
@@ -1195,6 +1221,14 @@ const ja: Dictionary = {
     setsCount: "{count}セット保有",
     possibilities: "· {count}通り",
     note: "通常週末の返却ルールに基づく推定です。どのコンパウンドを返却するかはチーム次第のため場合の数で示し、予選・フリー走行の使用分はまだ反映していません。",
+  },
+  weekendTires: {
+    title: "週末のタイヤ",
+    subtitle: "セッションごとに各ドライバーが使ったコンパウンド",
+    loading: "週末のタイヤを読み込み中…",
+    empty: "この週末のタイヤデータがありません",
+    error: "週末のタイヤを読み込めませんでした",
+    driverColumn: "ドライバー",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",

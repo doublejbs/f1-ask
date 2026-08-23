@@ -228,6 +228,16 @@ export {
   remainingTirePossibilities,
   summarizeRemainingRanges,
 } from "./tire/TireAllocation";
+export { WeekendSessionKind } from "./tire/WeekendTires";
+export type {
+  WeekendTireSession,
+  SessionTireUse,
+  DriverWeekendTires,
+  WeekendTireUsage,
+} from "./tire/WeekendTires";
+export { buildWeekendTireUsage, distinctCompounds } from "./tire/WeekendTires";
+export type { LoadWeekendTiresOptions } from "./tire/WeekendTireLoader";
+export { loadWeekendTires } from "./tire/WeekendTireLoader";
 
 // 뉴스 탭 — 경기 전후 소식 (docs/28-news-tab.md).
 export { NewsSourceKind } from "./news/NewsSourceKind";

@@ -345,6 +345,29 @@ export const fetchOpenF1SeasonDrivers = async (
     options,
   );
 
+// 한 미팅(그랑프리 주말)의 전체 세션 목록. 프랙티스·퀄리·스프린트·레이스가 모두 온다.
+// 주말 타이어(docs/29 §범위 밖 → 구현)에서 세션을 지목·정렬하는 데 쓴다.
+export const fetchOpenF1MeetingSessions = async (
+  meetingKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Session[]> =>
+  fetchEndpoint<OpenF1Session>("sessions", "meeting_key", meetingKey, options);
+
+// 한 미팅의 전체 스틴트. 행마다 session_key 가 있어 세션별로 나눌 수 있다.
+// meeting_key 한 번으로 주말 전 세션 스틴트를 받아 요청 수를 아낀다(docs/27 §경량 경로).
+export const fetchOpenF1MeetingStints = async (
+  meetingKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Stint[]> =>
+  fetchEndpoint<OpenF1Stint>("stints", "meeting_key", meetingKey, options);
+
+// 한 미팅의 드라이버 로스터. 세션별 로스터가 다를 수 있어(FP1 루키 등) 미팅 전체를 받는다.
+export const fetchOpenF1MeetingDrivers = async (
+  meetingKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Driver[]> =>
+  fetchEndpoint<OpenF1Driver>("drivers", "meeting_key", meetingKey, options);
+
 // 세션의 원본 데이터 묶음 조회 (순차 + rate-limit 대비).
 export const fetchOpenF1SessionData = async (
   meta: OpenF1SessionMeta,

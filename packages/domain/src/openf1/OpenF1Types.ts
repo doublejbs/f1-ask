@@ -67,6 +67,9 @@ export type OpenF1Stint = {
   // 워커가 매 폴링마다 같은 자리에서 죽어 화면이 랩 40 부터 종료까지 약 30 분 얼었다.
   compound: string | null;
   tyre_age_at_start: number;
+  // 여러 세션을 한 번에(meeting_key) 조회할 때만 의미가 있다 — 세션별 그룹핑에 쓴다.
+  // 단일 세션 조회에서는 무시한다.
+  session_key?: number;
 };
 
 export type OpenF1Lap = {
