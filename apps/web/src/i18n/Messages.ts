@@ -49,6 +49,12 @@ export type Dictionary = {
     rain: string;
     dry: string;
   };
+  // 날씨 전환 배너 (B3). 비 시작/트랙 건조 = 전략 급변.
+  weatherTransition: {
+    rainStarting: string;
+    trackDrying: string;
+    subtitle: string;
+  };
   // 해설 캡션 탭 → 상세 시트 (docs/21-commentary-ask.md).
   // 해설 전문 · 원본 이벤트 · 그 시점 순위 · 질문을 담는다.
   commentarySheet: {
@@ -384,6 +390,11 @@ const en: Dictionary = {
     rain: "Rain",
     dry: "Dry",
   },
+  weatherTransition: {
+    rainStarting: "Rain is starting",
+    trackDrying: "The track is drying",
+    subtitle: "Strategy may shift — watch for tire changes",
+  },
   commentarySheet: {
     open: "Open commentary detail and ask about it",
     close: "Close",
@@ -711,6 +722,11 @@ const ko: Dictionary = {
     rain: "강수",
     dry: "건조",
   },
+  weatherTransition: {
+    rainStarting: "비가 내리기 시작했어요",
+    trackDrying: "트랙이 마르고 있어요",
+    subtitle: "전략이 급변할 수 있어요 — 타이어 교체 주목",
+  },
   commentarySheet: {
     open: "해설 상세 열고 질문하기",
     close: "닫기",
@@ -1037,6 +1053,11 @@ const ja: Dictionary = {
   weather: {
     rain: "降水",
     dry: "ドライ",
+  },
+  weatherTransition: {
+    rainStarting: "雨が降り始めました",
+    trackDrying: "路面が乾いてきています",
+    subtitle: "戦略が急変する可能性 — タイヤ交換に注目",
   },
   commentarySheet: {
     open: "解説の詳細を開いて質問する",
