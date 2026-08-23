@@ -1,5 +1,9 @@
 import { Dictionary } from "@/i18n/Messages";
-import { LaneWatchNowSignal, WatchNowSignalType } from "@f1/domain";
+import {
+  LaneWatchNowSignal,
+  WatchNowSignal,
+  WatchNowSignalType,
+} from "@f1/domain";
 
 // "지금 볼 것" 신호를 한 줄 문장으로 옮긴다.
 //
@@ -32,12 +36,19 @@ export const translateWatchNowSignalType = (
   dictionary: Dictionary,
 ): string => dictionary.watchNow.signalType[type];
 
-// 신호 한 건의 요약 문장.
+// 신호 한 건의 요약 문장(칸 항목). 문장 자체는 signal 만으로 결정되므로 순수
+// 신호 버전에 위임한다 — 지난 신호(이력) 목록도 같은 문장을 재사용한다.
 export const translateWatchNowSignal = (
   entry: LaneWatchNowSignal,
   dictionary: Dictionary,
+): string => translateWatchNowSignalMessage(entry.signal, dictionary);
+
+// 순수 신호 한 건의 요약 문장. 칸 메타(순위·포인트) 없이 signal 만 받는다 — 이력 목록처럼
+// LaneWatchNowSignal 이 아닌 곳에서도 같은 문장을 쓸 수 있게 한다.
+export const translateWatchNowSignalMessage = (
+  signal: WatchNowSignal,
+  dictionary: Dictionary,
 ): string => {
-  const { signal } = entry;
   const texts = dictionary.watchNow;
   const code = signal.driverCode;
 

@@ -2,6 +2,7 @@
 
 import { WatchNowLaneRowView } from "@/components/WatchNowLaneRowView";
 import { Dictionary } from "@/i18n/Messages";
+import { translateWatchNowSignalMessage } from "@/i18n/TranslateWatchNowSignal";
 import {
   LiveDriverState,
   WatchNowLaneGroup,
@@ -178,17 +179,22 @@ export const WatchNowLanesView = ({
             ).map((signal, index) => (
               <div
                 key={`${signal.type}:${signal.driverNumber}:${signal.lapNumber ?? index}:${index}`}
-                className="flex items-center gap-2 text-[12px]"
+                className="flex items-baseline gap-2 text-[12px]"
               >
-                <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                   {texts.signalType[signal.type]}
                 </span>
-                <span className="font-semibold tracking-tight text-foreground">
-                  {signal.driverCode}
+                {/* 카테고리만이 아니라 실제 내용(요약 문장)을 보여 준다 — 칸 항목과 같은
+                    사전 템플릿을 재사용한다. 문장 앞에 드라이버 코드가 이미 들어 있다. */}
+                <span className="min-w-0 flex-1 leading-snug text-foreground">
+                  {translateWatchNowSignalMessage(signal, dictionary)}
                 </span>
-                {signal.rivalDriverCode !== null ? (
-                  <span className="text-muted-foreground">
-                    · {signal.rivalDriverCode}
+                {signal.lapNumber !== null ? (
+                  <span className="shrink-0 tabular-nums text-[11px] text-muted-foreground/70">
+                    {texts.historyLap.replace(
+                      "{lap}",
+                      String(signal.lapNumber),
+                    )}
                   </span>
                 ) : null}
               </div>

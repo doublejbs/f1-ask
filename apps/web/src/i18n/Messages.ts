@@ -283,6 +283,8 @@ export type Dictionary = {
     // 더보기 라벨. {count} = 추가로 볼 개수.
     historyMore: string;
     historyLess: string;
+    // 지난 신호 항목의 발생 랩 꼬리표. {lap} = 세션 랩.
+    historyLap: string;
     // 종류별 한 줄 요약 템플릿. 숫자는 전부 스냅샷에 있는 실측값이며 LLM 을 쓰지 않는다.
     // {code} 드라이버 코드, {laps} 타이어 나이(랩).
     tireAge: string;
@@ -625,6 +627,7 @@ const en: Dictionary = {
     historyTitle: "Past signals",
     historyMore: "Show all (+{count})",
     historyLess: "Show less",
+    historyLap: "L{lap}",
     tireAge: "{code} on {laps}-lap tires",
     gapConvergence: "{code} {gap}s to car ahead",
     undercutThreat: "{code} — {rival} pitted",
@@ -970,6 +973,7 @@ const ko: Dictionary = {
     historyTitle: "지난 신호",
     historyMore: "더보기 (+{count})",
     historyLess: "접기",
+    historyLap: "{lap}랩",
     tireAge: "{code} 타이어 {laps}랩째",
     gapConvergence: "{code} 앞차와 {gap}초",
     undercutThreat: "{code} — {rival} 피트인",
@@ -1315,6 +1319,7 @@ const ja: Dictionary = {
     historyTitle: "過去の信号",
     historyMore: "すべて表示 (+{count})",
     historyLess: "折りたたむ",
+    historyLap: "{lap}周",
     tireAge: "{code} タイヤ{laps}周目",
     gapConvergence: "{code} 前車と{gap}秒",
     undercutThreat: "{code} — {rival} ピットイン",
