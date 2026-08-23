@@ -1,8 +1,23 @@
 "use client";
 
 import { getWatchNowDetectorConfig } from "@/lib/Env";
-import { LiveRaceSnapshot, SessionStatus, WatchNowFeed, WatchNowLanes } from "@f1/domain";
+import {
+  LiveRaceSnapshot,
+  SessionStatus,
+  WatchNowFeed,
+  WatchNowLanes,
+  WatchNowSignal,
+} from "@f1/domain";
 import { useMemo, useRef } from "react";
+
+// 화면에 보이는 지난 신호(더보기) 최대 개수 (B5).
+const WATCH_NOW_HISTORY_LIMIT = 5;
+
+export type WatchNowView = {
+  lanes: WatchNowLanes;
+  // 후보 창 밖으로 밀려난 지난 신호(최신 먼저, 최대 5개).
+  history: WatchNowSignal[];
+};
 
 // 레이스가 진행 중일 때만 "지금 볼 것"이 의미를 갖는다.
 //
@@ -39,7 +54,7 @@ export type UseWatchNowLanesOptions = {
 export const useWatchNowLanes = ({
   snapshot,
   favoriteDriverNumbers,
-}: UseWatchNowLanesOptions): WatchNowLanes | null => {
+}: UseWatchNowLanesOptions): WatchNowView | null => {
   const feedRef = useRef<WatchNowFeed | null>(null);
 
   if (feedRef.current === null) {
@@ -57,6 +72,9 @@ export const useWatchNowLanes = ({
       return null;
     }
 
-    return feed.buildLanes(snapshot, favoriteDriverNumbers);
+    return {
+      lanes: feed.buildLanes(snapshot, favoriteDriverNumbers),
+      history: feed.recentHistory(WATCH_NOW_HISTORY_LIMIT),
+    };
   }, [feed, snapshot, favoriteDriverNumbers]);
 };

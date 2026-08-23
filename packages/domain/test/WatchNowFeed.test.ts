@@ -308,3 +308,38 @@ describe("WatchNowFeed", () => {
     expect(undercuts).toHaveLength(0);
   });
 });
+
+describe("WatchNowFeed — 지난 신호 이력 (B5)", () => {
+  it("발화한 신호를 이력에 남기고, 같은 프레임 재관측은 늘리지 않는다", () => {
+    const feed = new WatchNowFeed();
+
+    // 타이어 노후(≥20)로 A 신호 발화.
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+    // 같은 버전 재관측(리렌더/StrictMode) — 프레임 중복이라 이력이 늘지 않는다.
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+
+    const history = feed.recentHistory(5);
+
+    expect(history).toHaveLength(1);
+    expect(history[0]?.type).toBe(WatchNowSignalType.TireAge);
+    expect(history[0]?.driverNumber).toBe(5);
+  });
+
+  it("recentHistory 는 상한을 지키고, 0 이면 빈 배열이다", () => {
+    const feed = new WatchNowFeed();
+
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+
+    expect(feed.recentHistory(0)).toEqual([]);
+    expect(feed.recentHistory(5).length).toBeLessThanOrEqual(5);
+  });
+
+  it("reset 은 이력도 비운다", () => {
+    const feed = new WatchNowFeed();
+
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+    feed.reset();
+
+    expect(feed.recentHistory(5)).toEqual([]);
+  });
+});

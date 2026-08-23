@@ -25,6 +25,7 @@ import {
   SessionStatus,
   SupportedLocale,
   TeamRadioClip,
+  WatchNowSignal,
   computeRemainingMinimums,
   selectBattles,
   selectDriverStateMarkers,
@@ -53,6 +54,7 @@ type Props = {
 };
 
 const EMPTY_RADIO_CLIPS: TeamRadioClip[] = [];
+const EMPTY_WATCH_NOW_HISTORY: WatchNowSignal[] = [];
 
 const EMPTY_BATTLES: Battle[] = [];
 
@@ -153,10 +155,12 @@ export const RaceTabView = ({
 
   // "지금 볼 것" 칸 3개. 감지기 인스턴스는 훅이 ref 로 붙들고 있으므로 여기서 다시
   // 만들거나 초기화하지 않는다.
-  const watchNowLanes = useWatchNowLanes({
+  const watchNow = useWatchNowLanes({
     snapshot,
     favoriteDriverNumbers,
   });
+  const watchNowLanes = watchNow?.lanes ?? null;
+  const watchNowHistory = watchNow?.history ?? EMPTY_WATCH_NOW_HISTORY;
 
   // 칸에 못 올라간 신호는 버리지 않고 순위표 행 표시로 내려보낸다(docs/19 수용 기준 7).
   // 칸당 2줄이라는 좁은 예산의 근거가 "나머지는 행에서 볼 수 있다" 이므로, 이 연결이
@@ -262,6 +266,7 @@ export const RaceTabView = ({
       <WatchNowLanesView
         dictionary={dictionary}
         lanes={watchNowLanes}
+        history={watchNowHistory}
         drivers={snapshot.drivers}
         onSelectDriver={setSelectedDriver}
       />
