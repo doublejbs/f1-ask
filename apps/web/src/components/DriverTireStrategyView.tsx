@@ -2,13 +2,16 @@
 
 import { Dictionary } from "@/i18n/Messages";
 import {
+  combineMinimums,
   DRY_TIRE_ALLOCATION,
+  MANDATORY_RACE_MINIMUMS,
   remainingSetCount,
   remainingTirePossibilities,
   StintCompoundUse,
   summarizeRemainingRanges,
   TIRE_SET_COMPOUNDS,
   TireCompound,
+  TireSetCounts,
   totalReturnedSets,
   WeekendFormat,
 } from "@f1/domain";
@@ -17,7 +20,13 @@ type Props = {
   dictionary: Dictionary;
   // 선택된 드라이버가 이번 세션에서 쓴 타이어 이력(시작 순서대로). 없으면 null.
   usedCompounds: StintCompoundUse[] | null;
+  // 주말 데이터로 판정한 형식. 없으면 일반 주말 가정.
+  weekendFormat?: WeekendFormat;
+  // 주말 사용분으로 계산한 컴파운드별 하한(A1). 없으면 규정 하한만 적용된다.
+  remainingMinimums?: TireSetCounts;
 };
+
+const ZERO_MINIMUMS: TireSetCounts = { hard: 0, medium: 0, soft: 0 };
 
 // 컴파운드별 비드 색 — TireCompoundView 와 같은 톤(소프트 빨강·미디엄 앰버·하드 흰색).
 const COMPOUND_DOT: Partial<Record<TireCompound, string>> = {
@@ -41,16 +50,39 @@ const Dot = ({ compound }: { compound: TireCompound }) => (
 // 잔여를 알 수 없고, 반납 컴파운드는 팀 선택이라 하나로 확정되지 않는다. 그래서 반납 규정만으로
 // 계산 가능한 가능한 구성 범위를 보여 준다. 현재는 일반 주말 규정을 기준으로 하며, 퀄리·프랙티스
 // 사용분은 아직 반영하지 않는다(주말 데이터 연동 시 정밀해진다) — 문구로 명시한다.
-export const DriverTireStrategyView = ({ dictionary, usedCompounds }: Props) => {
+export const DriverTireStrategyView = ({
+  dictionary,
+  usedCompounds,
+  weekendFormat,
+  remainingMinimums,
+}: Props) => {
   const texts = dictionary.tireStrategy;
 
-  // MVP 는 일반 주말 규정 기준. 모든 반납이 끝난 시점(레이스)의 보유 세트로 경우의 수를 낸다.
-  const format = WeekendFormat.Conventional;
+  // 형식은 주말 데이터가 있으면 그걸, 없으면 일반 주말로 가정한다.
+  const format = weekendFormat ?? WeekendFormat.Conventional;
   const returned = totalReturnedSets(format);
   const remainingTotal = remainingSetCount(format, returned);
-  const possibilities = remainingTirePossibilities(format, returned);
-  const ranges = summarizeRemainingRanges(possibilities);
   const allocation = DRY_TIRE_ALLOCATION[format];
+
+  // 하한 = 레이스 의무 보유(A2, 항상) + 주말 사용분(A1, 있으면). 둘의 컴파운드별 최댓값.
+  const minimums = combineMinimums(
+    remainingMinimums ?? ZERO_MINIMUMS,
+    MANDATORY_RACE_MINIMUMS[format],
+  );
+  const narrowed = remainingTirePossibilities(format, returned, minimums);
+  // 하한이 모순이면(데이터 이상) 규정만으로 낸 전체로 되돌린다.
+  const possibilities =
+    narrowed.length > 0
+      ? narrowed
+      : remainingTirePossibilities(format, returned);
+  const ranges = summarizeRemainingRanges(possibilities);
+
+  // 사용분 하한이 실제로 걸렸는지(주말 데이터 반영 여부) — 안내 문구를 가른다.
+  const usageApplied =
+    remainingMinimums !== undefined &&
+    (remainingMinimums.hard > 0 ||
+      remainingMinimums.medium > 0 ||
+      remainingMinimums.soft > 0);
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl bg-white/[0.03] p-3.5">
@@ -123,7 +155,7 @@ export const DriverTireStrategyView = ({ dictionary, usedCompounds }: Props) => 
         </div>
 
         <p className="text-[11px] leading-relaxed text-muted-foreground/70">
-          {texts.note}
+          {usageApplied ? texts.noteNarrowed : texts.note}
         </p>
       </div>
     </section>

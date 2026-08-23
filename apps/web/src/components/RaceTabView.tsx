@@ -25,11 +25,13 @@ import {
   SessionStatus,
   SupportedLocale,
   TeamRadioClip,
+  computeRemainingMinimums,
   selectBattles,
   selectDriverStateMarkers,
   selectImminentOvertakeForecasts,
   selectRecentDriverEvents,
 } from "@f1/domain";
+import { useWeekendTires } from "@/hooks/UseWeekendTires";
 import { RaceSummaryResponse } from "@f1/schemas";
 import { useMemo, useState } from "react";
 
@@ -183,6 +185,20 @@ export const RaceTabView = ({
     return stint?.usedCompounds ?? null;
   }, [selectedDriver, snapshot.contextSummary]);
 
+  // 남은 타이어 경우의 수 축소(A1): 시트가 열릴 때만 주말 사용분을 지연 로드한다.
+  // mock·replay 는 meetingKey 가 OpenF1 에 없어 빈 결과 → 하한 없이 규정만 표시(폴백).
+  const { usage: weekendUsage } = useWeekendTires(
+    selectedDriver === null ? null : snapshot.meetingKey,
+  );
+
+  const selectedRemainingMinimums = useMemo(() => {
+    if (selectedDriver === null || weekendUsage === null) {
+      return undefined;
+    }
+
+    return computeRemainingMinimums(weekendUsage, selectedDriver.driverNumber);
+  }, [selectedDriver, weekendUsage]);
+
   const handleCloseSheet = () => {
     setSelectedDriver(null);
   };
@@ -288,6 +304,8 @@ export const RaceTabView = ({
         locale={locale}
         driver={selectedDriver}
         usedCompounds={selectedUsedCompounds}
+        weekendFormat={weekendUsage?.format}
+        remainingMinimums={selectedRemainingMinimums}
         fieldBestSectors={fieldBestSectors}
         radioClips={selectedRadioClips}
         playingRadioUrl={playingUrl}

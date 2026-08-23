@@ -32,6 +32,8 @@ import {
   StintCompoundUse,
   SupportedLocale,
   TeamRadioClip,
+  TireSetCounts,
+  WeekendFormat,
   attachCommentary,
   filterEventsByDriver,
 } from "@f1/domain";
@@ -58,6 +60,9 @@ type Props = {
   driver: LiveDriverState | null;
   // 이 드라이버가 이번 세션에서 쓴 타이어 이력. 스틴트 요약이 없으면 null.
   usedCompounds: StintCompoundUse[] | null;
+  // 주말 데이터로 판정한 형식 · 사용분 하한(남은 타이어 축소, A1). 없으면 규정만 적용.
+  weekendFormat?: WeekendFormat;
+  remainingMinimums?: TireSetCounts;
   // 필드 전체 섹터 최속(퍼플 판정용).
   fieldBestSectors: (number | null)[];
   // 이 드라이버의 팀 라디오 클립(최신순). 비어 있으면 섹션을 렌더링하지 않는다.
@@ -80,6 +85,8 @@ type ContentProps = {
   locale: SupportedLocale;
   driver: LiveDriverState;
   usedCompounds: StintCompoundUse[] | null;
+  weekendFormat?: WeekendFormat;
+  remainingMinimums?: TireSetCounts;
   fieldBestSectors: (number | null)[];
   radioClips: TeamRadioClip[];
   playingRadioUrl: string | null;
@@ -317,6 +324,8 @@ const DriverDetailContent = ({
   locale,
   driver,
   usedCompounds,
+  weekendFormat,
+  remainingMinimums,
   fieldBestSectors,
   radioClips,
   playingRadioUrl,
@@ -438,6 +447,8 @@ const DriverDetailContent = ({
       <DriverTireStrategyView
         dictionary={dictionary}
         usedCompounds={usedCompounds}
+        weekendFormat={weekendFormat}
+        remainingMinimums={remainingMinimums}
       />
 
       {radioClips.length > 0 ? (
@@ -483,6 +494,8 @@ export const DriverDetailSheetView = ({
   locale,
   driver,
   usedCompounds,
+  weekendFormat,
+  remainingMinimums,
   fieldBestSectors,
   radioClips,
   playingRadioUrl,
@@ -514,6 +527,8 @@ export const DriverDetailSheetView = ({
         locale={locale}
         driver={driver}
         usedCompounds={usedCompounds}
+        weekendFormat={weekendFormat}
+        remainingMinimums={remainingMinimums}
         fieldBestSectors={fieldBestSectors}
         radioClips={radioClips}
         playingRadioUrl={playingRadioUrl}

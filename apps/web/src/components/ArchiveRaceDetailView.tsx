@@ -73,6 +73,7 @@ export const ArchiveRaceDetailView = ({
       <WeekendTiresView
         dictionary={dictionary}
         meetingKey={detail.session.meetingKey}
+        driverOrder={detail.results.map((row) => row.driverNumber)}
       />
 
       <ArchiveEventTimelineView

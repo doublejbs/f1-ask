@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  combineMinimums,
   DRY_TIRE_ALLOCATION,
+  MANDATORY_RACE_MINIMUMS,
   remainingSetCount,
   remainingTirePossibilities,
   returnedSetsThrough,
@@ -101,5 +103,26 @@ describe("remainingTirePossibilities — 남은 구성 경우의 수", () => {
     expect(ranges.hard).toEqual({ min: 1, max: 2 });
     expect(ranges.medium).toEqual({ min: 1, max: 3 });
     expect(ranges.soft).toEqual({ min: 2, max: 5 });
+  });
+
+  it("레이스 의무 보유 하한(하드·미디엄 각 1)만으로도 12 → 6 으로 좁힌다", () => {
+    const narrowed = remainingTirePossibilities(
+      WeekendFormat.Conventional,
+      6,
+      MANDATORY_RACE_MINIMUMS[WeekendFormat.Conventional],
+    );
+
+    expect(MANDATORY_RACE_MINIMUMS[WeekendFormat.Conventional]).toEqual({
+      hard: 1,
+      medium: 1,
+      soft: 0,
+    });
+    expect(narrowed).toHaveLength(6);
+  });
+
+  it("combineMinimums 는 컴파운드별 최댓값으로 두 하한을 합친다", () => {
+    expect(
+      combineMinimums({ hard: 0, medium: 2, soft: 3 }, { hard: 1, medium: 1, soft: 0 }),
+    ).toEqual({ hard: 1, medium: 2, soft: 3 });
   });
 });
