@@ -81,4 +81,25 @@ describe("remainingTirePossibilities — 남은 구성 경우의 수", () => {
     expect(ranges.medium).toEqual({ min: 0, max: 3 });
     expect(ranges.soft).toEqual({ min: 2, max: 7 });
   });
+
+  it("컴파운드별 하한을 주면 경우의 수가 줄어든다 (12 → 6)", () => {
+    // 하한 H1·M1·S2 (반납 이후 신품 사용분). soft=7-H-M 이 2 이상이어야 한다.
+    const narrowed = remainingTirePossibilities(WeekendFormat.Conventional, 6, {
+      hard: 1,
+      medium: 1,
+      soft: 2,
+    });
+
+    expect(narrowed).toHaveLength(6);
+    for (const combo of narrowed) {
+      expect(combo.hard).toBeGreaterThanOrEqual(1);
+      expect(combo.medium).toBeGreaterThanOrEqual(1);
+      expect(combo.soft).toBeGreaterThanOrEqual(2);
+    }
+
+    const ranges = summarizeRemainingRanges(narrowed);
+    expect(ranges.hard).toEqual({ min: 1, max: 2 });
+    expect(ranges.medium).toEqual({ min: 1, max: 3 });
+    expect(ranges.soft).toEqual({ min: 2, max: 5 });
+  });
 });

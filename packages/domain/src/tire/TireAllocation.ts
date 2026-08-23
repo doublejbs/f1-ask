@@ -88,22 +88,30 @@ export const remainingSetCount = (
   return Math.max(0, allocationTotal - returnedCount);
 };
 
-// 남은 구성의 **모든 경우의 수**. 합 = 잔여 세트 수, 각 컴파운드는 [0, 할당량] 범위다.
+const ZERO_COUNTS: TireSetCounts = { hard: 0, medium: 0, soft: 0 };
+
+// 남은 구성의 **모든 경우의 수**. 합 = 잔여 세트 수, 각 컴파운드는 [minimums, 할당량] 범위다.
 // 반납 컴파운드가 팀 선택이라 이 목록의 어느 하나가 실제 보유분이다(우리는 어느 것인지 모른다).
+//
+// **minimums(컴파운드별 하한)** 로 좁힌다 — 마지막 반납 이후 세션에서 신품으로 깐 세트는
+// 반납될 수 없었으므로 반드시 잔여에 포함된다(그 수만큼 하한). 하한을 주면 그보다 적은 구성이
+// 제거돼 경우의 수가 줄어든다. 기본값 0 이면 규정만으로 낸 전체 경우의 수다.
+//
 // 결정론적 순서(하드 내림차순 → 미디엄 내림차순)로 돌려준다.
 export const remainingTirePossibilities = (
   format: WeekendFormat,
   returnedCount: number,
+  minimums: TireSetCounts = ZERO_COUNTS,
 ): TireSetCounts[] => {
   const allocation = DRY_TIRE_ALLOCATION[format];
   const remaining = remainingSetCount(format, returnedCount);
   const possibilities: TireSetCounts[] = [];
 
-  for (let hard = allocation.hard; hard >= 0; hard -= 1) {
-    for (let medium = allocation.medium; medium >= 0; medium -= 1) {
+  for (let hard = allocation.hard; hard >= minimums.hard; hard -= 1) {
+    for (let medium = allocation.medium; medium >= minimums.medium; medium -= 1) {
       const soft = remaining - hard - medium;
 
-      if (soft >= 0 && soft <= allocation.soft) {
+      if (soft >= minimums.soft && soft <= allocation.soft) {
         possibilities.push({ hard, medium, soft });
       }
     }

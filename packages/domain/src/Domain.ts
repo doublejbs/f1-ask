@@ -235,7 +235,11 @@ export type {
   DriverWeekendTires,
   WeekendTireUsage,
 } from "./tire/WeekendTires";
-export { buildWeekendTireUsage, distinctCompounds } from "./tire/WeekendTires";
+export {
+  buildWeekendTireUsage,
+  computeRemainingMinimums,
+  distinctCompounds,
+} from "./tire/WeekendTires";
 export type { LoadWeekendTiresOptions } from "./tire/WeekendTireLoader";
 export { loadWeekendTires } from "./tire/WeekendTireLoader";
 

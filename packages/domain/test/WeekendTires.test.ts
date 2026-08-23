@@ -3,6 +3,7 @@ import { TireCompound } from "../src/TireCompound";
 import { WeekendFormat } from "../src/tire/TireAllocation";
 import {
   buildWeekendTireUsage,
+  computeRemainingMinimums,
   distinctCompounds,
   WeekendSessionKind,
 } from "../src/tire/WeekendTires";
@@ -174,5 +175,66 @@ describe("buildWeekendTireUsage", () => {
         { compound: TireCompound.Medium, startedNew: true },
       ]),
     ).toEqual([TireCompound.Soft, TireCompound.Medium]);
+  });
+});
+
+describe("computeRemainingMinimums", () => {
+  it("일반 주말: 퀄리·레이스의 신품 스틴트만 하한으로 센다 (프랙티스·중고 제외)", () => {
+    const usage = buildWeekendTireUsage(
+      [
+        session(1, "Practice 1", "Practice", "2026-08-21T10:00:00Z"),
+        session(2, "Qualifying", "Qualifying", "2026-08-22T14:00:00Z"),
+        session(3, "Race", "Race", "2026-08-23T13:00:00Z"),
+      ],
+      [
+        stint(1, 44, 1, "SOFT", 0), // 프랙티스 신품 — 반납 가능하므로 하한 아님
+        stint(2, 44, 1, "SOFT", 0), // 퀄리 신품 → soft +1
+        stint(3, 44, 1, "MEDIUM", 0), // 레이스 신품 → medium +1
+        stint(3, 44, 20, "HARD", 4), // 레이스 중고 시작 — 새 세트 아님, 세지 않음
+      ],
+      [driver(44, "HAM")],
+    );
+
+    expect(computeRemainingMinimums(usage, 44)).toEqual({
+      hard: 0,
+      medium: 1,
+      soft: 1,
+    });
+  });
+
+  it("스프린트 주말: 레이스만 반납 이후라 퀄리 사용은 하한에 안 든다", () => {
+    const usage = buildWeekendTireUsage(
+      [
+        session(1, "Sprint Qualifying", "Qualifying", "2026-08-21T14:00:00Z"),
+        session(2, "Sprint", "Race", "2026-08-22T10:00:00Z"),
+        session(3, "Qualifying", "Qualifying", "2026-08-22T14:00:00Z"),
+        session(4, "Race", "Race", "2026-08-23T13:00:00Z"),
+      ],
+      [
+        stint(3, 1, 1, "SOFT", 0), // 퀄리 신품 — 스프린트 주말은 퀄리 후 반납이라 하한 아님
+        stint(4, 1, 1, "HARD", 0), // 레이스 신품 → hard +1
+      ],
+      [driver(1, "VER")],
+    );
+
+    expect(computeRemainingMinimums(usage, 1)).toEqual({
+      hard: 1,
+      medium: 0,
+      soft: 0,
+    });
+  });
+
+  it("주행 기록이 없는 드라이버는 하한이 0 이다", () => {
+    const usage = buildWeekendTireUsage(
+      [session(1, "Race", "Race", "2026-08-23T13:00:00Z")],
+      [stint(1, 44, 1, "SOFT", 0)],
+      [driver(44, "HAM")],
+    );
+
+    expect(computeRemainingMinimums(usage, 99)).toEqual({
+      hard: 0,
+      medium: 0,
+      soft: 0,
+    });
   });
 });

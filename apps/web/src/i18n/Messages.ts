@@ -332,6 +332,10 @@ export type Dictionary = {
     error: string;
     // 격자 첫 열 헤더(드라이버).
     driverColumn: string;
+    // 잔여(추정) 열 헤더.
+    remainingColumn: string;
+    // 잔여 추정 방식 안내(규정 기반 + 세션 사용분 하한, 세트 ID 부재 근사).
+    remainingNote: string;
   };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
@@ -611,6 +615,9 @@ const en: Dictionary = {
     empty: "No tire data for this weekend",
     error: "Couldn't load weekend tires",
     driverColumn: "Driver",
+    remainingColumn: "Remaining (est.)",
+    remainingNote:
+      "Remaining = regulation sets left, narrowed by sets run new after the mandatory returns (those can't have been returned). Set counts approximated from new-tyre stints — OpenF1 has no set IDs.",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -920,6 +927,9 @@ const ko: Dictionary = {
     empty: "이 주말의 타이어 데이터가 없어요",
     error: "주말 타이어를 불러오지 못했어요",
     driverColumn: "드라이버",
+    remainingColumn: "잔여(추정)",
+    remainingNote:
+      "잔여 = 규정상 남은 세트를, 반납 이후 신품으로 깐 세트(반납 불가)로 좁힌 추정이에요. 세트 ID가 없어 신품 스틴트로 세트 수를 근사합니다.",
   },
   status: {
     [SessionStatus.Scheduled]: "예정",
@@ -1229,6 +1239,9 @@ const ja: Dictionary = {
     empty: "この週末のタイヤデータがありません",
     error: "週末のタイヤを読み込めませんでした",
     driverColumn: "ドライバー",
+    remainingColumn: "残り(推定)",
+    remainingNote:
+      "残り = 規定上の残セットを、返却後に新品で使ったセット(返却不可)で絞った推定です。セットIDがないため新品スティントでセット数を近似します。",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",
