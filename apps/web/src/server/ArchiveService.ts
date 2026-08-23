@@ -5,6 +5,8 @@ import {
   WeekendTireUsage,
   loadArchiveRaceDetail,
   loadArchiveRaceList,
+  WeekendResults,
+  loadWeekendResults,
   loadWeekendTires,
 } from "@f1/domain";
 import { unstable_cache } from "next/cache";
@@ -108,6 +110,33 @@ export const getWeekendTires = async (
     {
       revalidate: WEEKEND_TIRES_REVALIDATE_SECONDS,
       tags: [WEEKEND_TIRES_TAG],
+    },
+  );
+
+  return load();
+};
+
+// 주말 프랙티스·퀄리 결과 (docs/27, E1). meeting_key 3요청 조립 결과만 캐시.
+export const getWeekendResults = async (
+  meetingKey: number,
+): Promise<WeekendResults> => {
+  const load = unstable_cache(
+    async (): Promise<WeekendResults> =>
+      loadWeekendResults({
+        meetingKey,
+        clientOptions: createOpenF1ClientOptions(
+          WEEKEND_TIRES_REVALIDATE_SECONDS,
+        ),
+      }),
+    [
+      "archive-weekend-results",
+      ARCHIVE_CACHE_VERSION,
+      String(ARCHIVE_SEASON_YEAR),
+      String(meetingKey),
+    ],
+    {
+      revalidate: WEEKEND_TIRES_REVALIDATE_SECONDS,
+      tags: ["archive-weekend-results"],
     },
   );
 

@@ -57,7 +57,7 @@ export type WeekendTireUsage = {
 };
 
 // session_name 으로 세션 종류를 판정한다. "Sprint Qualifying" 을 "Qualifying" 보다 먼저 본다.
-const classifySession = (name: string): WeekendSessionKind => {
+export const classifyWeekendSession = (name: string): WeekendSessionKind => {
   const lower = name.toLowerCase();
 
   if (lower.includes("sprint") && lower.includes("qualifying")) {
@@ -90,7 +90,7 @@ const detectFormat = (sessions: OpenF1Session[]): WeekendFormat =>
     : WeekendFormat.Conventional;
 
 // 취소된 세션은 제외하고 시간순(date_start, fallback session_key)으로 정렬한다.
-const orderedSessions = (sessions: OpenF1Session[]): OpenF1Session[] =>
+export const orderedWeekendSessions = (sessions: OpenF1Session[]): OpenF1Session[] =>
   sessions
     .filter((session) => session.is_cancelled !== true)
     .slice()
@@ -160,7 +160,7 @@ export const buildWeekendTireUsage = (
   stints: OpenF1Stint[],
   drivers: OpenF1Driver[],
 ): WeekendTireUsage => {
-  const ordered = orderedSessions(sessions);
+  const ordered = orderedWeekendSessions(sessions);
   const format = detectFormat(ordered);
   const codeByNumber = buildCodeByNumber(drivers);
   const stintsBySession = buildStintsBySession(stints);
@@ -168,7 +168,7 @@ export const buildWeekendTireUsage = (
   const weekendSessions: WeekendTireSession[] = ordered.map((session) => ({
     sessionKey: session.session_key,
     name: session.session_name,
-    kind: classifySession(session.session_name),
+    kind: classifyWeekendSession(session.session_name),
   }));
 
   // 어느 세션이든 스틴트가 있는 드라이버 번호를 모은다(로스터에 없어도 주행했으면 포함).

@@ -254,6 +254,16 @@ export {
 } from "./tire/WeekendTires";
 export type { LoadWeekendTiresOptions } from "./tire/WeekendTireLoader";
 export { loadWeekendTires } from "./tire/WeekendTireLoader";
+export type {
+  PracticeResult,
+  QualifyingSegment,
+  QualifyingResult,
+  WeekendSessionResults,
+  WeekendResults,
+} from "./tire/WeekendResults";
+export { buildWeekendResults } from "./tire/WeekendResults";
+export type { LoadWeekendResultsOptions } from "./tire/WeekendResultsLoader";
+export { loadWeekendResults } from "./tire/WeekendResultsLoader";
 
 // 뉴스 탭 — 경기 전후 소식 (docs/28-news-tab.md).
 export { NewsSourceKind } from "./news/NewsSourceKind";

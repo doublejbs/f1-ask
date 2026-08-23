@@ -354,6 +354,20 @@ export type Dictionary = {
     newTire: string;
     usedTire: string;
   };
+  // 「기록」 상세의 프랙티스·퀄리 결과 (docs/27, E1).
+  weekendResults: {
+    title: string;
+    subtitle: string;
+    loading: string;
+    empty: string;
+    error: string;
+    position: string;
+    driver: string;
+    best: string;
+    gap: string;
+    // 세그먼트 랭크 안내(최종 순위와 다름).
+    note: string;
+  };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
   eventPriority: Record<RaceEventPriority, string>;
@@ -655,6 +669,18 @@ const en: Dictionary = {
       "Remaining = regulation sets left, narrowed by sets run new after the mandatory returns plus the two reserved race sets. Set counts approximated from new-tyre stints — OpenF1 has no set IDs.",
     newTire: "new",
     usedTire: "used",
+  },
+  weekendResults: {
+    title: "Practice & Qualifying",
+    subtitle: "Best laps and Q1/Q2/Q3 with segment rank",
+    loading: "Loading results…",
+    empty: "No practice/qualifying results for this weekend",
+    error: "Couldn't load results",
+    position: "Pos",
+    driver: "Driver",
+    best: "Best",
+    gap: "Gap",
+    note: "PN under a Q1/Q2/Q3 time is the rank among drivers who set a time in that segment — different from the final classification.",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -988,6 +1014,18 @@ const ko: Dictionary = {
     newTire: "신품",
     usedTire: "중고",
   },
+  weekendResults: {
+    title: "프랙티스 & 퀄리파잉",
+    subtitle: "베스트랩과 Q1/Q2/Q3 세그먼트 랭크",
+    loading: "결과를 불러오는 중…",
+    empty: "이 주말의 프랙티스/퀄리 결과가 없어요",
+    error: "결과를 불러오지 못했어요",
+    position: "순위",
+    driver: "드라이버",
+    best: "베스트",
+    gap: "갭",
+    note: "Q1/Q2/Q3 기록 아래 P숫자는 그 세그먼트에서 기록한 드라이버끼리의 순위예요 — 최종 순위와 다릅니다.",
+  },
   status: {
     [SessionStatus.Scheduled]: "예정",
     [SessionStatus.Green]: "그린 플래그",
@@ -1319,6 +1357,18 @@ const ja: Dictionary = {
       "残り = 規定上の残セットを、返却後に新品で使ったセット(返却不可)+ レース義務保有で絞った推定です。セットIDがないため新品スティントでセット数を近似します。",
     newTire: "新品",
     usedTire: "中古",
+  },
+  weekendResults: {
+    title: "フリー走行 & 予選",
+    subtitle: "ベストラップと Q1/Q2/Q3 のセグメント順位",
+    loading: "結果を読み込み中…",
+    empty: "この週末のフリー走行/予選結果がありません",
+    error: "結果を読み込めませんでした",
+    position: "順位",
+    driver: "ドライバー",
+    best: "ベスト",
+    gap: "差",
+    note: "Q1/Q2/Q3 タイムの下の P数字は、そのセグメントでタイムを出したドライバー間の順位です — 最終順位とは異なります。",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",

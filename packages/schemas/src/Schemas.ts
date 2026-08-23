@@ -56,8 +56,10 @@ export {
   archiveResultRowSchema,
   archiveRaceDetailSchema,
   weekendTireUsageSchema,
+  weekendResultsSchema,
   parseArchiveRaceListResponse,
   parseArchiveRaceDetail,
   parseWeekendTireUsage,
+  parseWeekendResults,
 } from "./ArchiveSchema";
 export type { ArchiveRaceListResponse } from "./ArchiveSchema";
