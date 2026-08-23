@@ -4,6 +4,7 @@ import {
   LiveRaceSnapshot,
   OvertakeContextSummary,
   OvertakeForecast,
+  OvertakeForecastConfidence,
   PitContextSummary,
   SessionStatus,
   StintContextSummary,
@@ -67,6 +68,12 @@ const stintContextSummarySchema = z.object({
   currentStintStartLap: z.number().int().nullable(),
   previousCompound: z.nativeEnum(TireCompound).nullable(),
   lastPitLap: z.number().int().nullable(),
+  usedCompounds: z.array(
+    z.object({
+      compound: z.nativeEnum(TireCompound),
+      startedNew: z.boolean(),
+    }),
+  ),
 }) satisfies z.ZodType<StintContextSummary>;
 
 const overtakeContextSummarySchema = z.object({
@@ -91,6 +98,7 @@ const overtakeForecastSchema = z.object({
   closingRateSecondsPerLap: z.number(),
   predictedLapsToBattle: z.number().int(),
   predictedLap: z.number().int(),
+  confidence: z.nativeEnum(OvertakeForecastConfidence),
 }) satisfies z.ZodType<OvertakeForecast>;
 
 export const liveRaceSnapshotSchema = z.object({

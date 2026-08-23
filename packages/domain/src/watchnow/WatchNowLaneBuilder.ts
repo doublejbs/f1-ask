@@ -111,11 +111,12 @@ const resolveRivalDriverNumber = (
   position: number | null,
   driverNumberByPosition: Map<number, number>,
 ): number | null => {
-  // C(언더컷)·E(예측)는 신호가 상대 드라이버를 직접 들고 있다 — 언더컷은 피트인한 뒤차,
-  // 예측은 따라잡히는 앞차(target)다.
+  // C(언더컷)·E(예측)·F(피트 윈도우)는 신호가 상대 드라이버를 직접 들고 있다 — 언더컷은
+  // 피트인한 뒤차, 예측은 따라잡히는 앞차(target), 피트 윈도우는 언더컷할 앞차다.
   if (
     signal.type === WatchNowSignalType.UndercutThreat ||
-    signal.type === WatchNowSignalType.OvertakeForecast
+    signal.type === WatchNowSignalType.OvertakeForecast ||
+    signal.type === WatchNowSignalType.PitWindow
   ) {
     return signal.rivalDriverNumber;
   }
@@ -148,11 +149,12 @@ const resolvePointsAtStake = (
     return resolvePointsBetweenPositions(signal.positionFrom, signal.positionTo);
   }
 
-  // 언더컷은 두 실제 순위 사이의 포인트. 예측(E)도 chaser ↔ target 두 실제 순위 사이라
-  // 같은 계산이다 — 인접 페어이므로 target 은 chaser 바로 앞자리다.
+  // 언더컷은 두 실제 순위 사이의 포인트. 예측(E)·피트 윈도우(F)도 주체 ↔ 앞차 두 실제
+  // 순위 사이라 같은 계산이다 — 셋 다 인접 페어이므로 상대는 주체 바로 앞자리다.
   if (
     signal.type === WatchNowSignalType.UndercutThreat ||
-    signal.type === WatchNowSignalType.OvertakeForecast
+    signal.type === WatchNowSignalType.OvertakeForecast ||
+    signal.type === WatchNowSignalType.PitWindow
   ) {
     return resolvePointsBetweenPositions(position, rivalPosition);
   }

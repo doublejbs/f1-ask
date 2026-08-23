@@ -6,6 +6,7 @@ import { RaceEventType } from "../src/RaceEventType";
 import { SessionStatus } from "../src/SessionStatus";
 import { TireCompound } from "../src/TireCompound";
 import { OvertakeForecast } from "../src/openf1/OvertakeForecast";
+import { OvertakeForecastConfidence } from "../src/openf1/OvertakeForecastConfidence";
 import { buildOvertakeForecastEvent } from "../src/openf1/OvertakeForecastEvent";
 
 const NOW = Date.parse("2026-07-19T13:30:00.000Z");
@@ -59,6 +60,7 @@ const forecast: OvertakeForecast = {
   closingRateSecondsPerLap: 0.5,
   predictedLapsToBattle: 4,
   predictedLap: 14,
+  confidence: OvertakeForecastConfidence.High,
 };
 
 describe("buildOvertakeForecastEvent — 필드 매핑", () => {

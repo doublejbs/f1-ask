@@ -3,6 +3,9 @@ import {
   ArchiveResultStatus,
   DataFreshnessStatus,
   ExplanationLevel,
+  NewsCategory,
+  NewsFilter,
+  OvertakeForecastConfidence,
   RaceEventPriority,
   SessionStateSeverity,
   SessionStatus,
@@ -110,7 +113,20 @@ export type Dictionary = {
   tabs: {
     race: string;
     archive: string;
-    ask: string;
+    news: string;
+  };
+  // 뉴스 탭 — 경기 전후 소식 (docs/28-news-tab.md).
+  news: {
+    title: string;
+    // 탭이 무엇인지 한 줄로.
+    subtitle: string;
+    loading: string;
+    empty: string;
+    error: string;
+    // 상단 필터 칩 라벨. enum 을 키로 써서 필터가 늘면 타입 에러로 잡힌다.
+    filter: Record<NewsFilter, string>;
+    // 카드의 카테고리 배지 라벨.
+    category: Record<NewsCategory, string>;
   };
   // 지난 레이스 기록 (docs/17-race-archive.md).
   archive: {
@@ -260,6 +276,8 @@ export type Dictionary = {
     gapConvergence: string;
     // {rival} 피트인해 위협이 된 뒤차 코드.
     undercutThreat: string;
+    // 피트 윈도우(F). {code} 피트해야 할 주체, {rival} 언더컷할 앞차 코드.
+    pitWindow: string;
     // {from} → {to} 순위.
     positionSwing: string;
     // 배틀 진입 예측(docs/23). {code} chaser, {rival} 따라잡히는 앞차, {laps} 예측 랩 수.
@@ -285,6 +303,35 @@ export type Dictionary = {
     laps: string;
     // 예측 랩이 1일 때. en 은 "1 lap" 단수, ko/ja 는 구조가 같지만 병렬로 둔다.
     lapsSingular: string;
+    // 예측 신뢰도 배지 라벨. 잡는 속도의 랩별 일관성으로 도출된 3단계(docs/23 §신뢰도).
+    confidence: Record<OvertakeForecastConfidence, string>;
+  };
+  // 드라이버 상세 시트의 타이어 전략(사용한 타이어 + 남은 타이어 경우의 수).
+  tireStrategy: {
+    title: string;
+    usedTitle: string;
+    remainingTitle: string;
+    // 스틴트 데이터가 없을 때(예: 아직 주행 전).
+    noData: string;
+    // 신품/중고 스틴트 표기.
+    new: string;
+    used: string;
+    // 보유 세트 수. {count} 치환.
+    setsCount: string;
+    // 가능한 구성 개수. {count} 치환.
+    possibilities: string;
+    // 계산 한계 안내(규정 기반·경우의 수·퀄리/프랙티스 미반영).
+    note: string;
+  };
+  // 「기록」 상세의 주말 타이어 격자(드라이버 × 세션 사용 compound).
+  weekendTires: {
+    title: string;
+    subtitle: string;
+    loading: string;
+    empty: string;
+    error: string;
+    // 격자 첫 열 헤더(드라이버).
+    driverColumn: string;
   };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
@@ -382,7 +429,28 @@ const en: Dictionary = {
   tabs: {
     race: "Race",
     archive: "Archive",
-    ask: "AI",
+    news: "News",
+  },
+  news: {
+    title: "News",
+    subtitle: "Results, rules, and team updates around the weekend",
+    loading: "Loading news…",
+    empty: "Nothing here yet",
+    error: "Couldn't load news",
+    filter: {
+      [NewsFilter.All]: "All",
+      [NewsFilter.Result]: "Results",
+      [NewsFilter.Rule]: "Rules",
+      [NewsFilter.TeamUpdate]: "Teams",
+      [NewsFilter.Video]: "Video",
+      [NewsFilter.Social]: "Social",
+    },
+    category: {
+      [NewsCategory.Result]: "Result",
+      [NewsCategory.Rule]: "Rules",
+      [NewsCategory.TeamUpdate]: "Team",
+      [NewsCategory.General]: "General",
+    },
   },
   archive: {
     title: "Race Archive",
@@ -499,12 +567,14 @@ const en: Dictionary = {
       [WatchNowSignalType.TireAge]: "Tires",
       [WatchNowSignalType.GapConvergence]: "Closing",
       [WatchNowSignalType.UndercutThreat]: "Undercut",
+      [WatchNowSignalType.PitWindow]: "Pit now",
       [WatchNowSignalType.PositionSwing]: "Swing",
       [WatchNowSignalType.OvertakeForecast]: "Forecast",
     },
     tireAge: "{code} on {laps}-lap tires",
     gapConvergence: "{code} {gap}s to car ahead",
     undercutThreat: "{code} — {rival} pitted",
+    pitWindow: "{code} — pit to undercut {rival}",
     positionSwing: "{code} P{from} to P{to}",
     overtakeForecast: "{code} expected within 1s of {rival} in {laps} laps",
     overtakeForecastSingular: "{code} expected within 1s of {rival} in 1 lap",
@@ -517,6 +587,30 @@ const en: Dictionary = {
     title: "Overtake forecast",
     laps: "{laps} laps",
     lapsSingular: "1 lap",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "High",
+      [OvertakeForecastConfidence.Medium]: "Medium",
+      [OvertakeForecastConfidence.Low]: "Low",
+    },
+  },
+  tireStrategy: {
+    title: "Tire strategy",
+    usedTitle: "Used this session",
+    remainingTitle: "Remaining sets",
+    noData: "No tire data yet",
+    new: "new",
+    used: "used",
+    setsCount: "{count} sets",
+    possibilities: "· {count} possible",
+    note: "Estimate from a conventional weekend's mandatory returns; the returned compounds are the team's choice, and qualifying/practice use isn't included yet.",
+  },
+  weekendTires: {
+    title: "Weekend tires",
+    subtitle: "Compounds each driver ran, session by session",
+    loading: "Loading weekend tires…",
+    empty: "No tire data for this weekend",
+    error: "Couldn't load weekend tires",
+    driverColumn: "Driver",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -644,7 +738,28 @@ const ko: Dictionary = {
   tabs: {
     race: "경기",
     archive: "기록",
-    ask: "AI",
+    news: "뉴스",
+  },
+  news: {
+    title: "뉴스",
+    subtitle: "경기 전후의 결과·규정·팀 소식을 한데 모아",
+    loading: "뉴스를 불러오는 중…",
+    empty: "아직 소식이 없어요",
+    error: "뉴스를 불러오지 못했어요",
+    filter: {
+      [NewsFilter.All]: "전체",
+      [NewsFilter.Result]: "결과",
+      [NewsFilter.Rule]: "규정",
+      [NewsFilter.TeamUpdate]: "팀",
+      [NewsFilter.Video]: "영상",
+      [NewsFilter.Social]: "소셜",
+    },
+    category: {
+      [NewsCategory.Result]: "결과",
+      [NewsCategory.Rule]: "규정",
+      [NewsCategory.TeamUpdate]: "팀",
+      [NewsCategory.General]: "일반",
+    },
   },
   archive: {
     title: "지난 레이스",
@@ -761,12 +876,14 @@ const ko: Dictionary = {
       [WatchNowSignalType.TireAge]: "타이어",
       [WatchNowSignalType.GapConvergence]: "간격",
       [WatchNowSignalType.UndercutThreat]: "언더컷",
+      [WatchNowSignalType.PitWindow]: "피트 찬스",
       [WatchNowSignalType.PositionSwing]: "순위",
       [WatchNowSignalType.OvertakeForecast]: "예측",
     },
     tireAge: "{code} 타이어 {laps}랩째",
     gapConvergence: "{code} 앞차와 {gap}초",
     undercutThreat: "{code} — {rival} 피트인",
+    pitWindow: "{code} — 지금 피트하면 {rival} 언더컷",
     positionSwing: "{code} P{from} → P{to}",
     overtakeForecast: "{code}, {laps}랩 후 {rival} 1초 내 진입 예상",
     overtakeForecastSingular: "{code}, 1랩 후 {rival} 1초 내 진입 예상",
@@ -779,6 +896,30 @@ const ko: Dictionary = {
     title: "추월 예측",
     laps: "{laps}랩",
     lapsSingular: "1랩",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "높음",
+      [OvertakeForecastConfidence.Medium]: "보통",
+      [OvertakeForecastConfidence.Low]: "낮음",
+    },
+  },
+  tireStrategy: {
+    title: "타이어 전략",
+    usedTitle: "이번 세션 사용",
+    remainingTitle: "남은 세트",
+    noData: "아직 타이어 데이터가 없어요",
+    new: "신품",
+    used: "중고",
+    setsCount: "{count}세트 보유",
+    possibilities: "· {count}가지",
+    note: "일반 주말 반납 규정 기준 추정이에요. 어떤 컴파운드를 반납할지는 팀 선택이라 경우의 수로 표시하며, 퀄리·프랙티스 사용분은 아직 반영하지 않았어요.",
+  },
+  weekendTires: {
+    title: "주말 타이어",
+    subtitle: "세션별로 각 드라이버가 쓴 컴파운드",
+    loading: "주말 타이어를 불러오는 중…",
+    empty: "이 주말의 타이어 데이터가 없어요",
+    error: "주말 타이어를 불러오지 못했어요",
+    driverColumn: "드라이버",
   },
   status: {
     [SessionStatus.Scheduled]: "예정",
@@ -906,7 +1047,28 @@ const ja: Dictionary = {
   tabs: {
     race: "レース",
     archive: "記録",
-    ask: "AI",
+    news: "ニュース",
+  },
+  news: {
+    title: "ニュース",
+    subtitle: "週末前後の結果・規則・チーム情報をまとめて",
+    loading: "ニュースを読み込み中…",
+    empty: "まだ情報がありません",
+    error: "ニュースを読み込めませんでした",
+    filter: {
+      [NewsFilter.All]: "すべて",
+      [NewsFilter.Result]: "結果",
+      [NewsFilter.Rule]: "規則",
+      [NewsFilter.TeamUpdate]: "チーム",
+      [NewsFilter.Video]: "動画",
+      [NewsFilter.Social]: "SNS",
+    },
+    category: {
+      [NewsCategory.Result]: "結果",
+      [NewsCategory.Rule]: "規則",
+      [NewsCategory.TeamUpdate]: "チーム",
+      [NewsCategory.General]: "一般",
+    },
   },
   archive: {
     title: "過去のレース",
@@ -1023,12 +1185,14 @@ const ja: Dictionary = {
       [WatchNowSignalType.TireAge]: "タイヤ",
       [WatchNowSignalType.GapConvergence]: "接近",
       [WatchNowSignalType.UndercutThreat]: "アンダーカット",
+      [WatchNowSignalType.PitWindow]: "ピットチャンス",
       [WatchNowSignalType.PositionSwing]: "順位変動",
       [WatchNowSignalType.OvertakeForecast]: "予測",
     },
     tireAge: "{code} タイヤ{laps}周目",
     gapConvergence: "{code} 前車と{gap}秒",
     undercutThreat: "{code} — {rival} ピットイン",
+    pitWindow: "{code} — 今ピットで {rival} をアンダーカット",
     positionSwing: "{code} P{from} → P{to}",
     overtakeForecast: "{code}、{laps}周後に {rival} の1秒以内に接近見込み",
     overtakeForecastSingular: "{code}、1周後に {rival} の1秒以内に接近見込み",
@@ -1041,6 +1205,30 @@ const ja: Dictionary = {
     title: "オーバーテイク予測",
     laps: "{laps}周",
     lapsSingular: "1周",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "高",
+      [OvertakeForecastConfidence.Medium]: "中",
+      [OvertakeForecastConfidence.Low]: "低",
+    },
+  },
+  tireStrategy: {
+    title: "タイヤ戦略",
+    usedTitle: "今セッションの使用",
+    remainingTitle: "残りセット",
+    noData: "タイヤデータがまだありません",
+    new: "新品",
+    used: "中古",
+    setsCount: "{count}セット保有",
+    possibilities: "· {count}通り",
+    note: "通常週末の返却ルールに基づく推定です。どのコンパウンドを返却するかはチーム次第のため場合の数で示し、予選・フリー走行の使用分はまだ反映していません。",
+  },
+  weekendTires: {
+    title: "週末のタイヤ",
+    subtitle: "セッションごとに各ドライバーが使ったコンパウンド",
+    loading: "週末のタイヤを読み込み中…",
+    empty: "この週末のタイヤデータがありません",
+    error: "週末のタイヤを読み込めませんでした",
+    driverColumn: "ドライバー",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",

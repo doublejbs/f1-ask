@@ -83,6 +83,12 @@ const buildStintSummary = (
   const currentStint = startedStints[startedStints.length - 1];
   const previousStint = startedStints[startedStints.length - 2];
 
+  // 시작 순서대로의 타이어 이력. tyre_age_at_start === 0 이면 새 타이어로 시작한 스틴트다.
+  const usedCompounds = startedStints.map((stint) => ({
+    compound: mapCompound(stint.compound),
+    startedNew: stint.tyre_age_at_start === 0,
+  }));
+
   return {
     driverNumber,
     stintCount: startedStints.length,
@@ -90,6 +96,7 @@ const buildStintSummary = (
     previousCompound:
       previousStint === undefined ? null : mapCompound(previousStint.compound),
     lastPitLap,
+    usedCompounds,
   };
 };
 

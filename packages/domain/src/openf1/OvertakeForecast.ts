@@ -6,6 +6,10 @@ import {
   DEFAULT_OVERTAKE_FORECAST_CONFIG,
   OvertakeForecastConfig,
 } from "./OvertakeForecastConfig";
+import {
+  deriveOvertakeForecastConfidence,
+  OvertakeForecastConfidence,
+} from "./OvertakeForecastConfidence";
 import { medianOf, parseMs } from "./OpenF1LapMath";
 
 // 순위 인접 페어의 "N랩 후 배틀 진입" 예측 (docs/23-overtake-forecast.md).
@@ -22,6 +26,7 @@ export type OvertakeForecast = {
   closingRateSecondsPerLap: number; // 소수 2자리 반올림
   predictedLapsToBattle: number; // 정수, Math.ceil (낙관하지 않는다)
   predictedLap: number; // currentLap + predictedLapsToBattle
+  confidence: OvertakeForecastConfidence; // 잡는 속도의 랩별 일관성으로 도출
 };
 
 // position 이 확정된 드라이버. 인접 판정에서 null 분기를 없앤다.
@@ -123,13 +128,21 @@ const buildLapsByDriver = (data: OpenF1SessionData): Map<number, OpenF1Lap[]> =>
   return lapsByDriver;
 };
 
+// 잡는 속도 계산 결과. rate 는 최근 유효 랩 델타의 평균(초/랩), deltas 는 그 개별 델타들이다.
+// 신뢰도(OvertakeForecastConfidence)가 평균만으로는 감춰지는 랩별 흔들림을 보려면 개별 델타가
+// 필요하다 — 그래서 평균과 함께 돌려준다.
+type ClosingStats = {
+  rate: number;
+  deltas: number[];
+};
+
 // 두 드라이버의 공통 유효 랩 중 최근 recentLapCount 개로 잡는 속도(초/랩)를 낸다.
 // 공통 유효 랩이 recentLapCount 미만이면 예측을 억지로 만들지 않고 null 을 돌려준다.
-const computeClosingRate = (
+const computeClosingStats = (
   targetLaps: Map<number, number>,
   chaserLaps: Map<number, number>,
   recentLapCount: number,
-): number | null => {
+): ClosingStats | null => {
   const commonLapNumbers = [...targetLaps.keys()]
     .filter((lapNumber) => chaserLaps.has(lapNumber))
     .sort((left, right) => right - left);
@@ -140,8 +153,7 @@ const computeClosingRate = (
 
   const recentLapNumbers = commonLapNumbers.slice(0, recentLapCount);
 
-  let deltaSum = 0;
-  let validLapCount = 0;
+  const deltas: number[] = [];
 
   for (const lapNumber of recentLapNumbers) {
     const targetDuration = targetLaps.get(lapNumber);
@@ -152,15 +164,16 @@ const computeClosingRate = (
     }
 
     // 앞차 랩타임 − 뒷차 랩타임. 양수면 뒷차가 매 랩 그만큼 붙는다.
-    deltaSum += targetDuration - chaserDuration;
-    validLapCount += 1;
+    deltas.push(targetDuration - chaserDuration);
   }
 
-  if (validLapCount === 0) {
+  if (deltas.length === 0) {
     return null;
   }
 
-  return deltaSum / validLapCount;
+  const deltaSum = deltas.reduce((sum, delta) => sum + delta, 0);
+
+  return { rate: deltaSum / deltas.length, deltas };
 };
 
 export const buildOvertakeForecasts = (
@@ -233,16 +246,21 @@ export const buildOvertakeForecasts = (
       continue;
     }
 
-    const closingRate = computeClosingRate(
+    const closingStats = computeClosingStats(
       validLapsFor(target.driverNumber),
       validLapsFor(chaser.driverNumber),
       config.recentLapCount,
     );
 
     // 공통 유효 랩 부족(null) 또는 노이즈 수준의 접근이면 발화하지 않는다.
-    if (closingRate === null || closingRate < config.minClosingRateSecondsPerLap) {
+    if (
+      closingStats === null ||
+      closingStats.rate < config.minClosingRateSecondsPerLap
+    ) {
       continue;
     }
+
+    const closingRate = closingStats.rate;
 
     // 예측 랩 수는 올림한다 — 낙관해서 한 랩 빨리 잡힌다고 말하지 않는다.
     const predictedLapsToBattle = Math.ceil(
@@ -270,6 +288,7 @@ export const buildOvertakeForecasts = (
       closingRateSecondsPerLap: roundTo(closingRate, 2),
       predictedLapsToBattle,
       predictedLap: (snapshot.currentLap ?? 0) + predictedLapsToBattle,
+      confidence: deriveOvertakeForecastConfidence(closingStats.deltas),
     });
   }
 

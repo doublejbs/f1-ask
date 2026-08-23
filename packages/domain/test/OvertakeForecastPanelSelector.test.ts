@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OvertakeForecast } from "../src/openf1/OvertakeForecast";
+import { OvertakeForecastConfidence } from "../src/openf1/OvertakeForecastConfidence";
 import { selectImminentOvertakeForecasts } from "../src/OvertakeForecastPanelSelector";
 
 const makeForecast = (
@@ -14,6 +15,7 @@ const makeForecast = (
   closingRateSecondsPerLap: 0.42,
   predictedLapsToBattle,
   predictedLap: 30 + predictedLapsToBattle,
+  confidence: OvertakeForecastConfidence.High,
 });
 
 describe("selectImminentOvertakeForecasts", () => {

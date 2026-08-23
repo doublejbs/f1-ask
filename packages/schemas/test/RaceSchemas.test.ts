@@ -1,4 +1,8 @@
-import { DEFAULT_MOCK_SCENARIO, MockRaceEngine } from "@f1/domain";
+import {
+  DEFAULT_MOCK_SCENARIO,
+  MockRaceEngine,
+  OvertakeForecastConfidence,
+} from "@f1/domain";
 import { describe, expect, it } from "vitest";
 import { parseRaceEvents } from "../src/RaceEventSchema";
 import { parseLiveRaceSnapshot } from "../src/RaceSnapshotSchema";
@@ -48,6 +52,10 @@ describe("race schemas", () => {
             currentStintStartLap: 21,
             previousCompound: "MEDIUM",
             lastPitLap: 20,
+            usedCompounds: [
+              { compound: "MEDIUM", startedNew: true },
+              { compound: "HARD", startedNew: true },
+            ],
           },
         ],
         overtakes: {
@@ -84,6 +92,7 @@ describe("race schemas", () => {
           closingRateSecondsPerLap: 0.5,
           predictedLapsToBattle: 4,
           predictedLap: 14,
+          confidence: OvertakeForecastConfidence.High,
         },
       ],
     };

@@ -5,6 +5,13 @@ import {
   ArchiveRaceSession,
   ArchiveResultRow,
   ArchiveResultStatus,
+  DriverWeekendTires,
+  SessionTireUse,
+  TireCompound,
+  WeekendFormat,
+  WeekendSessionKind,
+  WeekendTireSession,
+  WeekendTireUsage,
 } from "@f1/domain";
 import { z } from "zod";
 import { raceEventSchema } from "./RaceEventSchema";
@@ -76,3 +83,35 @@ export const parseArchiveRaceListResponse = (
 
 export const parseArchiveRaceDetail = (value: unknown): ArchiveRaceDetail =>
   archiveRaceDetailSchema.parse(value);
+
+// 주말 타이어 사용 (docs/29 §범위 밖 → 구현).
+const weekendTireSessionSchema = z.object({
+  sessionKey: z.number().int(),
+  name: z.string(),
+  kind: z.nativeEnum(WeekendSessionKind),
+}) satisfies z.ZodType<WeekendTireSession>;
+
+const sessionTireUseSchema = z.object({
+  sessionKey: z.number().int(),
+  compounds: z.array(
+    z.object({
+      compound: z.nativeEnum(TireCompound),
+      startedNew: z.boolean(),
+    }),
+  ),
+}) satisfies z.ZodType<SessionTireUse>;
+
+const driverWeekendTiresSchema = z.object({
+  driverNumber: z.number().int(),
+  code: z.string(),
+  sessions: z.array(sessionTireUseSchema),
+}) satisfies z.ZodType<DriverWeekendTires>;
+
+export const weekendTireUsageSchema = z.object({
+  format: z.nativeEnum(WeekendFormat),
+  sessions: z.array(weekendTireSessionSchema),
+  drivers: z.array(driverWeekendTiresSchema),
+}) satisfies z.ZodType<WeekendTireUsage>;
+
+export const parseWeekendTireUsage = (value: unknown): WeekendTireUsage =>
+  weekendTireUsageSchema.parse(value);

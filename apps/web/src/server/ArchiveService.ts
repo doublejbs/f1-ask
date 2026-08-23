@@ -2,8 +2,10 @@ import { createOpenF1ClientOptions } from "@/server/OpenF1ServerClient";
 import {
   ArchiveRaceDetail,
   ArchiveRaceListItem,
+  WeekendTireUsage,
   loadArchiveRaceDetail,
   loadArchiveRaceList,
+  loadWeekendTires,
 } from "@f1/domain";
 import { unstable_cache } from "next/cache";
 
@@ -22,6 +24,11 @@ const ARCHIVE_CACHE_VERSION = "v3";
 
 const ARCHIVE_LIST_TAG = "archive-race-list";
 const ARCHIVE_DETAIL_TAG = "archive-race-detail";
+const WEEKEND_TIRES_TAG = "archive-weekend-tires";
+
+// 주말 타이어 재검증 주기. 진행 중 주말도 열 수 있어(docs/29) 목록처럼 짧게 잡는다 —
+// 완료 상세(1년)와 달리 굳히지 않는다.
+export const WEEKEND_TIRES_REVALIDATE_SECONDS = ARCHIVE_LIST_REVALIDATE_SECONDS;
 
 // 캐시 계층은 Next 의 데이터 캐시(unstable_cache)다.
 //
@@ -77,4 +84,32 @@ export const getArchiveRaceDetail = async (
   );
 
   return loadDetail();
+};
+
+// 주말(미팅) 타이어 사용 — 프랙티스·퀄리·레이스에서 드라이버가 쓴 compound (docs/29).
+// meeting_key 한 벌(세션·스틴트·로스터 3요청)을 조립한 결과만 캐시한다.
+export const getWeekendTires = async (
+  meetingKey: number,
+): Promise<WeekendTireUsage> => {
+  const load = unstable_cache(
+    async (): Promise<WeekendTireUsage> =>
+      loadWeekendTires({
+        meetingKey,
+        clientOptions: createOpenF1ClientOptions(
+          WEEKEND_TIRES_REVALIDATE_SECONDS,
+        ),
+      }),
+    [
+      WEEKEND_TIRES_TAG,
+      ARCHIVE_CACHE_VERSION,
+      String(ARCHIVE_SEASON_YEAR),
+      String(meetingKey),
+    ],
+    {
+      revalidate: WEEKEND_TIRES_REVALIDATE_SECONDS,
+      tags: [WEEKEND_TIRES_TAG],
+    },
+  );
+
+  return load();
 };

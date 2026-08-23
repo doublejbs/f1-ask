@@ -36,6 +36,7 @@ export type {
   LiveRaceContextSummary,
   PitContextSummary,
   StintContextSummary,
+  StintCompoundUse,
   OvertakeContextSummary,
 } from "./LiveRaceContextSummary";
 export type {
@@ -119,6 +120,10 @@ export {
 } from "./openf1/OvertakeForecastConfig";
 export type { OvertakeForecast } from "./openf1/OvertakeForecast";
 export { buildOvertakeForecasts } from "./openf1/OvertakeForecast";
+export {
+  OvertakeForecastConfidence,
+  deriveOvertakeForecastConfidence,
+} from "./openf1/OvertakeForecastConfidence";
 export { selectImminentOvertakeForecasts } from "./OvertakeForecastPanelSelector";
 export { OvertakeForecastTracker } from "./openf1/OvertakeForecastTracker";
 export { buildOvertakeForecastEvent } from "./openf1/OvertakeForecastEvent";
@@ -203,6 +208,48 @@ export {
   selectFavoriteDriverEvents,
   DEFAULT_FAVORITE_EVENT_LIMIT,
 } from "./FavoriteDriverDetail";
+
+// 타이어 할당·반납 규정 + 남은 타이어 경우의 수.
+export { WeekendFormat } from "./tire/TireAllocation";
+export type {
+  TireSetCounts,
+  TireReturnStage,
+  TireCompoundRange,
+  RemainingTireRanges,
+} from "./tire/TireAllocation";
+export {
+  DRY_TIRE_ALLOCATION,
+  TIRE_RETURN_SCHEDULE,
+  TIRE_SET_COMPOUNDS,
+  totalTireSets,
+  returnedSetsThrough,
+  totalReturnedSets,
+  remainingSetCount,
+  remainingTirePossibilities,
+  summarizeRemainingRanges,
+} from "./tire/TireAllocation";
+export { WeekendSessionKind } from "./tire/WeekendTires";
+export type {
+  WeekendTireSession,
+  SessionTireUse,
+  DriverWeekendTires,
+  WeekendTireUsage,
+} from "./tire/WeekendTires";
+export { buildWeekendTireUsage, distinctCompounds } from "./tire/WeekendTires";
+export type { LoadWeekendTiresOptions } from "./tire/WeekendTireLoader";
+export { loadWeekendTires } from "./tire/WeekendTireLoader";
+
+// 뉴스 탭 — 경기 전후 소식 (docs/28-news-tab.md).
+export { NewsSourceKind } from "./news/NewsSourceKind";
+export { NewsCategory } from "./news/NewsCategory";
+export { NewsFilter, NEWS_FILTERS } from "./news/NewsFilter";
+export type { NewsItem, NewsSource } from "./news/NewsItem";
+export {
+  dedupeNewsItems,
+  sortNewsItems,
+  selectNewsFeed,
+} from "./news/NewsFeedSelector";
+export { MockNewsSource, buildMockNewsItems } from "./news/MockNewsSource";
 
 export {
   filterEventsByDriver,
@@ -492,6 +539,8 @@ export {
   DEFAULT_GAP_REARM_MULTIPLIER,
   DEFAULT_UNDERCUT_POSITION_GAP,
   DEFAULT_POSITION_SWING_THRESHOLD,
+  DEFAULT_PIT_WINDOW_GAP_THRESHOLD_SECONDS,
+  DEFAULT_PIT_WINDOW_MIN_TIRE_AGE_LAPS,
 } from "./watchnow/WatchNowDetectorConfig";
 export { WatchNowDetector } from "./watchnow/WatchNowDetector";
 // 역할이 고정된 칸 3개. 점수 랭킹(감지기 기본 점수 · 스테이크 등급 · 희소성 · 즐겨찾기

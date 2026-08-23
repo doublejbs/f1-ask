@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LiveRaceSnapshot } from "../src/LiveRaceSnapshot";
+import { OvertakeForecastConfidence } from "../src/openf1/OvertakeForecastConfidence";
 import { SessionStatus } from "../src/SessionStatus";
 import { TireCompound } from "../src/TireCompound";
 import {
@@ -107,6 +108,7 @@ describe("스냅샷 / 세션 문서 쓰기 판정", () => {
             closingRateSecondsPerLap: 0.5,
             predictedLapsToBattle: 4,
             predictedLap: 14,
+            confidence: OvertakeForecastConfidence.High,
           },
         ],
       }),

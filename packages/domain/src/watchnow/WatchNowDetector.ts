@@ -30,6 +30,9 @@ type DriverDetectorState = {
   gapArmed: boolean;
   // D. 순위 변동을 재는 기준점. 발화할 때마다 현재 순위로 갱신해 중복을 없앤다.
   positionBaseline: number | null;
+  // F. 발화 후 재무장 전까지 다시 발화하지 않는다. 조건이 깨지면(사거리 이탈·타이어 교체 등)
+  //    자동으로 재무장한다 — 같은 윈도우 동안 매 프레임 반복 발화하는 것을 막는 엣지 트리거다.
+  pitWindowArmed: boolean;
 };
 
 const createDriverState = (): DriverDetectorState => ({
@@ -39,6 +42,7 @@ const createDriverState = (): DriverDetectorState => ({
   gapConsecutiveCount: 0,
   gapArmed: true,
   positionBaseline: null,
+  pitWindowArmed: true,
 });
 
 // 감지가 의미를 갖는 세션 상태.
@@ -86,12 +90,29 @@ export class WatchNowDetector {
     // 갱신하기 **전에** 스냅샷 전체를 훑어야 한다.
     signals.push(...this.detectUndercutThreats(snapshot));
 
+    // F 는 앞차(순위 −1)의 타이어를 봐야 하므로 순위→드라이버 색인을 미리 만든다.
+    const driverByPosition = new Map<number, LiveDriverState>();
+
+    for (const driver of snapshot.drivers) {
+      if (driver.position !== null) {
+        driverByPosition.set(driver.position, driver);
+      }
+    }
+
     for (const driver of snapshot.drivers) {
       const state = this.stateFor(driver.driverNumber);
 
       this.detectTireAge(snapshot, driver, state, signals);
       this.detectGapConvergence(snapshot, driver, state, gapSuppressed, signals);
       this.detectPositionSwing(snapshot, driver, state, signals);
+      this.detectPitWindow(
+        snapshot,
+        driver,
+        state,
+        gapSuppressed,
+        driverByPosition,
+        signals,
+      );
 
       state.lastPitStopCount = driver.pitStopCount;
     }
@@ -222,6 +243,116 @@ export class WatchNowDetector {
       positionTo: null,
       predictedLapsToBattle: null,
     });
+  }
+
+  // F. 피트 윈도우 — 앞차와 언더컷 사거리 안이고 내 타이어가 낡았으면 "지금 피트하면
+  // 앞차를 언더컷할 기회"로 본다. C(수비: 뒤차가 나를 위협)의 공격 짝이다.
+  //
+  // 신호의 주체는 **피트해야 할 나**(앞차가 아니라). 재무장은 조건이 깨지면 자동으로 된다 —
+  // 사거리를 벗어나거나 타이어를 갈면 armed 를 되살려, 같은 윈도우 동안 반복 발화하지 않되
+  // 윈도우가 새로 열리면 다시 발화한다(GapConvergence 의 armed 와 같은 엣지 트리거).
+  //
+  // SC · VSC 는 간격을 인위적으로 좁히므로 B 와 함께 억제한다(gapSuppressed).
+  private detectPitWindow(
+    snapshot: LiveRaceSnapshot,
+    driver: LiveDriverState,
+    state: DriverDetectorState,
+    gapSuppressed: boolean,
+    driverByPosition: Map<number, LiveDriverState>,
+    signals: WatchNowSignal[],
+  ): void {
+    const eligible = this.isPitWindowEligible(
+      driver,
+      gapSuppressed,
+      driverByPosition,
+    );
+
+    // 조건이 성립하지 않으면 재무장만 하고 끝낸다 — 다음에 윈도우가 열리면 발화할 수 있게.
+    if (eligible === null) {
+      state.pitWindowArmed = true;
+
+      return;
+    }
+
+    // 조건은 성립하지만 이미 이 윈도우에서 발화했다면 침묵한다.
+    if (!state.pitWindowArmed) {
+      return;
+    }
+
+    state.pitWindowArmed = false;
+
+    signals.push({
+      type: WatchNowSignalType.PitWindow,
+      driverNumber: driver.driverNumber,
+      driverCode: driver.code,
+      lapNumber: snapshot.currentLap,
+      detectedAt: snapshot.generatedAt,
+      tireAgeLaps: driver.tireAgeLaps,
+      gapSeconds: eligible.gapSeconds,
+      rivalDriverNumber: eligible.target.driverNumber,
+      rivalDriverCode: eligible.target.code,
+      positionFrom: null,
+      positionTo: null,
+      predictedLapsToBattle: null,
+    });
+  }
+
+  // F 발화 조건을 한곳에서 판정한다. 성립하면 앞차와 간격을, 아니면 null 을 돌려준다.
+  private isPitWindowEligible(
+    driver: LiveDriverState,
+    gapSuppressed: boolean,
+    driverByPosition: Map<number, LiveDriverState>,
+  ): { target: LiveDriverState; gapSeconds: number } | null {
+    // SC · VSC 중 간격은 인위적이라 판단 재료가 못 된다.
+    if (gapSuppressed) {
+      return null;
+    }
+
+    // 내가 피트레인 · 리타이어면 피트 타이밍을 논할 상황이 아니다.
+    if (driver.inPit || driver.retired) {
+      return null;
+    }
+
+    // 선두(앞차 없음)거나 순위를 모르면 언더컷 대상이 없다.
+    if (driver.position === null || driver.position <= 1) {
+      return null;
+    }
+
+    // 내 타이어가 아직 새것이면 피트할 때가 아니다.
+    const tireAge = driver.tireAgeLaps;
+
+    if (tireAge === null || tireAge < this.config.pitWindowMinTireAgeLaps) {
+      return null;
+    }
+
+    // 앞차 간격이 사거리 밖이거나 알 수 없으면(선두 · 랩다운) 대상이 아니다.
+    const gap = driver.intervalToAheadSeconds;
+
+    if (
+      gap === null ||
+      gap <= 0 ||
+      gap > this.config.pitWindowGapThresholdSeconds
+    ) {
+      return null;
+    }
+
+    const target = driverByPosition.get(driver.position - 1);
+
+    // 앞차가 피트레인 · 리타이어면 언더컷할 대상이 아니다.
+    if (target === undefined || target.inPit || target.retired) {
+      return null;
+    }
+
+    // 앞차가 방금 새 타이어로 갈았다면(타이어가 젊다면) 언더컷이 무의미하다. 나이를 모르면
+    // 보수적으로 대상으로 인정한다 — 정보가 없다고 기회를 지어내지도, 지우지도 않는다.
+    if (
+      target.tireAgeLaps !== null &&
+      target.tireAgeLaps < this.config.pitWindowMinTireAgeLaps
+    ) {
+      return null;
+    }
+
+    return { target, gapSeconds: gap };
   }
 
   // C. 언더컷 위협 — 내 뒤 N계단 이내의 차가 피트인했고 나는 아직 안 들어갔다.

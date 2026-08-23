@@ -55,6 +55,7 @@ export const buildOvertakeForecastEvent = (
         closingRateSecondsPerLap: forecast.closingRateSecondsPerLap,
         predictedLapsToBattle: forecast.predictedLapsToBattle,
         predictedLap: forecast.predictedLap,
+        confidence: forecast.confidence,
       },
     },
   );
