@@ -270,6 +270,31 @@ export const computeRemainingMinimums = (
   };
 };
 
+// 한 세션(예: 이번 레이스)에서 신품으로 깐 세트를 컴파운드별로 세어 잔여 하한을 낸다.
+// 레이스는 모든 반납 이후라 여기서 신품으로 쓴 세트는 반납 불가 → 잔여 하한이다(docs/29).
+// AI 컨텍스트가 주말 데이터 없이 레이스 스틴트만으로 잔여를 추정할 때 쓴다(C1).
+export const remainingMinimumsFromCompoundUses = (
+  uses: StintCompoundUse[],
+): TireSetCounts => {
+  const minimums: TireSetCounts = { hard: 0, medium: 0, soft: 0 };
+
+  for (const use of uses) {
+    if (!use.startedNew) {
+      continue;
+    }
+
+    if (use.compound === TireCompound.Hard) {
+      minimums.hard += 1;
+    } else if (use.compound === TireCompound.Medium) {
+      minimums.medium += 1;
+    } else if (use.compound === TireCompound.Soft) {
+      minimums.soft += 1;
+    }
+  }
+
+  return minimums;
+};
+
 // 도메인 TireCompound 로 세션에서 쓴 **구별되는** compound 집합(중복 스틴트 접기). 요약 표기용.
 export const distinctCompounds = (uses: StintCompoundUse[]): TireCompound[] => {
   const seen: TireCompound[] = [];
