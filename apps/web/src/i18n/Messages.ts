@@ -278,9 +278,11 @@ export type Dictionary = {
     // 신호 종류 안내(B5): 정보 토글 aria + 종류별 한 줄 설명.
     legendToggle: string;
     signalHelp: Record<WatchNowSignalType, string>;
-    // 지난 신호 더보기(B5).
-    historyShow: string;
-    historyHide: string;
+    // 지난 신호(B4). 경기 시작부터, 접힘=최근 5개, 더보기=전체.
+    historyTitle: string;
+    // 더보기 라벨. {count} = 추가로 볼 개수.
+    historyMore: string;
+    historyLess: string;
     // 종류별 한 줄 요약 템플릿. 숫자는 전부 스냅샷에 있는 실측값이며 LLM 을 쓰지 않는다.
     // {code} 드라이버 코드, {laps} 타이어 나이(랩).
     tireAge: string;
@@ -620,8 +622,9 @@ const en: Dictionary = {
       [WatchNowSignalType.PositionSwing]: "A big position change",
       [WatchNowSignalType.OvertakeForecast]: "On track to battle in a few laps",
     },
-    historyShow: "Show past signals",
-    historyHide: "Hide past signals",
+    historyTitle: "Past signals",
+    historyMore: "Show all (+{count})",
+    historyLess: "Show less",
     tireAge: "{code} on {laps}-lap tires",
     gapConvergence: "{code} {gap}s to car ahead",
     undercutThreat: "{code} — {rival} pitted",
@@ -964,8 +967,9 @@ const ko: Dictionary = {
       [WatchNowSignalType.PositionSwing]: "순위가 크게 변동",
       [WatchNowSignalType.OvertakeForecast]: "몇 랩 후 배틀 진입 예상",
     },
-    historyShow: "지난 신호 더보기",
-    historyHide: "지난 신호 접기",
+    historyTitle: "지난 신호",
+    historyMore: "더보기 (+{count})",
+    historyLess: "접기",
     tireAge: "{code} 타이어 {laps}랩째",
     gapConvergence: "{code} 앞차와 {gap}초",
     undercutThreat: "{code} — {rival} 피트인",
@@ -1308,8 +1312,9 @@ const ja: Dictionary = {
       [WatchNowSignalType.PositionSwing]: "順位が大きく変動",
       [WatchNowSignalType.OvertakeForecast]: "数周後にバトル圏内の見込み",
     },
-    historyShow: "過去の信号を見る",
-    historyHide: "過去の信号を隠す",
+    historyTitle: "過去の信号",
+    historyMore: "すべて表示 (+{count})",
+    historyLess: "折りたたむ",
     tireAge: "{code} タイヤ{laps}周目",
     gapConvergence: "{code} 前車と{gap}秒",
     undercutThreat: "{code} — {rival} ピットイン",

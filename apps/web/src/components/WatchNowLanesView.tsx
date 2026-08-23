@@ -9,8 +9,11 @@ import {
   WatchNowSignal,
   WatchNowSignalType,
 } from "@f1/domain";
-import { History, Info } from "lucide-react";
+import { ChevronDown, ChevronUp, History, Info } from "lucide-react";
 import { useMemo, useState } from "react";
+
+// 지난 신호를 접었을 때 보이는 개수 (B4). 더보기로 전체를 편다.
+const HISTORY_COLLAPSED_COUNT = 5;
 
 type Props = {
   dictionary: Dictionary;
@@ -160,40 +163,60 @@ export const WatchNowLanesView = ({
         {visibleLanes.map(renderLane)}
       </div>
 
-      {/* 지난 신호 더보기 (B5) — 후보 창 밖으로 밀려난 최근 신호 최대 5개. */}
+      {/* 지난 신호 (B4) — 경기 시작부터. 접힘=최근 5개, 더보기=전체. */}
       {history.length > 0 ? (
         <div className="border-t border-white/[0.06]">
-          <button
-            type="button"
-            onClick={() => setIsHistoryOpen((open) => !open)}
-            aria-expanded={isHistoryOpen}
-            className="press flex min-h-[2.25rem] w-full items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
-          >
+          <div className="flex items-center gap-1.5 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             <History className="h-3.5 w-3.5" aria-hidden />
-            {isHistoryOpen ? texts.historyHide : texts.historyShow}
-          </button>
+            {texts.historyTitle}
+          </div>
 
-          {isHistoryOpen ? (
-            <div className="flex flex-col gap-1 px-3 pb-2">
-              {history.map((signal, index) => (
-                <div
-                  key={`${signal.type}:${signal.driverNumber}:${signal.lapNumber ?? index}`}
-                  className="flex items-center gap-2 text-[12px]"
-                >
-                  <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                    {texts.signalType[signal.type]}
+          <div className="flex flex-col gap-1 px-3 pb-1.5">
+            {(isHistoryOpen
+              ? history
+              : history.slice(0, HISTORY_COLLAPSED_COUNT)
+            ).map((signal, index) => (
+              <div
+                key={`${signal.type}:${signal.driverNumber}:${signal.lapNumber ?? index}:${index}`}
+                className="flex items-center gap-2 text-[12px]"
+              >
+                <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                  {texts.signalType[signal.type]}
+                </span>
+                <span className="font-semibold tracking-tight text-foreground">
+                  {signal.driverCode}
+                </span>
+                {signal.rivalDriverCode !== null ? (
+                  <span className="text-muted-foreground">
+                    · {signal.rivalDriverCode}
                   </span>
-                  <span className="font-semibold tracking-tight text-foreground">
-                    {signal.driverCode}
-                  </span>
-                  {signal.rivalDriverCode !== null ? (
-                    <span className="text-muted-foreground">
-                      · {signal.rivalDriverCode}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
-            </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+
+          {history.length > HISTORY_COLLAPSED_COUNT ? (
+            <button
+              type="button"
+              onClick={() => setIsHistoryOpen((open) => !open)}
+              aria-expanded={isHistoryOpen}
+              className="press flex min-h-[2rem] w-full items-center justify-center gap-1 px-3 pb-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            >
+              {isHistoryOpen ? (
+                <>
+                  <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+                  {texts.historyLess}
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                  {texts.historyMore.replace(
+                    "{count}",
+                    String(history.length - HISTORY_COLLAPSED_COUNT),
+                  )}
+                </>
+              )}
+            </button>
           ) : null}
         </div>
       ) : null}
