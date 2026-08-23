@@ -164,7 +164,8 @@ export const WatchNowLanesView = ({
         {visibleLanes.map(renderLane)}
       </div>
 
-      {/* 지난 신호 (B4) — 경기 시작부터. 접힘=최근 5개, 더보기=전체. */}
+      {/* 지난 신호 (B4) — 경기 시작부터. 접힘=최근 5개, 더보기=전체(한 번에 5개까지
+          노출하고 나머지는 스크롤). */}
       {history.length > 0 ? (
         <div className="border-t border-white/[0.06]">
           <div className="flex items-center gap-1.5 px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -172,21 +173,28 @@ export const WatchNowLanesView = ({
             {texts.historyTitle}
           </div>
 
-          <div className="flex flex-col gap-1 px-3 pb-1.5">
+          {/* 더보기를 열면 전체를 담되, 컨테이너를 5행 높이로 묶어 나머지는 스크롤한다 —
+              긴 이력이 화면을 통째로 밀어 올리지 않게 한다. 접힘일 땐 최근 5개만. */}
+          <div
+            className={`flex flex-col gap-1 px-3 pb-1.5${
+              isHistoryOpen ? " max-h-[10rem] overflow-y-auto" : ""
+            }`}
+          >
             {(isHistoryOpen
               ? history
               : history.slice(0, HISTORY_COLLAPSED_COUNT)
             ).map((signal, index) => (
               <div
                 key={`${signal.type}:${signal.driverNumber}:${signal.lapNumber ?? index}:${index}`}
-                className="flex items-baseline gap-2 text-[12px]"
+                className="flex min-h-[1.75rem] items-center gap-2 text-[12px]"
               >
                 <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                   {texts.signalType[signal.type]}
                 </span>
                 {/* 카테고리만이 아니라 실제 내용(요약 문장)을 보여 준다 — 칸 항목과 같은
-                    사전 템플릿을 재사용한다. 문장 앞에 드라이버 코드가 이미 들어 있다. */}
-                <span className="min-w-0 flex-1 leading-snug text-foreground">
+                    사전 템플릿을 재사용한다. 문장 앞에 드라이버 코드가 이미 들어 있다.
+                    한 줄로 고정(truncate)해 행 높이를 일정하게 유지한다(5행 계산). */}
+                <span className="min-w-0 flex-1 truncate text-foreground">
                   {translateWatchNowSignalMessage(signal, dictionary)}
                 </span>
                 {signal.lapNumber !== null ? (
