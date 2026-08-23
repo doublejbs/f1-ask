@@ -7,6 +7,8 @@ import { ForecastPanelView } from "@/components/ForecastPanelView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionStatusStripView } from "@/components/SessionStatusStripView";
 import { WatchNowLanesView } from "@/components/WatchNowLanesView";
+import { WeatherTransitionBannerView } from "@/components/WeatherTransitionBannerView";
+import { useWeatherTransition } from "@/hooks/UseWeatherTransition";
 import { WeatherChipView } from "@/components/WeatherChipView";
 import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
 import { useWatchNowLanes } from "@/hooks/UseWatchNowLanes";
@@ -162,6 +164,9 @@ export const RaceTabView = ({
   const watchNowLanes = watchNow?.lanes ?? null;
   const watchNowHistory = watchNow?.history ?? EMPTY_WATCH_NOW_HISTORY;
 
+  // 날씨 전환 배너(B3) — 비 시작/트랙 건조 = 전략 급변.
+  const weatherTransition = useWeatherTransition(snapshot);
+
   // 칸에 못 올라간 신호는 버리지 않고 순위표 행 표시로 내려보낸다(docs/19 수용 기준 7).
   // 칸당 2줄이라는 좁은 예산의 근거가 "나머지는 행에서 볼 수 있다" 이므로, 이 연결이
   // 없으면 감지 결과의 상당수가 그냥 사라진다(실측상 프레임의 44.6% 에서 발생한다).
@@ -269,6 +274,11 @@ export const RaceTabView = ({
         history={watchNowHistory}
         drivers={snapshot.drivers}
         onSelectDriver={setSelectedDriver}
+      />
+
+      <WeatherTransitionBannerView
+        dictionary={dictionary}
+        transition={weatherTransition}
       />
 
       {snapshot.weather !== undefined ? (

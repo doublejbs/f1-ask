@@ -29,6 +29,13 @@ export {
 } from "./SupportedLocale";
 
 export type { WeatherState } from "./WeatherState";
+export { WeatherTransitionKind } from "./WeatherTransition";
+export type { WeatherTransition } from "./WeatherTransition";
+export {
+  detectWeatherTransition,
+  WeatherTransitionTracker,
+  DEFAULT_WEATHER_TRANSITION_WINDOW_LAPS,
+} from "./WeatherTransition";
 export type { TeamRadioClip } from "./TeamRadioClip";
 export type { LiveDriverState } from "./LiveDriverState";
 export type { LiveRaceSnapshot } from "./LiveRaceSnapshot";
