@@ -37,7 +37,28 @@
 오늘 **진짜 실시간**을 원할 때. 워커 `pollOpenF1`(1분마다, 리전 `asia-northeast3`)이 OpenF1 을
 폴링해 Firestore `openf1-live` 문서에 쓰고, 웹이 그걸 구독한다.
 
-### 사전 준비 (회림 님 계정)
+### 옵션 B — 원저자(진용) Firebase 재사용 (워커 배포 불필요, 권장)
+
+Firestore 규칙이 라이브 세션을 **공개 읽기**(`allow read: if true`)로 열어 둔다 — 이 앱의
+설계다(공개 세컨드스크린). 따라서 원저자의 워커가 이미 구동 중이면, 내 웹앱을 그 프로젝트에
+**구독**만 시키면 된다. Blaze·OpenF1 계정·워커 배포 전부 불필요.
+
+- **전제**: 원저자 워커(폴러)가 실제로 배포·구동 중이어야 한다(오늘 세션을 `openf1-live` 에
+  쓰고 있어야). 반드시 확인한다 — 안 돌면 라이브 데이터가 없다.
+- **필요**: 원저자에게서 웹 SDK 공개값 4개 (`NEXT_PUBLIC_FIREBASE_*`). 공개 안전값이다.
+- **Vercel 환경변수**만 아래처럼 넣고 재배포하면 끝(워커 배포 단계 생략):
+  ```
+  NEXT_PUBLIC_DATA_MODE       = live
+  NEXT_PUBLIC_LIVE_SESSION_ID = openf1-live
+  NEXT_PUBLIC_FIREBASE_API_KEY      = <원저자값>
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN  = <원저자값>
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID   = <원저자값>
+  NEXT_PUBLIC_FIREBASE_APP_ID       = <원저자값>
+  ```
+
+### 옵션 A — 내 Firebase 에 워커 직접 배포
+
+### 옵션 A 사전 준비 (내 계정)
 - **Firebase 프로젝트** + **Blaze(종량제) 요금제** — Cloud Functions v2·Scheduler·Secret Manager
   가 Blaze 를 요구한다(카드 등록 필요, 저사용은 무료 범위). 
 - **OpenF1 계정** — 워커 시크릿 `OPENF1_USERNAME`/`OPENF1_PASSWORD` 용. (선택: `GEMINI_API_KEY`
