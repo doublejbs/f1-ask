@@ -3,10 +3,16 @@
 import { useWeekendTires } from "@/hooks/UseWeekendTires";
 import { Dictionary } from "@/i18n/Messages";
 import {
+  computeRemainingMinimums,
   distinctCompounds,
+  remainingTirePossibilities,
+  summarizeRemainingRanges,
+  TIRE_SET_COMPOUNDS,
   TireCompound,
+  totalReturnedSets,
   WeekendSessionKind,
   WeekendTireSession,
+  WeekendTireUsage,
 } from "@f1/domain";
 
 type Props = {
@@ -42,6 +48,52 @@ const shortSessionLabel = (session: WeekendTireSession): string => {
     default:
       return "?";
   }
+};
+
+// 한 드라이버의 "잔여(추정)" 셀 — 규정상 보유 세트를 세션 사용분(반납 불가한 신품)으로
+// 좁힌 컴파운드별 범위. 세트 ID 부재로 신품 스틴트로 근사한다(docs/29 §개정).
+const RemainingCell = ({
+  dictionary,
+  usage,
+  driverNumber,
+}: {
+  dictionary: Dictionary;
+  usage: WeekendTireUsage;
+  driverNumber: number;
+}) => {
+  const returned = totalReturnedSets(usage.format);
+  const minimums = computeRemainingMinimums(usage, driverNumber);
+  const narrowed = remainingTirePossibilities(usage.format, returned, minimums);
+  // 하한이 모순(데이터 이상)이면 규정만으로 낸 전체로 되돌린다.
+  const possibilities =
+    narrowed.length > 0
+      ? narrowed
+      : remainingTirePossibilities(usage.format, returned);
+  const ranges = summarizeRemainingRanges(possibilities);
+
+  return (
+    <span className="flex items-center justify-end gap-2 tabular-nums">
+      {TIRE_SET_COMPOUNDS.map(({ key, compound }) => {
+        const range = ranges[key];
+        const label =
+          range.min === range.max ? String(range.min) : `${range.min}–${range.max}`;
+
+        return (
+          <span
+            key={key}
+            className="flex items-center gap-1"
+            title={dictionary.compound[compound]}
+          >
+            <span
+              aria-hidden
+              className={`h-2 w-2 rounded-full ${COMPOUND_DOT[compound] ?? "bg-slate-500"}`}
+            />
+            <span className="text-foreground">{label}</span>
+          </span>
+        );
+      })}
+    </span>
+  );
 };
 
 // 「기록」 상세의 주말 타이어 섹션 (docs/29 §범위 밖 → 구현).
@@ -87,6 +139,9 @@ export const WeekendTiresView = ({ dictionary, meetingKey }: Props) => {
                   {shortSessionLabel(session)}
                 </th>
               ))}
+              <th className="whitespace-nowrap py-1.5 pl-4 text-right font-medium">
+                {texts.remainingColumn}
+              </th>
             </tr>
           </thead>
 
@@ -128,10 +183,22 @@ export const WeekendTiresView = ({ dictionary, meetingKey }: Props) => {
                     </td>
                   );
                 })}
+
+                <td className="whitespace-nowrap py-1.5 pl-4">
+                  <RemainingCell
+                    dictionary={dictionary}
+                    usage={usage}
+                    driverNumber={driver.driverNumber}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground/70">
+          {texts.remainingNote}
+        </p>
       </div>
     );
   })();

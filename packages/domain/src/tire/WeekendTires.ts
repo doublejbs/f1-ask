@@ -11,7 +11,11 @@ import { StintCompoundUse } from "../LiveRaceContextSummary";
 import { OpenF1Driver, OpenF1Session, OpenF1Stint } from "../openf1/OpenF1Types";
 import { mapCompound } from "../openf1/OpenF1Normalizer";
 import { TireCompound } from "../TireCompound";
-import { WeekendFormat } from "./TireAllocation";
+import {
+  DRY_TIRE_ALLOCATION,
+  TireSetCounts,
+  WeekendFormat,
+} from "./TireAllocation";
 
 // 세션 종류. session_name 으로 분류한다 — session_type 만으로는 스프린트 주말에서 퀄리·레이스가
 // 중복돼 구분되지 않는다(docs/27 §실측).
@@ -205,6 +209,65 @@ export const buildWeekendTireUsage = (
     .filter((driver) => driver.sessions.length > 0);
 
   return { format, sessions: weekendSessions, drivers: driverTires };
+};
+
+// 마지막 반납 이후 세션 종류. 그 세션에서 신품으로 깐 세트는 반납될 수 없어 잔여 하한이다.
+//   일반: FP3 후 반납이 끝 → 퀄리·레이스가 반납 이후.
+//   스프린트: 퀄리 후 반납이 끝 → 레이스만 반납 이후.
+const postReturnKinds = (format: WeekendFormat): Set<WeekendSessionKind> =>
+  format === WeekendFormat.Sprint
+    ? new Set([WeekendSessionKind.Race])
+    : new Set([WeekendSessionKind.Qualifying, WeekendSessionKind.Race]);
+
+// 한 드라이버의 "잔여 컴파운드별 하한". 반납 이후 세션에서 **신품으로 시작한** 스틴트를
+// 컴파운드별로 센다 — 그 세트들은 반납될 수 없었으므로 반드시 잔여에 있다(docs/29 §개정).
+// OpenF1 세트 ID 부재로 신품 스틴트(tyre_age_at_start===0)로 세트 수를 근사한다.
+// 인터·웨트는 드라이 할당 모델 밖이라 무시한다. 각 하한은 할당량으로 클램프한다.
+export const computeRemainingMinimums = (
+  usage: WeekendTireUsage,
+  driverNumber: number,
+): TireSetCounts => {
+  const minimums: TireSetCounts = { hard: 0, medium: 0, soft: 0 };
+  const driver = usage.drivers.find((entry) => entry.driverNumber === driverNumber);
+
+  if (driver === undefined) {
+    return minimums;
+  }
+
+  const kinds = postReturnKinds(usage.format);
+  const kindByKey = new Map(
+    usage.sessions.map((session) => [session.sessionKey, session.kind]),
+  );
+
+  for (const sessionUse of driver.sessions) {
+    const kind = kindByKey.get(sessionUse.sessionKey);
+
+    if (kind === undefined || !kinds.has(kind)) {
+      continue;
+    }
+
+    for (const use of sessionUse.compounds) {
+      if (!use.startedNew) {
+        continue;
+      }
+
+      if (use.compound === TireCompound.Hard) {
+        minimums.hard += 1;
+      } else if (use.compound === TireCompound.Medium) {
+        minimums.medium += 1;
+      } else if (use.compound === TireCompound.Soft) {
+        minimums.soft += 1;
+      }
+    }
+  }
+
+  const allocation = DRY_TIRE_ALLOCATION[usage.format];
+
+  return {
+    hard: Math.min(minimums.hard, allocation.hard),
+    medium: Math.min(minimums.medium, allocation.medium),
+    soft: Math.min(minimums.soft, allocation.soft),
+  };
 };
 
 // 도메인 TireCompound 로 세션에서 쓴 **구별되는** compound 집합(중복 스틴트 접기). 요약 표기용.
