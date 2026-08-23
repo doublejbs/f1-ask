@@ -42,9 +42,10 @@ const SAI = 55;
 const ALB = 23;
 
 // 재실측으로 확정한 회귀 고정값. 트래커·임계값이 바뀌면 여기가 먼저 깨진다.
-const REGRESSION_TOTAL_FIRINGS = 57;
-const REGRESSION_UNIQUE_PAIRS = 46;
-const REGRESSION_SAI_ALB_FIRINGS = 3;
+// B1(타이어 열화 반영)으로 낡은 타이어의 쫓는 차 예측이 억제돼 57→53·46→44·3→1 로 내려갔다.
+const REGRESSION_TOTAL_FIRINGS = 53;
+const REGRESSION_UNIQUE_PAIRS = 44;
+const REGRESSION_SAI_ALB_FIRINGS = 1;
 // HUL→LAW 실제 배틀은 L35 부근에서 시작한다 — 발화는 그 전에 나와야 예측으로서 의미가 있다.
 const HUL_LAW_BATTLE_ONSET_LAP = 35;
 
