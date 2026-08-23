@@ -227,6 +227,8 @@ export {
   remainingSetCount,
   remainingTirePossibilities,
   summarizeRemainingRanges,
+  MANDATORY_RACE_MINIMUMS,
+  combineMinimums,
 } from "./tire/TireAllocation";
 export { WeekendSessionKind } from "./tire/WeekendTires";
 export type {
@@ -235,10 +237,12 @@ export type {
   DriverWeekendTires,
   WeekendTireUsage,
 } from "./tire/WeekendTires";
+export type { DistinctCompoundUse } from "./tire/WeekendTires";
 export {
   buildWeekendTireUsage,
   computeRemainingMinimums,
   distinctCompounds,
+  distinctCompoundUses,
 } from "./tire/WeekendTires";
 export type { LoadWeekendTiresOptions } from "./tire/WeekendTireLoader";
 export { loadWeekendTires } from "./tire/WeekendTireLoader";

@@ -282,3 +282,19 @@ export const distinctCompounds = (uses: StintCompoundUse[]): TireCompound[] => {
 
   return seen;
 };
+
+// 구별되는 compound + 신품 여부. hasNew = 그 세션에서 그 compound 를 신품으로 깐 스틴트가
+// 하나라도 있으면 true. 격자에서 신품(채운 점)/중고만(테두리 점)을 구분하는 데 쓴다(A3).
+export type DistinctCompoundUse = { compound: TireCompound; hasNew: boolean };
+
+export const distinctCompoundUses = (
+  uses: StintCompoundUse[],
+): DistinctCompoundUse[] => {
+  const byCompound = new Map<TireCompound, boolean>();
+
+  for (const use of uses) {
+    byCompound.set(use.compound, (byCompound.get(use.compound) ?? false) || use.startedNew);
+  }
+
+  return [...byCompound.entries()].map(([compound, hasNew]) => ({ compound, hasNew }));
+};

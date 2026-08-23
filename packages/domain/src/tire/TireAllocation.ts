@@ -90,6 +90,24 @@ export const remainingSetCount = (
 
 const ZERO_COUNTS: TireSetCounts = { hard: 0, medium: 0, soft: 0 };
 
+// 레이스 의무 보유 하한 (FIA 규정). 가장 단단한 두 컴파운드(하드·미디엄) 각 1세트는
+// 레이스용으로 예약돼 연습·퀄리에서 쓰거나 반납할 수 없으므로 잔여에 반드시 포함된다.
+// 드라이 레이스에서 2컴파운드 사용 의무의 근거이기도 하다. 두 주말 형식 공통이다.
+export const MANDATORY_RACE_MINIMUMS: Record<WeekendFormat, TireSetCounts> = {
+  [WeekendFormat.Conventional]: { hard: 1, medium: 1, soft: 0 },
+  [WeekendFormat.Sprint]: { hard: 1, medium: 1, soft: 0 },
+};
+
+// 두 하한을 컴파운드별 최댓값으로 합친다 — 사용분 하한과 규정 하한을 함께 걸 때 쓴다.
+export const combineMinimums = (
+  left: TireSetCounts,
+  right: TireSetCounts,
+): TireSetCounts => ({
+  hard: Math.max(left.hard, right.hard),
+  medium: Math.max(left.medium, right.medium),
+  soft: Math.max(left.soft, right.soft),
+});
+
 // 남은 구성의 **모든 경우의 수**. 합 = 잔여 세트 수, 각 컴파운드는 [minimums, 할당량] 범위다.
 // 반납 컴파운드가 팀 선택이라 이 목록의 어느 하나가 실제 보유분이다(우리는 어느 것인지 모른다).
 //

@@ -320,8 +320,10 @@ export type Dictionary = {
     setsCount: string;
     // 가능한 구성 개수. {count} 치환.
     possibilities: string;
-    // 계산 한계 안내(규정 기반·경우의 수·퀄리/프랙티스 미반영).
+    // 계산 한계 안내(규정 기반·레이스 의무 보유·퀄리/프랙티스 미반영).
     note: string;
+    // 주말 사용분까지 반영해 좁혔을 때의 안내(A1).
+    noteNarrowed: string;
   };
   // 「기록」 상세의 주말 타이어 격자(드라이버 × 세션 사용 compound).
   weekendTires: {
@@ -336,6 +338,9 @@ export type Dictionary = {
     remainingColumn: string;
     // 잔여 추정 방식 안내(규정 기반 + 세션 사용분 하한, 세트 ID 부재 근사).
     remainingNote: string;
+    // 신품/중고 범례·라벨(A3).
+    newTire: string;
+    usedTire: string;
   };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
@@ -606,7 +611,9 @@ const en: Dictionary = {
     used: "used",
     setsCount: "{count} sets",
     possibilities: "· {count} possible",
-    note: "Estimate from a conventional weekend's mandatory returns; the returned compounds are the team's choice, and qualifying/practice use isn't included yet.",
+    note: "Estimate from the mandatory returns plus the two reserved race sets (1 hard, 1 medium); returned compounds are the team's choice. Qualifying/practice use isn't included yet.",
+    noteNarrowed:
+      "Narrowed by this weekend's session use (sets run new after the returns can't have been returned) plus the two reserved race sets. Set counts approximated from new-tyre stints — OpenF1 has no set IDs.",
   },
   weekendTires: {
     title: "Weekend tires",
@@ -617,7 +624,9 @@ const en: Dictionary = {
     driverColumn: "Driver",
     remainingColumn: "Remaining (est.)",
     remainingNote:
-      "Remaining = regulation sets left, narrowed by sets run new after the mandatory returns (those can't have been returned). Set counts approximated from new-tyre stints — OpenF1 has no set IDs.",
+      "Remaining = regulation sets left, narrowed by sets run new after the mandatory returns plus the two reserved race sets. Set counts approximated from new-tyre stints — OpenF1 has no set IDs.",
+    newTire: "new",
+    usedTire: "used",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -918,7 +927,9 @@ const ko: Dictionary = {
     used: "중고",
     setsCount: "{count}세트 보유",
     possibilities: "· {count}가지",
-    note: "일반 주말 반납 규정 기준 추정이에요. 어떤 컴파운드를 반납할지는 팀 선택이라 경우의 수로 표시하며, 퀄리·프랙티스 사용분은 아직 반영하지 않았어요.",
+    note: "반납 규정 + 레이스 의무 보유(하드·미디엄 각 1세트) 기준 추정이에요. 어떤 컴파운드를 반납할지는 팀 선택이라 경우의 수로 표시하며, 퀄리·프랙티스 사용분은 아직 반영하지 않았어요.",
+    noteNarrowed:
+      "이 주말의 세션 사용분(반납 이후 신품은 반납 불가)과 레이스 의무 보유까지 반영해 좁혔어요. 세트 ID가 없어 신품 스틴트로 세트 수를 근사합니다.",
   },
   weekendTires: {
     title: "주말 타이어",
@@ -929,7 +940,9 @@ const ko: Dictionary = {
     driverColumn: "드라이버",
     remainingColumn: "잔여(추정)",
     remainingNote:
-      "잔여 = 규정상 남은 세트를, 반납 이후 신품으로 깐 세트(반납 불가)로 좁힌 추정이에요. 세트 ID가 없어 신품 스틴트로 세트 수를 근사합니다.",
+      "잔여 = 규정상 남은 세트를, 반납 이후 신품으로 깐 세트(반납 불가) + 레이스 의무 보유로 좁힌 추정이에요. 세트 ID가 없어 신품 스틴트로 세트 수를 근사합니다.",
+    newTire: "신품",
+    usedTire: "중고",
   },
   status: {
     [SessionStatus.Scheduled]: "예정",
@@ -1230,7 +1243,9 @@ const ja: Dictionary = {
     used: "中古",
     setsCount: "{count}セット保有",
     possibilities: "· {count}通り",
-    note: "通常週末の返却ルールに基づく推定です。どのコンパウンドを返却するかはチーム次第のため場合の数で示し、予選・フリー走行の使用分はまだ反映していません。",
+    note: "返却ルール + レース義務保有(ハード・ミディアム各1セット)に基づく推定です。どのコンパウンドを返却するかはチーム次第のため場合の数で示し、予選・フリー走行の使用分はまだ反映していません。",
+    noteNarrowed:
+      "この週末のセッション使用分(返却後の新品は返却不可)とレース義務保有まで反映して絞りました。セットIDがないため新品スティントでセット数を近似します。",
   },
   weekendTires: {
     title: "週末のタイヤ",
@@ -1241,7 +1256,9 @@ const ja: Dictionary = {
     driverColumn: "ドライバー",
     remainingColumn: "残り(推定)",
     remainingNote:
-      "残り = 規定上の残セットを、返却後に新品で使ったセット(返却不可)で絞った推定です。セットIDがないため新品スティントでセット数を近似します。",
+      "残り = 規定上の残セットを、返却後に新品で使ったセット(返却不可)+ レース義務保有で絞った推定です。セットIDがないため新品スティントでセット数を近似します。",
+    newTire: "新品",
+    usedTire: "中古",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",
