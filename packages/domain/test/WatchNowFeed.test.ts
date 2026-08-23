@@ -358,3 +358,43 @@ describe("WatchNowFeed — allHistory 경기 시작부터 (B4)", () => {
     expect(feed.allHistory()).toEqual([]);
   });
 });
+
+// 저장/복원(localStorage — 웹 훅)이 밟는 경로를 고정한다: exportHistory 로 내보낸 뒤 새
+// 인스턴스에 hydrateHistory 로 되살리면 이력이 그대로 남고, 되살린 신호는 다시 관측해도
+// 중복으로 쌓이지 않는다. PWA 재시작 뒤에도 "그동안 나온 모든 기록"이 유지되는 근거다.
+describe("WatchNowFeed — exportHistory/hydrateHistory 저장·복원", () => {
+  it("export 로 내보낸 이력을 새 인스턴스가 hydrate 하면 그대로 복원된다", () => {
+    const first = new WatchNowFeed();
+    first.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+
+    const exported = first.exportHistory();
+    expect(exported.length).toBeGreaterThanOrEqual(1);
+
+    const restored = new WatchNowFeed();
+    restored.hydrateHistory(exported);
+
+    // 화면용(allHistory)은 최신 먼저 — 복원 후에도 동일하게 나온다.
+    expect(restored.allHistory()).toEqual(first.allHistory());
+  });
+
+  it("복원한 신호는 같은 상황을 다시 관측해도 중복으로 쌓이지 않는다", () => {
+    const first = new WatchNowFeed();
+    const snapshot = createSnapshot([createAgedTireDriver(25)], { version: 1 });
+    first.observe(snapshot);
+
+    const restored = new WatchNowFeed();
+    restored.hydrateHistory(first.exportHistory());
+
+    // 같은 스틴트 상황을 다음 프레임에서 다시 본다(버전만 증가).
+    restored.observe(
+      createSnapshot([createAgedTireDriver(26)], { version: 2, offsetMs: 6_000 }),
+    );
+
+    const tireAge = restored
+      .allHistory()
+      .filter((signal) => signal.type === WatchNowSignalType.TireAge);
+
+    // 스틴트당 1회 — 복원본 중복 키가 유지돼 두 번 쌓이지 않는다.
+    expect(tireAge).toHaveLength(1);
+  });
+});
