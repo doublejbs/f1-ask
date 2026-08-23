@@ -248,6 +248,7 @@ export type { DistinctCompoundUse } from "./tire/WeekendTires";
 export {
   buildWeekendTireUsage,
   computeRemainingMinimums,
+  remainingMinimumsFromCompoundUses,
   distinctCompounds,
   distinctCompoundUses,
 } from "./tire/WeekendTires";
