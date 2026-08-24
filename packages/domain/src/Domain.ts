@@ -276,6 +276,11 @@ export {
   selectNewsFeed,
 } from "./news/NewsFeedSelector";
 export { MockNewsSource, buildMockNewsItems } from "./news/MockNewsSource";
+export { categorizeNewsTitle } from "./news/NewsCategoryRules";
+export {
+  parseNewsFeedXml,
+  type NewsFeedSource,
+} from "./news/RssNewsParser";
 
 export {
   filterEventsByDriver,
