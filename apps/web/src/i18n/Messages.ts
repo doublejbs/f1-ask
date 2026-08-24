@@ -384,7 +384,7 @@ export type Dictionary = {
 };
 
 const en: Dictionary = {
-  appName: "F1 AI Second Screen",
+  appName: "Racepilot",
   tagline: "Understand the race in real time",
   header: {
     lap: "Lap",
@@ -472,7 +472,7 @@ const en: Dictionary = {
     retirements: "Retirements",
   },
   statusBar: {
-    appShort: "F1 AI",
+    appShort: "Racepilot",
     settings: "Settings",
   },
   tabs: {
@@ -732,7 +732,7 @@ const en: Dictionary = {
 };
 
 const ko: Dictionary = {
-  appName: "F1 AI 세컨드 스크린",
+  appName: "Racepilot",
   tagline: "실시간으로 경기를 이해하세요",
   header: {
     lap: "랩",
@@ -820,7 +820,7 @@ const ko: Dictionary = {
     retirements: "리타이어",
   },
   statusBar: {
-    appShort: "F1 AI",
+    appShort: "Racepilot",
     settings: "설정",
   },
   tabs: {
@@ -1080,7 +1080,7 @@ const ko: Dictionary = {
 };
 
 const ja: Dictionary = {
-  appName: "F1 AI セカンドスクリーン",
+  appName: "Racepilot",
   tagline: "レースをリアルタイムで理解する",
   header: {
     lap: "ラップ",
@@ -1168,7 +1168,7 @@ const ja: Dictionary = {
     retirements: "リタイア",
   },
   statusBar: {
-    appShort: "F1 AI",
+    appShort: "Racepilot",
     settings: "設定",
   },
   tabs: {

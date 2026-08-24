@@ -9,8 +9,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // **브랜딩·URL 은 자리표시자다** — appId(역도메인)·appName·server.url 을 실제 값으로 바꾼다.
 // "F1" 등 상표는 공개 출시 전 자체 브랜드로 교체(docs/30 §법적 리스크).
 const config: CapacitorConfig = {
-  appId: "app.secondscreen.mobile",
-  appName: "Second Screen",
+  appId: "app.racepilot.mobile",
+  appName: "Racepilot",
   // server.url 을 쓰므로 webDir 내용은 사실상 로드되지 않지만, 유효 경로여야 한다.
   webDir: "public",
   server: {

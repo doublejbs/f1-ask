@@ -6,7 +6,7 @@
 //   - 내비게이션 : network-first, 실패 시 캐시/오프라인 셸(/en).
 // 푸시 알림(§3)은 아래 push 핸들러를 채우면 된다 — 지금은 자리만 둔다.
 
-const CACHE = "second-screen-v1";
+const CACHE = "racepilot-v1";
 const OFFLINE_FALLBACK = "/en";
 
 self.addEventListener("install", () => {
@@ -102,12 +102,12 @@ self.addEventListener("push", (event) => {
     try {
       return event.data.json();
     } catch (error) {
-      return { title: "Second Screen", body: event.data.text() };
+      return { title: "Racepilot", body: event.data.text() };
     }
   })();
 
   event.waitUntil(
-    self.registration.showNotification(payload.title ?? "Second Screen", {
+    self.registration.showNotification(payload.title ?? "Racepilot", {
       body: payload.body,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",

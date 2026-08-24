@@ -6,13 +6,13 @@ import type { ReactNode } from "react";
 
 // PWA 설치형 앱 메타 (docs/30-app-service.md §1). manifest 는 app/manifest.ts.
 export const metadata: Metadata = {
-  title: "F1 AI Second Screen",
+  title: "Racepilot",
   description: "Understand Formula 1 races in real time.",
-  applicationName: "Second Screen",
+  applicationName: "Racepilot",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Second Screen",
+    title: "Racepilot",
   },
   icons: {
     icon: "/icons/icon.svg",

@@ -6,8 +6,8 @@ import type { MetadataRoute } from "next";
 // "F1"·팀·서킷명은 상표 이슈가 있어 공개 출시 전 자체 브랜드로 바꿔야 한다(docs/30 §법적 리스크).
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "F1 AI Second Screen",
-    short_name: "Second Screen",
+    name: "Racepilot",
+    short_name: "Racepilot",
     description: "Understand the race in real time — a live second screen.",
     // 첫 화면은 /en 으로 보낸다(루트가 로케일로 리다이렉트).
     start_url: "/en",

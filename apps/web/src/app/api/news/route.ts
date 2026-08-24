@@ -25,7 +25,7 @@ const fetchFeed = async (feed: NewsFeedConfig): Promise<NewsItem[]> => {
     const response = await fetch(feed.url, {
       signal: controller.signal,
       // 일부 피드는 브라우저 UA 를 요구한다(봇 차단). 표기용 UA 를 단다.
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; F1SecondScreen/1.0)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Racepilot/1.0)" },
       next: { revalidate },
     });
 
