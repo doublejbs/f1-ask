@@ -302,6 +302,7 @@ export {
   type TeammateVs,
   type TeammateVsDriver,
 } from "./season/TeammateVsLoader";
+export { grandPrixTitle } from "./GrandPrixName";
 
 export {
   filterEventsByDriver,

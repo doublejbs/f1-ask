@@ -24,7 +24,12 @@ import { getDictionary } from "@/i18n/Messages";
 import { DashboardTab } from "@/lib/DashboardTab";
 import { LiveRaceStatus } from "@/lib/LiveRaceStatus";
 import { cn } from "@/lib/Utils";
-import { LiveDriverState, SessionStatus, SupportedLocale } from "@f1/domain";
+import {
+  grandPrixTitle,
+  LiveDriverState,
+  SessionStatus,
+  SupportedLocale,
+} from "@f1/domain";
 import { Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -173,6 +178,13 @@ export const LiveDashboardView = ({ locale }: Props) => {
       {onboardingOverlay}
       {liveRace === null ? null : (
         <AmbientWashView snapshot={liveRace.snapshot} />
+      )}
+
+      {/* 라이브 대문 — 무슨 그랑프리인지 상단에 크게 (docs 계획 §Phase 4). */}
+      {liveRace === null ? null : (
+        <h1 className="px-1 text-xl font-bold tracking-tight text-foreground lg:text-2xl">
+          {grandPrixTitle(liveRace.snapshot.circuitName)}
+        </h1>
       )}
 
       {liveRace === null ? null : (
