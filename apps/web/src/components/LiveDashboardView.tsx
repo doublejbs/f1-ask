@@ -274,7 +274,8 @@ export const LiveDashboardView = ({ locale }: Props) => {
         </div>
       </div>
 
-      <div className={isArchiveActive ? "block" : "hidden"}>
+      {/* 기록·뉴스는 전체 폭이라 상태바가 없다 — pt-safe 로 상단 노치/상태바를 직접 피한다. */}
+      <div className={cn(isArchiveActive ? "block" : "hidden", "pt-safe")}>
         <ArchiveTabView
           dictionary={dictionary}
           locale={locale}
@@ -283,7 +284,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
       </div>
 
       {/* 뉴스는 세션 유무와 무관하게 항상 볼 수 있다 (경기 전후 소식이 목적). */}
-      <div className={isNewsActive ? "block" : "hidden"}>
+      <div className={cn(isNewsActive ? "block" : "hidden", "pt-safe")}>
         <NewsTabView dictionary={dictionary} locale={locale} />
       </div>
 
