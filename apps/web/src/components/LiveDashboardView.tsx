@@ -77,8 +77,10 @@ export const LiveDashboardView = ({ locale }: Props) => {
     markOnboarded,
     isLoaded: isTeamLoaded,
   } = useFavoriteTeam();
-  // 최초 진입(온보딩 미완료)일 때만 로스터를 가져와 오버레이를 띄운다.
-  const showOnboarding = isTeamLoaded && !hasOnboarded;
+  // 설정에서 "응원 팀 변경"을 누르면 온보딩을 다시 연다(이미 완료했어도).
+  const [forceOnboarding, setForceOnboarding] = useState(false);
+  // 최초 진입(온보딩 미완료)이거나 강제 재실행일 때 오버레이를 띄우고 로스터를 가져온다.
+  const showOnboarding = (isTeamLoaded && !hasOnboarded) || forceOnboarding;
   const roster = useRoster(showOnboarding);
   // 활성 세션이 없을 때(종료·예정·세션 없음) 다음 결승을 가져온다(무세션 홈).
   const nextRaceState = useNextRace(liveRace === null);
@@ -133,6 +135,18 @@ export const LiveDashboardView = ({ locale }: Props) => {
     }
 
     markOnboarded();
+    setForceOnboarding(false);
+  };
+
+  const handleOnboardSkip = () => {
+    markOnboarded();
+    setForceOnboarding(false);
+  };
+
+  // 설정에서 응원 팀 변경 → 설정을 닫고 온보딩을 다시 연다.
+  const handleChangeTeam = () => {
+    setIsSettingsOpen(false);
+    setForceOnboarding(true);
   };
 
   // 온보딩은 race 데이터와 무관하다 — 연결 중 화면 위에도 동일하게 덮는다(fixed 오버레이).
@@ -142,7 +156,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
       teams={roster.teams}
       isLoading={roster.isLoading}
       onComplete={handleOnboardComplete}
-      onSkip={markOnboarded}
+      onSkip={handleOnboardSkip}
     />
   ) : null;
 
@@ -187,7 +201,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
           dictionary={dictionary}
           snapshot={liveRace.snapshot}
           freshness={liveRace.freshness}
-          grandPrix={grandPrixTitle(liveRace.snapshot.circuitName)}
+          grandPrix={grandPrixTitle(liveRace.snapshot.circuitName, locale)}
           onOpenSettings={handleOpenSettings}
         />
       )}
@@ -210,6 +224,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
               isLoading={nextRaceState.isLoading}
               favoriteTeam={favoriteTeam}
               onOpenArchive={handleOpenArchive}
+              onOpenSettings={handleOpenSettings}
             />
           ) : (
             <RaceTabView
@@ -316,18 +331,18 @@ export const LiveDashboardView = ({ locale }: Props) => {
         onChangeTab={handleTabChange}
       />
 
-      {liveRace === null ? null : (
-        <SettingsSheetView
-          dictionary={dictionary}
-          locale={locale}
-          snapshot={liveRace.snapshot}
-          explanationLevel={explanationLevel}
-          onChangeExplanationLevel={setExplanationLevel}
-          auth={auth}
-          isOpen={isSettingsOpen}
-          onClose={handleCloseSettings}
-        />
-      )}
+      <SettingsSheetView
+        dictionary={dictionary}
+        locale={locale}
+        snapshot={liveRace?.snapshot ?? null}
+        explanationLevel={explanationLevel}
+        onChangeExplanationLevel={setExplanationLevel}
+        favoriteTeam={favoriteTeam}
+        onChangeTeam={handleChangeTeam}
+        auth={auth}
+        isOpen={isSettingsOpen}
+        onClose={handleCloseSettings}
+      />
     </main>
   );
 };

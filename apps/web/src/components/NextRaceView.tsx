@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/Button";
 import { TeammateVsView } from "@/components/TeammateVsView";
 import { useTeammateVs } from "@/hooks/UseTeammateVs";
 import { Dictionary } from "@/i18n/Messages";
-import { NextRace, SupportedLocale } from "@f1/domain";
-import { CalendarClock, Flag, History, MapPin } from "lucide-react";
+import { grandPrixTitle, NextRace, SupportedLocale } from "@f1/domain";
+import { CalendarClock, Flag, History, MapPin, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Props = {
@@ -16,6 +16,8 @@ type Props = {
   // 응원 팀(있으면 VS 대문을 띄운다). 없으면 null.
   favoriteTeam: string | null;
   onOpenArchive: () => void;
+  // 무세션 홈엔 상태바가 없어 설정 진입점(응원 팀 변경 등)을 여기 둔다.
+  onOpenSettings: () => void;
 };
 
 // 선택 언어 기준 나라 시간대 + Intl 로케일. 다음 결승 시각을 그 나라 시간으로 보여 준다.
@@ -134,6 +136,7 @@ export const NextRaceView = ({
   isLoading,
   favoriteTeam,
   onOpenArchive,
+  onOpenSettings,
 }: Props) => {
   const texts = dictionary.nextRace;
   const vsState = useTeammateVs(favoriteTeam);
@@ -168,6 +171,17 @@ export const NextRaceView = ({
   // 무세션 홈은 최상단 요소라 상단 세이프에어리어를 직접 확보한다(상태바가 없어 잘림 방지).
   return (
     <div className="flex flex-col gap-5 pt-safe">
+      {/* 설정 진입점 — 응원 팀 변경 등(상태바가 없는 무세션 홈용). */}
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          aria-label={dictionary.settings.title}
+          className="press rounded-full bg-white/[0.06] p-2 text-muted-foreground hover:text-foreground"
+        >
+          <Settings className="h-5 w-5" aria-hidden />
+        </button>
+      </div>
       {vsHero}
       {nextRaceSection}
       <div>{archiveButton}</div>
@@ -205,7 +219,7 @@ const NextRaceCard = ({
 
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground">
-            {nextRace.gpName}
+            {grandPrixTitle(nextRace.circuit, locale)}
           </h1>
           {location.length > 0 ? (
             <p className="flex items-center gap-1.5 text-sm text-muted-foreground">

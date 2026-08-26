@@ -222,6 +222,10 @@ export type Dictionary = {
     title: string;
     close: string;
     circuit: string;
+    // 응원 팀 변경(온보딩 재실행).
+    favoriteTeam: string;
+    changeTeam: string;
+    noTeam: string;
   };
   // 계정 섹션 (docs/15-google-auth.md §UI). 설정 시트 안에서만 노출한다.
   account: {
@@ -613,6 +617,9 @@ const en: Dictionary = {
     title: "Settings",
     close: "Close",
     circuit: "Circuit",
+    favoriteTeam: "Your team",
+    changeTeam: "Change",
+    noTeam: "Not set",
   },
   account: {
     title: "Account",
@@ -991,6 +998,9 @@ const ko: Dictionary = {
     title: "설정",
     close: "닫기",
     circuit: "서킷",
+    favoriteTeam: "응원 팀",
+    changeTeam: "변경",
+    noTeam: "미설정",
   },
   account: {
     title: "계정",
@@ -1369,6 +1379,9 @@ const ja: Dictionary = {
     title: "設定",
     close: "閉じる",
     circuit: "サーキット",
+    favoriteTeam: "応援チーム",
+    changeTeam: "変更",
+    noTeam: "未設定",
   },
   account: {
     title: "アカウント",
