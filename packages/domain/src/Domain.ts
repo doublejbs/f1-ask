@@ -287,6 +287,11 @@ export {
   type RosterTeam,
 } from "./roster/RosterFromDrivers";
 export { loadRoster, type LoadRosterInput } from "./roster/RosterLoader";
+export {
+  selectNextRace,
+  type NextRace,
+} from "./schedule/NextRaceSelector";
+export { loadNextRace, type LoadNextRaceInput } from "./schedule/NextRaceLoader";
 
 export {
   filterEventsByDriver,

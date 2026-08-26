@@ -31,6 +31,22 @@ export type Dictionary = {
     // 로스터를 불러오지 못했을 때(OpenF1 장애).
     unavailable: string;
   };
+  // 무세션 홈 — 다음 결승 + 카운트다운 (docs 계획 §Phase 2).
+  nextRace: {
+    title: string;
+    // {round} 를 라운드 번호로 치환.
+    round: string;
+    startsIn: string;
+    // 이미 시작했거나 시각이 지난 경우.
+    live: string;
+    loading: string;
+    unavailable: string;
+    // 카운트다운 단위(짧게).
+    days: string;
+    hours: string;
+    minutes: string;
+    seconds: string;
+  };
   header: {
     lap: string;
     session: string;
@@ -408,6 +424,18 @@ const en: Dictionary = {
     loading: "Loading the grid…",
     unavailable: "Couldn't load the grid right now. You can set this later.",
   },
+  nextRace: {
+    title: "Next race",
+    round: "Round {round}",
+    startsIn: "Starts in",
+    live: "Underway now",
+    loading: "Loading the schedule…",
+    unavailable: "No upcoming race on the calendar.",
+    days: "d",
+    hours: "h",
+    minutes: "m",
+    seconds: "s",
+  },
   header: {
     lap: "Lap",
     session: "Session",
@@ -766,6 +794,18 @@ const ko: Dictionary = {
     loading: "그리드 불러오는 중…",
     unavailable: "지금은 그리드를 불러올 수 없어요. 나중에 설정할 수 있습니다.",
   },
+  nextRace: {
+    title: "다음 레이스",
+    round: "{round}라운드",
+    startsIn: "시작까지",
+    live: "지금 진행 중",
+    loading: "일정 불러오는 중…",
+    unavailable: "예정된 레이스가 없어요.",
+    days: "일",
+    hours: "시간",
+    minutes: "분",
+    seconds: "초",
+  },
   header: {
     lap: "랩",
     session: "세션",
@@ -1123,6 +1163,18 @@ const ja: Dictionary = {
     back: "戻る",
     loading: "グリッドを読み込み中…",
     unavailable: "今はグリッドを読み込めません。あとで設定できます。",
+  },
+  nextRace: {
+    title: "次のレース",
+    round: "第{round}戦",
+    startsIn: "開始まで",
+    live: "進行中",
+    loading: "スケジュールを読み込み中…",
+    unavailable: "予定されているレースはありません。",
+    days: "日",
+    hours: "時間",
+    minutes: "分",
+    seconds: "秒",
   },
   header: {
     lap: "ラップ",

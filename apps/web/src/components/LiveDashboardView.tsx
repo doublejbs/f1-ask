@@ -4,7 +4,7 @@ import { AmbientWashView } from "@/components/AmbientWashView";
 import { ArchiveTabView } from "@/components/ArchiveTabView";
 import { AskAiTabView } from "@/components/AskAiTabView";
 import { NewsTabView } from "@/components/NewsTabView";
-import { NoLiveSessionView } from "@/components/NoLiveSessionView";
+import { NextRaceView } from "@/components/NextRaceView";
 import { OnboardingView } from "@/components/OnboardingView";
 import { RaceTabView } from "@/components/RaceTabView";
 import { SettingsSheetView } from "@/components/SettingsSheetView";
@@ -17,19 +17,30 @@ import { useFavoriteTeam } from "@/hooks/UseFavoriteTeam";
 import { useRoster } from "@/hooks/UseRoster";
 import { useFirebaseAuth } from "@/hooks/UseFirebaseAuth";
 import { useLiveRace } from "@/hooks/UseLiveRace";
+import { useNextRace } from "@/hooks/UseNextRace";
 import { useRaceCommentary } from "@/hooks/UseRaceCommentary";
 import { useRaceSummary } from "@/hooks/UseRaceSummary";
 import { getDictionary } from "@/i18n/Messages";
 import { DashboardTab } from "@/lib/DashboardTab";
 import { LiveRaceStatus } from "@/lib/LiveRaceStatus";
 import { cn } from "@/lib/Utils";
-import { LiveDriverState, SupportedLocale } from "@f1/domain";
+import { LiveDriverState, SessionStatus, SupportedLocale } from "@f1/domain";
 import { Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type Props = {
   locale: SupportedLocale;
 };
+
+// 트랙에서 실제로 무언가 벌어지는 "활성" 세션 상태. 이때만 라이브 대시보드를 보여 주고,
+// 그 외(종료·예정·알 수 없음·세션 없음)에는 다음 결승 홈으로 넘어간다(docs 계획 §Phase 2).
+// 종료된 스냅샷도 Firestore 에 남으므로 race≠null 만으로는 "경기 중"을 판정할 수 없다.
+const ACTIVE_SESSION_STATUSES: SessionStatus[] = [
+  SessionStatus.Green,
+  SessionStatus.Yellow,
+  SessionStatus.SafetyCar,
+  SessionStatus.VirtualSafetyCar,
+];
 
 // 라이브 경기 대시보드 조립 컴포넌트.
 // 모바일: 상태바 + 활성 탭(경기 / 기록 / 뉴스) + 하단 탭바. AI 질문은 경기 탭 안에 있다.
@@ -40,6 +51,11 @@ type Props = {
 export const LiveDashboardView = ({ locale }: Props) => {
   const dictionary = getDictionary(locale);
   const { status, race } = useLiveRace();
+  // 활성 세션일 때만 라이브 데이터를 든다. 종료·예정 스냅샷은 null 로 접어 다음 결승 홈을 띄운다.
+  const liveRace =
+    race !== null && ACTIVE_SESSION_STATUSES.includes(race.snapshot.status)
+      ? race
+      : null;
   const { level: explanationLevel, setLevel: setExplanationLevel } =
     useExplanationLevel();
   const commentary = useRaceCommentary(race, locale, explanationLevel);
@@ -54,6 +70,8 @@ export const LiveDashboardView = ({ locale }: Props) => {
   // 최초 진입(온보딩 미완료)일 때만 로스터를 가져와 오버레이를 띄운다.
   const showOnboarding = isTeamLoaded && !hasOnboarded;
   const roster = useRoster(showOnboarding);
+  // 활성 세션이 없을 때(종료·예정·세션 없음) 다음 결승을 가져온다(무세션 홈).
+  const nextRaceState = useNextRace(liveRace === null);
   const { activeTab, handleChangeTab, askPrefill, switchToAskWithQuestion } =
     useDashboardTabState();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -148,13 +166,15 @@ export const LiveDashboardView = ({ locale }: Props) => {
   return (
     <main className="container flex flex-col gap-4 pb-[7.5rem] lg:gap-5 lg:pb-8">
       {onboardingOverlay}
-      {race === null ? null : <AmbientWashView snapshot={race.snapshot} />}
+      {liveRace === null ? null : (
+        <AmbientWashView snapshot={liveRace.snapshot} />
+      )}
 
-      {race === null ? null : (
+      {liveRace === null ? null : (
         <StatusBarView
           dictionary={dictionary}
-          snapshot={race.snapshot}
-          freshness={race.freshness}
+          snapshot={liveRace.snapshot}
+          freshness={liveRace.freshness}
           onOpenSettings={handleOpenSettings}
         />
       )}
@@ -169,9 +189,11 @@ export const LiveDashboardView = ({ locale }: Props) => {
         }
       >
         <div className={getTabPanelClass(DashboardTab.Race)}>
-          {race === null ? (
-            <NoLiveSessionView
+          {liveRace === null ? (
+            <NextRaceView
               dictionary={dictionary}
+              nextRace={nextRaceState.nextRace}
+              isLoading={nextRaceState.isLoading}
               onOpenArchive={handleOpenArchive}
             />
           ) : (
@@ -179,9 +201,9 @@ export const LiveDashboardView = ({ locale }: Props) => {
               dictionary={dictionary}
               locale={locale}
               explanationLevel={explanationLevel}
-              snapshot={race.snapshot}
+              snapshot={liveRace.snapshot}
               summary={summary}
-              allEvents={race.allEvents}
+              allEvents={liveRace.allEvents}
               commentary={commentary}
               favoriteDriverNumbers={favoriteDriverNumbers}
               isFavorite={isFavorite}
@@ -218,8 +240,8 @@ export const LiveDashboardView = ({ locale }: Props) => {
             </button>
           </div>
 
-          {race === null ? (
-            // 세션이 없으면 AI 가 근거로 쓸 경기 데이터도 없다.
+          {liveRace === null ? (
+            // 활성 세션이 없으면 AI 가 근거로 쓸 경기 데이터도 없다.
             <p className="max-w-md py-12 text-sm leading-relaxed text-muted-foreground">
               {dictionary.noSession.askUnavailable}
             </p>
@@ -228,8 +250,8 @@ export const LiveDashboardView = ({ locale }: Props) => {
               dictionary={dictionary}
               locale={locale}
               explanationLevel={explanationLevel}
-              snapshot={race.snapshot}
-              events={race.allEvents}
+              snapshot={liveRace.snapshot}
+              events={liveRace.allEvents}
               favoriteDriverNumbers={favoriteDriverNumbers}
               prefill={askPrefill}
             />
@@ -250,8 +272,8 @@ export const LiveDashboardView = ({ locale }: Props) => {
         <NewsTabView dictionary={dictionary} locale={locale} />
       </div>
 
-      {/* 모바일 AI 플로팅 버튼 — 경기 탭 + 세션 있을 때만. 패널이 열려 있으면 숨긴다. */}
-      {race !== null && activeTab === DashboardTab.Race && !isAskOpen ? (
+      {/* 모바일 AI 플로팅 버튼 — 경기 탭 + 활성 세션일 때만. 패널이 열려 있으면 숨긴다. */}
+      {liveRace !== null && activeTab === DashboardTab.Race && !isAskOpen ? (
         <button
           type="button"
           onClick={() => setIsAskOpen(true)}
@@ -278,11 +300,11 @@ export const LiveDashboardView = ({ locale }: Props) => {
         onChangeTab={handleTabChange}
       />
 
-      {race === null ? null : (
+      {liveRace === null ? null : (
         <SettingsSheetView
           dictionary={dictionary}
           locale={locale}
-          snapshot={race.snapshot}
+          snapshot={liveRace.snapshot}
           explanationLevel={explanationLevel}
           onChangeExplanationLevel={setExplanationLevel}
           auth={auth}
