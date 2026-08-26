@@ -23,7 +23,7 @@ type Props = {
 // 셀렉터가 하고 이 뷰는 그리기만 한다. 지금은 Mock 소스라 오프라인에서 동작한다.
 export const NewsTabView = ({ dictionary, locale }: Props) => {
   const texts = dictionary.news;
-  const { items, isLoading, isError } = useNews();
+  const { items, isLoading, isError } = useNews(locale);
   const [filter, setFilter] = useState<NewsFilter>(NewsFilter.All);
 
   const visible = useMemo(

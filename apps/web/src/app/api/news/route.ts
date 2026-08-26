@@ -1,10 +1,12 @@
 import { NEWS_FEEDS, NewsFeedConfig } from "@/lib/RssNewsFeeds";
+import { translateNews } from "@/server/NewsTranslator";
 import {
   dedupeNewsItems,
   NewsItem,
   parseNewsFeedXml,
   sortNewsItems,
 } from "@f1/domain";
+import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
 
 // 실제 F1 뉴스 RSS/Atom 을 서버측에서 모아 정규화해 돌려주는 라우트 (docs/28).
@@ -47,14 +49,32 @@ const fetchFeed = async (feed: NewsFeedConfig): Promise<NewsItem[]> => {
   }
 };
 
-export const GET = async () => {
-  const settled = await Promise.allSettled(NEWS_FEEDS.map(fetchFeed));
+// 원문(영어) 뉴스 — 로케일 무관. 피드는 공용이라 한 번만 캐시한다.
+const getBaseNews = unstable_cache(
+  async (): Promise<NewsItem[]> => {
+    const settled = await Promise.allSettled(NEWS_FEEDS.map(fetchFeed));
 
-  const collected = settled.flatMap((result) =>
-    result.status === "fulfilled" ? result.value : [],
-  );
+    const collected = settled.flatMap((result) =>
+      result.status === "fulfilled" ? result.value : [],
+    );
 
-  const items = sortNewsItems(dedupeNewsItems(collected)).slice(0, MAX_ITEMS);
+    return sortNewsItems(dedupeNewsItems(collected)).slice(0, MAX_ITEMS);
+  },
+  ["news-base", "v1"],
+  { revalidate, tags: ["news"] },
+);
 
-  return NextResponse.json({ items });
+// 로케일별 번역 결과를 캐시한다 — LLM 을 매 요청마다 부르지 않게(5분당 로케일별 1회).
+// AI 키가 없으면 translateNews 가 원문을 그대로 돌려주므로 en 과 동일해진다(무해).
+const getLocalizedNews = (locale: string): Promise<NewsItem[]> =>
+  unstable_cache(
+    async (): Promise<NewsItem[]> => translateNews(await getBaseNews(), locale),
+    ["news-localized", "v1", locale],
+    { revalidate, tags: ["news"] },
+  )();
+
+export const GET = async (request: Request) => {
+  const locale = new URL(request.url).searchParams.get("locale") ?? "en";
+
+  return NextResponse.json({ items: await getLocalizedNews(locale) });
 };

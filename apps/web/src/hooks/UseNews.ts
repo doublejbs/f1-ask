@@ -30,7 +30,7 @@ const isNewsItem = (value: unknown): value is NewsItem => {
 //
 // 실제 F1 RSS/Atom 을 서버 라우트(/api/news)에서 가져온다. 실패하거나 결과가 비면 오프라인용
 // MockNewsSource 로 폴백해 탭이 절대 비지 않게 한다(개발·피드 장애 시).
-export const useNews = (): NewsLoadState => {
+export const useNews = (locale: string): NewsLoadState => {
   const [state, setState] = useState<NewsLoadState>({
     items: [],
     isLoading: true,
@@ -54,7 +54,7 @@ export const useNews = (): NewsLoadState => {
       }
     };
 
-    fetch("/api/news")
+    fetch(`/api/news?locale=${encodeURIComponent(locale)}`)
       .then((response) =>
         response.ok ? response.json() : Promise.reject(new Error("bad status")),
       )
@@ -82,7 +82,7 @@ export const useNews = (): NewsLoadState => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [locale]);
 
   return state;
 };

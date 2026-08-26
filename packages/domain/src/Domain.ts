@@ -277,6 +277,7 @@ export {
 } from "./news/NewsFeedSelector";
 export { MockNewsSource, buildMockNewsItems } from "./news/MockNewsSource";
 export { categorizeNewsTitle } from "./news/NewsCategoryRules";
+export { applyNewsTranslation } from "./news/NewsTranslationParse";
 export {
   parseNewsFeedXml,
   type NewsFeedSource,
