@@ -1,9 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="App icon placeholder">
-  <rect width="512" height="512" rx="112" fill="#0a0e1a"/>
-  <!-- placeholder mark: replace with your brand -->
-  <g fill="none" stroke="#5eead4" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M150 190 L256 300 L362 190"/>
-    <path d="M150 300 L256 410 L362 300" opacity="0.45"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Racepilot">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1326"/>
+      <stop offset="1" stop-color="#070a14"/>
+    </linearGradient>
+    <linearGradient id="blade" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="1" stop-color="#5eead4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- app tile -->
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+
+  <!-- Racepilot mark: a heading/navigation arrow (the "pilot") leaning forward for
+       motion, split like a racing livery, with a red leading pinstripe (the "race"). -->
+  <g transform="rotate(-13 256 262)">
+    <!-- full arrow -->
+    <path d="M256 112 L356 402 L256 348 L156 402 Z" fill="url(#blade)"/>
+    <!-- brighter right half = livery split -->
+    <path d="M256 112 L356 402 L256 348 Z" fill="#aefaea"/>
+    <!-- center fold -->
+    <path d="M256 112 L256 348" stroke="#0d1326" stroke-width="7" stroke-linecap="round" opacity="0.35"/>
+    <!-- red racing pinstripe on the leading edge -->
+    <path d="M256 112 L356 402" stroke="#f43f5e" stroke-width="12" stroke-linecap="round"/>
   </g>
-  <circle cx="256" cy="150" r="26" fill="#f43f5e"/>
 </svg>
