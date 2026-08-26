@@ -4,17 +4,46 @@ import { Button } from "@/components/ui/Button";
 import { TeammateVsView } from "@/components/TeammateVsView";
 import { useTeammateVs } from "@/hooks/UseTeammateVs";
 import { Dictionary } from "@/i18n/Messages";
-import { NextRace } from "@f1/domain";
+import { NextRace, SupportedLocale } from "@f1/domain";
 import { CalendarClock, Flag, History, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Props = {
   dictionary: Dictionary;
+  locale: SupportedLocale;
   nextRace: NextRace | null;
   isLoading: boolean;
   // 응원 팀(있으면 VS 대문을 띄운다). 없으면 null.
   favoriteTeam: string | null;
   onOpenArchive: () => void;
+};
+
+// 선택 언어 기준 나라 시간대 + Intl 로케일. 다음 결승 시각을 그 나라 시간으로 보여 준다.
+const LOCALE_ZONE: Record<SupportedLocale, { tz: string; tag: string }> = {
+  [SupportedLocale.En]: { tz: "Europe/London", tag: "en-GB" },
+  [SupportedLocale.Ko]: { tz: "Asia/Seoul", tag: "ko-KR" },
+  [SupportedLocale.Ja]: { tz: "Asia/Tokyo", tag: "ja-JP" },
+};
+
+// 결승 시각을 "몇월 몇일 (요일) 몇시 시간대"로 로컬라이즈한다(선택 언어 나라 시간 기준).
+const formatRaceDate = (iso: string, locale: SupportedLocale): string | null => {
+  const ms = Date.parse(iso);
+
+  if (Number.isNaN(ms)) {
+    return null;
+  }
+
+  const zone = LOCALE_ZONE[locale];
+
+  return new Intl.DateTimeFormat(zone.tag, {
+    timeZone: zone.tz,
+    weekday: "short",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(ms));
 };
 
 type Remaining = {
@@ -100,6 +129,7 @@ const RaceCountdown = ({
 // 기록 탭 진입 버튼은 유지한다. (VS 대문은 Phase 3 에서 이 아래에 슬롯으로 붙는다.)
 export const NextRaceView = ({
   dictionary,
+  locale,
   nextRace,
   isLoading,
   favoriteTeam,
@@ -132,11 +162,12 @@ export const NextRaceView = ({
       <p className="text-sm leading-relaxed">{texts.unavailable}</p>
     </div>
   ) : (
-    <NextRaceCard dictionary={dictionary} nextRace={nextRace} />
+    <NextRaceCard dictionary={dictionary} locale={locale} nextRace={nextRace} />
   );
 
+  // 무세션 홈은 최상단 요소라 상단 세이프에어리어를 직접 확보한다(상태바가 없어 잘림 방지).
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pt-safe">
       {vsHero}
       {nextRaceSection}
       <div>{archiveButton}</div>
@@ -144,15 +175,18 @@ export const NextRaceView = ({
   );
 };
 
-// 다음 결승 카드(GP명·서킷·국가 + 카운트다운).
+// 다음 결승 카드(GP명·서킷·국가 + 날짜·시각 + 카운트다운).
 const NextRaceCard = ({
   dictionary,
+  locale,
   nextRace,
 }: {
   dictionary: Dictionary;
+  locale: SupportedLocale;
   nextRace: NextRace;
 }) => {
   const texts = dictionary.nextRace;
+  const raceDate = formatRaceDate(nextRace.dateStartIso, locale);
   const location = [nextRace.countryName, nextRace.circuit]
     .filter((part): part is string => part !== null && part.length > 0)
     .join(" · ");
@@ -180,6 +214,14 @@ const NextRaceCard = ({
             </p>
           ) : null}
         </div>
+
+        {/* 결승 날짜·시각(요일 포함) — 선택 언어 나라 시간 기준 */}
+        {raceDate !== null ? (
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <CalendarClock className="h-4 w-4 text-primary" aria-hidden />
+            {raceDate}
+          </p>
+        ) : null}
 
         <div className="flex flex-col gap-2 pt-1">
           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

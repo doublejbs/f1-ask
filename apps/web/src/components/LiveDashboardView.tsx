@@ -180,18 +180,14 @@ export const LiveDashboardView = ({ locale }: Props) => {
         <AmbientWashView snapshot={liveRace.snapshot} />
       )}
 
-      {/* 라이브 대문 — 무슨 그랑프리인지 상단에 크게 (docs 계획 §Phase 4). */}
-      {liveRace === null ? null : (
-        <h1 className="px-1 text-xl font-bold tracking-tight text-foreground lg:text-2xl">
-          {grandPrixTitle(liveRace.snapshot.circuitName)}
-        </h1>
-      )}
-
+      {/* 라이브: 상태바 안에 그랑프리 대문 제목을 함께 실어 상단 세이프에어리어를 공유한다
+          (docs 계획 §Phase 4). */}
       {liveRace === null ? null : (
         <StatusBarView
           dictionary={dictionary}
           snapshot={liveRace.snapshot}
           freshness={liveRace.freshness}
+          grandPrix={grandPrixTitle(liveRace.snapshot.circuitName)}
           onOpenSettings={handleOpenSettings}
         />
       )}
@@ -209,6 +205,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
           {liveRace === null ? (
             <NextRaceView
               dictionary={dictionary}
+              locale={locale}
               nextRace={nextRaceState.nextRace}
               isLoading={nextRaceState.isLoading}
               favoriteTeam={favoriteTeam}

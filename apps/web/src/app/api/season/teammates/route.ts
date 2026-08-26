@@ -19,7 +19,7 @@ const getTeammateVs = (teamName: string): Promise<TeammateVs | null> =>
         clientOptions: createOpenF1ClientOptions(REVALIDATE_SECONDS),
         nowMs: Date.now(),
       }),
-    ["season-teammates", "v1", String(SEASON_YEAR), teamName],
+    ["season-teammates", "v2", String(SEASON_YEAR), teamName],
     { revalidate: REVALIDATE_SECONDS, tags: ["season-teammates"] },
   )();
 

@@ -13,6 +13,8 @@ type Props = {
   dictionary: Dictionary;
   snapshot: LiveRaceSnapshot;
   freshness: DataFreshnessStatus;
+  // 라이브 대문 제목(무슨 그랑프리인지). sticky 컨테이너 안에 두어 상단 세이프에어리어를 공유한다.
+  grandPrix?: string;
   onOpenSettings: () => void;
 };
 
@@ -74,6 +76,7 @@ export const StatusBarView = ({
   dictionary,
   snapshot,
   freshness,
+  grandPrix,
   onOpenSettings,
 }: Props) => {
   const isFinished = snapshot.status === SessionStatus.Finished;
@@ -86,6 +89,14 @@ export const StatusBarView = ({
 
   return (
     <div className="sticky top-0 z-40 -mx-4 px-4 pt-safe">
+      {/* 라이브 대문 — 무슨 그랑프리인지 상단에 크게. sticky 컨테이너 안이라 세이프에어리어를
+          공유해 잘리지 않는다. */}
+      {grandPrix !== undefined ? (
+        <h1 className="mb-2 px-1 text-xl font-bold tracking-tight text-foreground lg:text-2xl">
+          {grandPrix}
+        </h1>
+      ) : null}
+
       <div className="glass-float flex items-center gap-3 overflow-hidden rounded-full py-1.5 pl-4 pr-1.5">
         {/* 상태 틴트 오버레이. 글래스 배경 위에 색만 은은하게 덧입힌다. */}
         <div

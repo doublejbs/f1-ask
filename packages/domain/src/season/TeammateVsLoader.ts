@@ -60,10 +60,11 @@ export const loadTeammateVs = async ({
     return null;
   }
 
-  // 완료된 결승 세션(스프린트·퀄리·프랙티스 제외).
-  const completedRaces = (await fetchOpenF1RaceSessions(year, clientOptions)).filter(
+  // fetchOpenF1RaceSessions(session_type=Race)는 결승("Race")과 스프린트("Sprint")를 모두 준다.
+  // 완료된 것만 취해, 결승 키(우승·포디움·헤드투헤드)와 포인트 키(결승+스프린트)로 나눈다.
+  const completed = (await fetchOpenF1RaceSessions(year, clientOptions)).filter(
     (session) => {
-      if (session.session_name !== "Race" || session.is_cancelled === true) {
+      if (session.is_cancelled === true) {
         return false;
       }
 
@@ -72,28 +73,52 @@ export const loadTeammateVs = async ({
     },
   );
 
-  const raceKeys = new Set(completedRaces.map((session) => session.session_key));
+  const raceKeys = new Set(
+    completed
+      .filter((session) => session.session_name === "Race")
+      .map((session) => session.session_key),
+  );
+  // 챔피언십 포인트는 스프린트도 포함한다(스프린트도 포인트를 준다).
+  const pointsKeys = new Set(
+    completed
+      .filter(
+        (session) =>
+          session.session_name === "Race" || session.session_name === "Sprint",
+      )
+      .map((session) => session.session_key),
+  );
 
-  let firstResults: OpenF1SessionResult[] = [];
-  let secondResults: OpenF1SessionResult[] = [];
+  const splitResults = (rows: OpenF1SessionResult[]) => ({
+    raceResults: rows.filter(
+      (row) => row.session_key !== undefined && raceKeys.has(row.session_key),
+    ),
+    pointsResults: rows.filter(
+      (row) => row.session_key !== undefined && pointsKeys.has(row.session_key),
+    ),
+  });
 
-  if (raceKeys.size > 0) {
-    const minKey = Math.min(
-      ...completedRaces.map((session) => session.session_key),
-    );
-    const inRace = (result: OpenF1SessionResult): boolean =>
-      result.session_key !== undefined && raceKeys.has(result.session_key);
+  let firstSplit = { raceResults: [], pointsResults: [] } as {
+    raceResults: OpenF1SessionResult[];
+    pointsResults: OpenF1SessionResult[];
+  };
+  let secondSplit = { raceResults: [], pointsResults: [] } as {
+    raceResults: OpenF1SessionResult[];
+    pointsResults: OpenF1SessionResult[];
+  };
+
+  if (pointsKeys.size > 0) {
+    const minKey = Math.min(...completed.map((session) => session.session_key));
 
     const [firstRaw, secondRaw] = await Promise.all([
       fetchOpenF1DriverSeasonResults(minKey, first.driverNumber, clientOptions),
       fetchOpenF1DriverSeasonResults(minKey, second.driverNumber, clientOptions),
     ]);
 
-    firstResults = firstRaw.filter(inRace);
-    secondResults = secondRaw.filter(inRace);
+    firstSplit = splitResults(firstRaw);
+    secondSplit = splitResults(secondRaw);
   }
 
-  const comparison = computeTeammateComparison(firstResults, secondResults);
+  const comparison = computeTeammateComparison(firstSplit, secondSplit);
 
   return {
     teamName: team.name,

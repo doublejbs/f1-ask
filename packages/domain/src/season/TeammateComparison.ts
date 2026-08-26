@@ -15,17 +15,15 @@ export type TeammateSeasonStats = {
 const finishRank = (result: OpenF1SessionResult): number =>
   result.position ?? Number.POSITIVE_INFINITY;
 
-const aggregate = (
-  results: OpenF1SessionResult[],
-): Omit<TeammateSeasonStats, "headToHead"> => {
-  let points = 0;
+// 결승 결과만으로 우승·포디움을 센다(스프린트 제외 — "우승/포디움"은 그랑프리 결승 기준).
+const aggregateRace = (
+  raceResults: OpenF1SessionResult[],
+): { wins: number; podiums: number } => {
   let wins = 0;
   let podiums = 0;
 
-  for (const result of results) {
-    points += result.points ?? 0;
-
-    // 실격은 우승·포디움 집계에서 제외한다(포인트는 응답값을 그대로 합산).
+  for (const result of raceResults) {
+    // 실격은 우승·포디움에서 제외한다.
     if (result.dsq) {
       continue;
     }
@@ -39,19 +37,25 @@ const aggregate = (
     }
   }
 
-  return { points, wins, podiums };
+  return { wins, podiums };
 };
 
-// 두 드라이버의 레이스 결과 배열(이미 결승만으로 필터됨) → 각자의 시즌 지표 + 헤드투헤드.
+// **포인트는 챔피언십 기준**이라 결승 + 스프린트를 모두 합산한다(스프린트도 포인트를 준다).
+const sumPoints = (results: OpenF1SessionResult[]): number =>
+  results.reduce((total, result) => total + (result.points ?? 0), 0);
+
+// 두 드라이버의 시즌 결과 → 지표 + 헤드투헤드.
+//  raceResults: 결승만(우승·포디움·헤드투헤드).
+//  pointsResults: 포인트를 주는 세션 전부(결승 + 스프린트) — 챔피언십 포인트 합산용.
 export const computeTeammateComparison = (
-  aResults: OpenF1SessionResult[],
-  bResults: OpenF1SessionResult[],
+  a: { raceResults: OpenF1SessionResult[]; pointsResults: OpenF1SessionResult[] },
+  b: { raceResults: OpenF1SessionResult[]; pointsResults: OpenF1SessionResult[] },
 ): { a: TeammateSeasonStats; b: TeammateSeasonStats } => {
-  const aAgg = aggregate(aResults);
-  const bAgg = aggregate(bResults);
+  const aAgg = aggregateRace(a.raceResults);
+  const bAgg = aggregateRace(b.raceResults);
 
   const bBySession = new Map<number, OpenF1SessionResult>();
-  for (const result of bResults) {
+  for (const result of b.raceResults) {
     if (result.session_key !== undefined) {
       bBySession.set(result.session_key, result);
     }
@@ -60,7 +64,7 @@ export const computeTeammateComparison = (
   let aAhead = 0;
   let bAhead = 0;
 
-  for (const result of aResults) {
+  for (const result of a.raceResults) {
     if (result.session_key === undefined) {
       continue;
     }
@@ -81,7 +85,7 @@ export const computeTeammateComparison = (
   }
 
   return {
-    a: { ...aAgg, headToHead: aAhead },
-    b: { ...bAgg, headToHead: bAhead },
+    a: { points: sumPoints(a.pointsResults), ...aAgg, headToHead: aAhead },
+    b: { points: sumPoints(b.pointsResults), ...bAgg, headToHead: bAhead },
   };
 };
