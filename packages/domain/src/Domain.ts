@@ -281,6 +281,12 @@ export {
   parseNewsFeedXml,
   type NewsFeedSource,
 } from "./news/RssNewsParser";
+export {
+  buildRosterFromDrivers,
+  type RosterDriver,
+  type RosterTeam,
+} from "./roster/RosterFromDrivers";
+export { loadRoster, type LoadRosterInput } from "./roster/RosterLoader";
 
 export {
   filterEventsByDriver,

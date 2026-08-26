@@ -19,6 +19,18 @@ import {
 export type Dictionary = {
   appName: string;
   tagline: string;
+  // 최초 진입 온보딩 — 응원 팀 → 선수 선택 (docs 계획 §Phase 1).
+  onboarding: {
+    teamTitle: string;
+    teamSubtitle: string;
+    driverTitle: string;
+    driverSubtitle: string;
+    skip: string;
+    back: string;
+    loading: string;
+    // 로스터를 불러오지 못했을 때(OpenF1 장애).
+    unavailable: string;
+  };
   header: {
     lap: string;
     session: string;
@@ -386,6 +398,16 @@ export type Dictionary = {
 const en: Dictionary = {
   appName: "Racepilot",
   tagline: "Understand the race in real time",
+  onboarding: {
+    teamTitle: "Pick your team",
+    teamSubtitle: "Choose the team you support to personalize your home screen.",
+    driverTitle: "Pick your driver",
+    driverSubtitle: "Who are you cheering for this season?",
+    skip: "Skip for now",
+    back: "Back",
+    loading: "Loading the grid…",
+    unavailable: "Couldn't load the grid right now. You can set this later.",
+  },
   header: {
     lap: "Lap",
     session: "Session",
@@ -734,6 +756,16 @@ const en: Dictionary = {
 const ko: Dictionary = {
   appName: "Racepilot",
   tagline: "실시간으로 경기를 이해하세요",
+  onboarding: {
+    teamTitle: "응원하는 팀을 선택하세요",
+    teamSubtitle: "응원하는 팀을 고르면 홈 화면이 맞춤 구성됩니다.",
+    driverTitle: "응원하는 선수를 선택하세요",
+    driverSubtitle: "올 시즌 누구를 응원하시나요?",
+    skip: "나중에 하기",
+    back: "뒤로",
+    loading: "그리드 불러오는 중…",
+    unavailable: "지금은 그리드를 불러올 수 없어요. 나중에 설정할 수 있습니다.",
+  },
   header: {
     lap: "랩",
     session: "세션",
@@ -1082,6 +1114,16 @@ const ko: Dictionary = {
 const ja: Dictionary = {
   appName: "Racepilot",
   tagline: "レースをリアルタイムで理解する",
+  onboarding: {
+    teamTitle: "応援するチームを選択",
+    teamSubtitle: "応援するチームを選ぶとホーム画面が最適化されます。",
+    driverTitle: "応援するドライバーを選択",
+    driverSubtitle: "今シーズン、誰を応援しますか？",
+    skip: "あとで",
+    back: "戻る",
+    loading: "グリッドを読み込み中…",
+    unavailable: "今はグリッドを読み込めません。あとで設定できます。",
+  },
   header: {
     lap: "ラップ",
     session: "セッション",

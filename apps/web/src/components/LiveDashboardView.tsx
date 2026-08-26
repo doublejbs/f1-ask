@@ -5,6 +5,7 @@ import { ArchiveTabView } from "@/components/ArchiveTabView";
 import { AskAiTabView } from "@/components/AskAiTabView";
 import { NewsTabView } from "@/components/NewsTabView";
 import { NoLiveSessionView } from "@/components/NoLiveSessionView";
+import { OnboardingView } from "@/components/OnboardingView";
 import { RaceTabView } from "@/components/RaceTabView";
 import { SettingsSheetView } from "@/components/SettingsSheetView";
 import { StatusBarView } from "@/components/StatusBarView";
@@ -12,6 +13,8 @@ import { TabBarView } from "@/components/TabBarView";
 import { useDashboardTabState } from "@/hooks/UseDashboardTabState";
 import { useExplanationLevel } from "@/hooks/UseExplanationLevel";
 import { useFavoriteDrivers } from "@/hooks/UseFavoriteDrivers";
+import { useFavoriteTeam } from "@/hooks/UseFavoriteTeam";
+import { useRoster } from "@/hooks/UseRoster";
 import { useFirebaseAuth } from "@/hooks/UseFirebaseAuth";
 import { useLiveRace } from "@/hooks/UseLiveRace";
 import { useRaceCommentary } from "@/hooks/UseRaceCommentary";
@@ -46,6 +49,11 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const { favorites, isFavorite, toggleFavorite } = useFavoriteDrivers(
     auth.user?.uid ?? null,
   );
+  const { setFavoriteTeam, hasOnboarded, markOnboarded, isLoaded: isTeamLoaded } =
+    useFavoriteTeam();
+  // 최초 진입(온보딩 미완료)일 때만 로스터를 가져와 오버레이를 띄운다.
+  const showOnboarding = isTeamLoaded && !hasOnboarded;
+  const roster = useRoster(showOnboarding);
   const { activeTab, handleChangeTab, askPrefill, switchToAskWithQuestion } =
     useDashboardTabState();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -88,11 +96,34 @@ export const LiveDashboardView = ({ locale }: Props) => {
 
   const handleOpenArchive = () => handleTabChange(DashboardTab.Archive);
 
+  // 온보딩 완료: 응원 팀 저장 + 고른 선수를 즐겨찾기(별)로 등록(기존 경로로 Firestore 동기화).
+  const handleOnboardComplete = (teamName: string, driverNumber: number) => {
+    setFavoriteTeam(teamName);
+
+    if (!isFavorite(driverNumber)) {
+      toggleFavorite(driverNumber);
+    }
+
+    markOnboarded();
+  };
+
+  // 온보딩은 race 데이터와 무관하다 — 연결 중 화면 위에도 동일하게 덮는다(fixed 오버레이).
+  const onboardingOverlay = showOnboarding ? (
+    <OnboardingView
+      dictionary={dictionary}
+      teams={roster.teams}
+      isLoading={roster.isLoading}
+      onComplete={handleOnboardComplete}
+      onSkip={markOnboarded}
+    />
+  ) : null;
+
   // 연결 중에만 로딩 문구를 보여 준다. 세션이 없는 상태는 아래에서 설명한다 —
   // 두 상태를 합치면 고장 난 것처럼 보인다 (docs/17-race-archive.md §배경).
   if (status === LiveRaceStatus.Connecting) {
     return (
       <main className="container flex min-h-[100dvh] items-center justify-center py-8">
+        {onboardingOverlay}
         <p className="animate-pulse text-sm text-muted-foreground">
           {dictionary.noSession.connecting}
         </p>
@@ -116,6 +147,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
   // 모바일 하단 패딩은 떠 있는 탭바(알약 약 64px + pb-safe 24px)에 여유를 더해 확보한다.
   return (
     <main className="container flex flex-col gap-4 pb-[7.5rem] lg:gap-5 lg:pb-8">
+      {onboardingOverlay}
       {race === null ? null : <AmbientWashView snapshot={race.snapshot} />}
 
       {race === null ? null : (
