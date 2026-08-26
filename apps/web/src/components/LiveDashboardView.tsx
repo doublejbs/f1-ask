@@ -65,8 +65,13 @@ export const LiveDashboardView = ({ locale }: Props) => {
   const { favorites, isFavorite, toggleFavorite } = useFavoriteDrivers(
     auth.user?.uid ?? null,
   );
-  const { setFavoriteTeam, hasOnboarded, markOnboarded, isLoaded: isTeamLoaded } =
-    useFavoriteTeam();
+  const {
+    favoriteTeam,
+    setFavoriteTeam,
+    hasOnboarded,
+    markOnboarded,
+    isLoaded: isTeamLoaded,
+  } = useFavoriteTeam();
   // 최초 진입(온보딩 미완료)일 때만 로스터를 가져와 오버레이를 띄운다.
   const showOnboarding = isTeamLoaded && !hasOnboarded;
   const roster = useRoster(showOnboarding);
@@ -194,6 +199,7 @@ export const LiveDashboardView = ({ locale }: Props) => {
               dictionary={dictionary}
               nextRace={nextRaceState.nextRace}
               isLoading={nextRaceState.isLoading}
+              favoriteTeam={favoriteTeam}
               onOpenArchive={handleOpenArchive}
             />
           ) : (

@@ -292,6 +292,16 @@ export {
   type NextRace,
 } from "./schedule/NextRaceSelector";
 export { loadNextRace, type LoadNextRaceInput } from "./schedule/NextRaceLoader";
+export {
+  computeTeammateComparison,
+  type TeammateSeasonStats,
+} from "./season/TeammateComparison";
+export {
+  loadTeammateVs,
+  type LoadTeammateVsInput,
+  type TeammateVs,
+  type TeammateVsDriver,
+} from "./season/TeammateVsLoader";
 
 export {
   filterEventsByDriver,

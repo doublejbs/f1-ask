@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { TeammateVsView } from "@/components/TeammateVsView";
+import { useTeammateVs } from "@/hooks/UseTeammateVs";
 import { Dictionary } from "@/i18n/Messages";
 import { NextRace } from "@f1/domain";
 import { CalendarClock, Flag, History, MapPin } from "lucide-react";
@@ -10,6 +12,8 @@ type Props = {
   dictionary: Dictionary;
   nextRace: NextRace | null;
   isLoading: boolean;
+  // 응원 팀(있으면 VS 대문을 띄운다). 없으면 null.
+  favoriteTeam: string | null;
   onOpenArchive: () => void;
 };
 
@@ -98,9 +102,11 @@ export const NextRaceView = ({
   dictionary,
   nextRace,
   isLoading,
+  favoriteTeam,
   onOpenArchive,
 }: Props) => {
   const texts = dictionary.nextRace;
+  const vsState = useTeammateVs(favoriteTeam);
 
   const archiveButton = (
     <Button variant="outline" onClick={onOpenArchive}>
@@ -109,35 +115,50 @@ export const NextRaceView = ({
     </Button>
   );
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-start gap-4 py-10">
-        <p className="animate-pulse text-sm text-muted-foreground">
-          {texts.loading}
-        </p>
-      </div>
-    );
-  }
+  // VS 대문 — 응원 팀이 있고 시즌 데이터가 있으면 최상단에 띄운다(사용자 요청: 대문).
+  const vsHero =
+    vsState.vs !== null ? (
+      <TeammateVsView dictionary={dictionary} vs={vsState.vs} />
+    ) : null;
 
-  if (nextRace === null) {
-    return (
-      <div className="flex flex-col items-start gap-4 py-10">
-        <CalendarClock className="h-8 w-8 text-muted-foreground" aria-hidden />
-        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          {texts.unavailable}
-        </p>
-        {archiveButton}
-      </div>
-    );
-  }
+  // 다음 결승 섹션 — 로딩·없음·정상 3상태.
+  const nextRaceSection = isLoading ? (
+    <p className="animate-pulse py-6 text-sm text-muted-foreground">
+      {texts.loading}
+    </p>
+  ) : nextRace === null ? (
+    <div className="flex items-center gap-3 py-4 text-muted-foreground">
+      <CalendarClock className="h-6 w-6" aria-hidden />
+      <p className="text-sm leading-relaxed">{texts.unavailable}</p>
+    </div>
+  ) : (
+    <NextRaceCard dictionary={dictionary} nextRace={nextRace} />
+  );
 
+  return (
+    <div className="flex flex-col gap-5">
+      {vsHero}
+      {nextRaceSection}
+      <div>{archiveButton}</div>
+    </div>
+  );
+};
+
+// 다음 결승 카드(GP명·서킷·국가 + 카운트다운).
+const NextRaceCard = ({
+  dictionary,
+  nextRace,
+}: {
+  dictionary: Dictionary;
+  nextRace: NextRace;
+}) => {
+  const texts = dictionary.nextRace;
   const location = [nextRace.countryName, nextRace.circuit]
     .filter((part): part is string => part !== null && part.length > 0)
     .join(" · ");
 
   return (
-    <div className="flex flex-col gap-5">
-      <section className="glass-float animate-fade-up flex flex-col gap-4 rounded-2xl p-5">
+    <section className="glass-float animate-fade-up flex flex-col gap-4 rounded-2xl p-5">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           <Flag className="h-3.5 w-3.5 text-primary" aria-hidden />
           {texts.title}
@@ -169,9 +190,6 @@ export const NextRaceView = ({
             dictionary={dictionary}
           />
         </div>
-      </section>
-
-      <div>{archiveButton}</div>
-    </div>
+    </section>
   );
 };

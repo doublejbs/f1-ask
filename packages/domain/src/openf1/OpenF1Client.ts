@@ -334,6 +334,19 @@ export const fetchOpenF1PodiumResults = async (
     options,
   );
 
+// 한 드라이버의 시즌 전체 session_result(모든 포지션·포인트). 팀메이트 비교(docs 계획 §Phase 3)가
+// 세션 종류(레이스)로 걸러 집계한다. 드라이버 하나당 한 요청이라 팀메이트 비교는 2요청이다.
+export const fetchOpenF1DriverSeasonResults = async (
+  minSessionKey: number,
+  driverNumber: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1SessionResult[]> =>
+  fetchEndpointWithQuery<OpenF1SessionResult>(
+    "session_result",
+    `session_key>=${minSessionKey}&driver_number=${driverNumber}`,
+    options,
+  );
+
 // 시즌 전체 드라이버 로스터. 행마다 session_key 가 있어 세션별로 좁힐 수 있다.
 export const fetchOpenF1SeasonDrivers = async (
   minSessionKey: number,

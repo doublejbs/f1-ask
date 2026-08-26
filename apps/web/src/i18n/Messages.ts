@@ -47,6 +47,15 @@ export type Dictionary = {
     minutes: string;
     seconds: string;
   };
+  // 팀메이트 VS 대문 — 올 시즌 실적 비교 (docs 계획 §Phase 3).
+  vs: {
+    season: string;
+    vsLabel: string;
+    points: string;
+    headToHead: string;
+    wins: string;
+    podiums: string;
+  };
   header: {
     lap: string;
     session: string;
@@ -436,6 +445,14 @@ const en: Dictionary = {
     minutes: "m",
     seconds: "s",
   },
+  vs: {
+    season: "This season",
+    vsLabel: "VS",
+    points: "Points",
+    headToHead: "Head-to-head",
+    wins: "Wins",
+    podiums: "Podiums",
+  },
   header: {
     lap: "Lap",
     session: "Session",
@@ -806,6 +823,14 @@ const ko: Dictionary = {
     minutes: "분",
     seconds: "초",
   },
+  vs: {
+    season: "올 시즌",
+    vsLabel: "VS",
+    points: "포인트",
+    headToHead: "헤드투헤드",
+    wins: "우승",
+    podiums: "포디움",
+  },
   header: {
     lap: "랩",
     session: "세션",
@@ -1175,6 +1200,14 @@ const ja: Dictionary = {
     hours: "時間",
     minutes: "分",
     seconds: "秒",
+  },
+  vs: {
+    season: "今シーズン",
+    vsLabel: "VS",
+    points: "ポイント",
+    headToHead: "直接対決",
+    wins: "優勝",
+    podiums: "表彰台",
   },
   header: {
     lap: "ラップ",
