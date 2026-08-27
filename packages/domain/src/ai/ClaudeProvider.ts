@@ -142,7 +142,7 @@ const buildQuestionContext = (
     drivers,
     recentEvents: events,
     // 워커가 원본에서 계산한 결정론적 요약(피트·스틴트·추월). 세 provider 공용 함수로 넣는다.
-    summary: toQuestionSummaryContext(snapshot.contextSummary),
+    summary: toQuestionSummaryContext(snapshot),
   });
 };
 

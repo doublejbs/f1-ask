@@ -53,6 +53,11 @@ describe("buildLiveContextSummary — 벨기에 GP 회귀", () => {
     expect(hamilton?.currentStintStartLap).toBe(21);
     expect(hamilton?.previousCompound).toBe(TireCompound.Medium);
     expect(hamilton?.lastPitLap).toBe(20);
+    // 사용한 타이어 이력을 시작 순서대로 담는다 (MEDIUM → HARD).
+    expect(hamilton?.usedCompounds.map((use) => use.compound)).toEqual([
+      TireCompound.Medium,
+      TireCompound.Hard,
+    ]);
 
     // 실측 스틴트: #1 HARD@1-30 → MEDIUM@31-44, 피트 랩 30.
     const verstappen = stintOf(summary, 1);

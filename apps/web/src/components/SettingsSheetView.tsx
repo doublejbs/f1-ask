@@ -13,9 +13,13 @@ import type { ReactNode } from "react";
 type Props = {
   dictionary: Dictionary;
   locale: SupportedLocale;
-  snapshot: LiveRaceSnapshot;
+  // 활성 세션이 없으면 null — 세션·서킷 행을 감춘다(무세션 홈에서도 설정을 연다).
+  snapshot: LiveRaceSnapshot | null;
   explanationLevel: ExplanationLevel;
   onChangeExplanationLevel: (level: ExplanationLevel) => void;
+  // 응원 팀(없으면 null) + 변경(온보딩 재실행).
+  favoriteTeam: string | null;
+  onChangeTeam: () => void;
   auth: FirebaseAuthController;
   isOpen: boolean;
   onClose: () => void;
@@ -51,6 +55,8 @@ export const SettingsSheetView = ({
   snapshot,
   explanationLevel,
   onChangeExplanationLevel,
+  favoriteTeam,
+  onChangeTeam,
   auth,
   isOpen,
   onClose,
@@ -85,17 +91,37 @@ export const SettingsSheetView = ({
         />
       </Row>
 
-      <Row label={dictionary.header.session}>
-        <span className="truncate text-sm font-semibold">
-          {snapshot.sessionName}
-        </span>
+      {/* 응원 팀 — 온보딩을 다시 열어 팀·선수를 바꾼다. */}
+      <Row label={dictionary.settings.favoriteTeam} isLast={snapshot === null}>
+        <div className="flex items-center gap-2">
+          <span className="truncate text-sm font-semibold">
+            {favoriteTeam ?? dictionary.settings.noTeam}
+          </span>
+          <button
+            type="button"
+            onClick={onChangeTeam}
+            className="press rounded-full bg-white/[0.08] px-2.5 py-1 text-[12px] font-semibold text-foreground hover:bg-white/[0.14]"
+          >
+            {dictionary.settings.changeTeam}
+          </button>
+        </div>
       </Row>
 
-      <Row label={dictionary.settings.circuit} isLast>
-        <span className="truncate text-sm font-semibold">
-          {snapshot.circuitName} · {snapshot.countryCode}
-        </span>
-      </Row>
+      {snapshot !== null ? (
+        <Row label={dictionary.header.session}>
+          <span className="truncate text-sm font-semibold">
+            {snapshot.sessionName}
+          </span>
+        </Row>
+      ) : null}
+
+      {snapshot !== null ? (
+        <Row label={dictionary.settings.circuit} isLast>
+          <span className="truncate text-sm font-semibold">
+            {snapshot.circuitName} · {snapshot.countryCode}
+          </span>
+        </Row>
+      ) : null}
     </div>
   </BottomSheetView>
 );

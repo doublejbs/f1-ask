@@ -3,6 +3,9 @@ import {
   ArchiveResultStatus,
   DataFreshnessStatus,
   ExplanationLevel,
+  NewsCategory,
+  NewsFilter,
+  OvertakeForecastConfidence,
   RaceEventPriority,
   SessionStateSeverity,
   SessionStatus,
@@ -16,6 +19,43 @@ import {
 export type Dictionary = {
   appName: string;
   tagline: string;
+  // 최초 진입 온보딩 — 응원 팀 → 선수 선택 (docs 계획 §Phase 1).
+  onboarding: {
+    teamTitle: string;
+    teamSubtitle: string;
+    driverTitle: string;
+    driverSubtitle: string;
+    skip: string;
+    back: string;
+    loading: string;
+    // 로스터를 불러오지 못했을 때(OpenF1 장애).
+    unavailable: string;
+  };
+  // 무세션 홈 — 다음 결승 + 카운트다운 (docs 계획 §Phase 2).
+  nextRace: {
+    title: string;
+    // {round} 를 라운드 번호로 치환.
+    round: string;
+    startsIn: string;
+    // 이미 시작했거나 시각이 지난 경우.
+    live: string;
+    loading: string;
+    unavailable: string;
+    // 카운트다운 단위(짧게).
+    days: string;
+    hours: string;
+    minutes: string;
+    seconds: string;
+  };
+  // 팀메이트 VS 대문 — 올 시즌 실적 비교 (docs 계획 §Phase 3).
+  vs: {
+    season: string;
+    vsLabel: string;
+    points: string;
+    headToHead: string;
+    wins: string;
+    podiums: string;
+  };
   header: {
     lap: string;
     session: string;
@@ -45,6 +85,12 @@ export type Dictionary = {
   weather: {
     rain: string;
     dry: string;
+  };
+  // 날씨 전환 배너 (B3). 비 시작/트랙 건조 = 전략 급변.
+  weatherTransition: {
+    rainStarting: string;
+    trackDrying: string;
+    subtitle: string;
   };
   // 해설 캡션 탭 → 상세 시트 (docs/21-commentary-ask.md).
   // 해설 전문 · 원본 이벤트 · 그 시점 순위 · 질문을 담는다.
@@ -86,6 +132,9 @@ export type Dictionary = {
     confidenceLabel: string;
     reset: string;
     emptyHint: string;
+    // 모바일 AI 플로팅 버튼·패널 접근성 라벨.
+    openPanel: string;
+    closePanel: string;
     // {code} 를 드라이버 코드로 치환하는 탭투애스크 질문 템플릿.
     driverTapQuestion: string;
     confidence: Record<AiConfidence, string>;
@@ -110,7 +159,20 @@ export type Dictionary = {
   tabs: {
     race: string;
     archive: string;
-    ask: string;
+    news: string;
+  };
+  // 뉴스 탭 — 경기 전후 소식 (docs/28-news-tab.md).
+  news: {
+    title: string;
+    // 탭이 무엇인지 한 줄로.
+    subtitle: string;
+    loading: string;
+    empty: string;
+    error: string;
+    // 상단 필터 칩 라벨. enum 을 키로 써서 필터가 늘면 타입 에러로 잡힌다.
+    filter: Record<NewsFilter, string>;
+    // 카드의 카테고리 배지 라벨.
+    category: Record<NewsCategory, string>;
   };
   // 지난 레이스 기록 (docs/17-race-archive.md).
   archive: {
@@ -160,6 +222,10 @@ export type Dictionary = {
     title: string;
     close: string;
     circuit: string;
+    // 응원 팀 변경(온보딩 재실행).
+    favoriteTeam: string;
+    changeTeam: string;
+    noTeam: string;
   };
   // 계정 섹션 (docs/15-google-auth.md §UI). 설정 시트 안에서만 노출한다.
   account: {
@@ -253,6 +319,16 @@ export type Dictionary = {
     // 감지기 종류 이름. **도메인 enum 을 UI 가 번역한다** — 문자열을 컴포넌트에
     // 하드코딩하지 않는다(docs/19).
     signalType: Record<WatchNowSignalType, string>;
+    // 신호 종류 안내(B5): 정보 토글 aria + 종류별 한 줄 설명.
+    legendToggle: string;
+    signalHelp: Record<WatchNowSignalType, string>;
+    // 지난 신호(B4). 경기 시작부터, 접힘=최근 5개, 더보기=전체.
+    historyTitle: string;
+    // 더보기 라벨. {count} = 추가로 볼 개수.
+    historyMore: string;
+    historyLess: string;
+    // 지난 신호 항목의 발생 랩 꼬리표. {lap} = 세션 랩.
+    historyLap: string;
     // 종류별 한 줄 요약 템플릿. 숫자는 전부 스냅샷에 있는 실측값이며 LLM 을 쓰지 않는다.
     // {code} 드라이버 코드, {laps} 타이어 나이(랩).
     tireAge: string;
@@ -260,6 +336,8 @@ export type Dictionary = {
     gapConvergence: string;
     // {rival} 피트인해 위협이 된 뒤차 코드.
     undercutThreat: string;
+    // 피트 윈도우(F). {code} 피트해야 할 주체, {rival} 언더컷할 앞차 코드.
+    pitWindow: string;
     // {from} → {to} 순위.
     positionSwing: string;
     // 배틀 진입 예측(docs/23). {code} chaser, {rival} 따라잡히는 앞차, {laps} 예측 랩 수.
@@ -285,6 +363,58 @@ export type Dictionary = {
     laps: string;
     // 예측 랩이 1일 때. en 은 "1 lap" 단수, ko/ja 는 구조가 같지만 병렬로 둔다.
     lapsSingular: string;
+    // 예측 신뢰도 배지 라벨. 잡는 속도의 랩별 일관성으로 도출된 3단계(docs/23 §신뢰도).
+    confidence: Record<OvertakeForecastConfidence, string>;
+  };
+  // 드라이버 상세 시트의 타이어 전략(사용한 타이어 + 남은 타이어 경우의 수).
+  tireStrategy: {
+    title: string;
+    usedTitle: string;
+    remainingTitle: string;
+    // 스틴트 데이터가 없을 때(예: 아직 주행 전).
+    noData: string;
+    // 신품/중고 스틴트 표기.
+    new: string;
+    used: string;
+    // 보유 세트 수. {count} 치환.
+    setsCount: string;
+    // 가능한 구성 개수. {count} 치환.
+    possibilities: string;
+    // 계산 한계 안내(규정 기반·레이스 의무 보유·퀄리/프랙티스 미반영).
+    note: string;
+    // 주말 사용분까지 반영해 좁혔을 때의 안내(A1).
+    noteNarrowed: string;
+  };
+  // 「기록」 상세의 주말 타이어 격자(드라이버 × 세션 사용 compound).
+  weekendTires: {
+    title: string;
+    subtitle: string;
+    loading: string;
+    empty: string;
+    error: string;
+    // 격자 첫 열 헤더(드라이버).
+    driverColumn: string;
+    // 잔여(추정) 열 헤더.
+    remainingColumn: string;
+    // 잔여 추정 방식 안내(규정 기반 + 세션 사용분 하한, 세트 ID 부재 근사).
+    remainingNote: string;
+    // 신품/중고 범례·라벨(A3).
+    newTire: string;
+    usedTire: string;
+  };
+  // 「기록」 상세의 프랙티스·퀄리 결과 (docs/27, E1).
+  weekendResults: {
+    title: string;
+    subtitle: string;
+    loading: string;
+    empty: string;
+    error: string;
+    position: string;
+    driver: string;
+    best: string;
+    gap: string;
+    // 세그먼트 랭크 안내(최종 순위와 다름).
+    note: string;
   };
   status: Record<SessionStatus, string>;
   // 이벤트 우선순위 배지 라벨. enum 원문(critical/high/…)이 UI 에 노출되지 않도록 번역한다.
@@ -295,8 +425,38 @@ export type Dictionary = {
 };
 
 const en: Dictionary = {
-  appName: "F1 AI Second Screen",
+  appName: "Racepilot",
   tagline: "Understand the race in real time",
+  onboarding: {
+    teamTitle: "Pick your team",
+    teamSubtitle: "Choose the team you support to personalize your home screen.",
+    driverTitle: "Pick your driver",
+    driverSubtitle: "Who are you cheering for this season?",
+    skip: "Skip for now",
+    back: "Back",
+    loading: "Loading the grid…",
+    unavailable: "Couldn't load the grid right now. You can set this later.",
+  },
+  nextRace: {
+    title: "Next race",
+    round: "Round {round}",
+    startsIn: "Starts in",
+    live: "Underway now",
+    loading: "Loading the schedule…",
+    unavailable: "No upcoming race on the calendar.",
+    days: "d",
+    hours: "h",
+    minutes: "m",
+    seconds: "s",
+  },
+  vs: {
+    season: "This season",
+    vsLabel: "VS",
+    points: "Points",
+    headToHead: "Head-to-head",
+    wins: "Wins",
+    podiums: "Podiums",
+  },
   header: {
     lap: "Lap",
     session: "Session",
@@ -321,6 +481,11 @@ const en: Dictionary = {
   weather: {
     rain: "Rain",
     dry: "Dry",
+  },
+  weatherTransition: {
+    rainStarting: "Rain is starting",
+    trackDrying: "The track is drying",
+    subtitle: "Strategy may shift — watch for tire changes",
   },
   commentarySheet: {
     open: "Open commentary detail and ask about it",
@@ -350,6 +515,8 @@ const en: Dictionary = {
     suggestions: "Try asking",
     confidenceLabel: "Confidence",
     reset: "New chat",
+    openPanel: "Ask AI",
+    closePanel: "Close AI panel",
     emptyHint: "Ask a question, or tap a driver or event below.",
     driverTapQuestion: "How is {code} doing right now?",
     confidence: {
@@ -376,13 +543,34 @@ const en: Dictionary = {
     retirements: "Retirements",
   },
   statusBar: {
-    appShort: "F1 AI",
+    appShort: "Racepilot",
     settings: "Settings",
   },
   tabs: {
     race: "Race",
     archive: "Archive",
-    ask: "AI",
+    news: "News",
+  },
+  news: {
+    title: "News",
+    subtitle: "Results, rules, and team updates around the weekend",
+    loading: "Loading news…",
+    empty: "Nothing here yet",
+    error: "Couldn't load news",
+    filter: {
+      [NewsFilter.All]: "All",
+      [NewsFilter.Result]: "Results",
+      [NewsFilter.Rule]: "Rules",
+      [NewsFilter.TeamUpdate]: "Teams",
+      [NewsFilter.Video]: "Video",
+      [NewsFilter.Social]: "Social",
+    },
+    category: {
+      [NewsCategory.Result]: "Result",
+      [NewsCategory.Rule]: "Rules",
+      [NewsCategory.TeamUpdate]: "Team",
+      [NewsCategory.General]: "General",
+    },
   },
   archive: {
     title: "Race Archive",
@@ -429,6 +617,9 @@ const en: Dictionary = {
     title: "Settings",
     close: "Close",
     circuit: "Circuit",
+    favoriteTeam: "Your team",
+    changeTeam: "Change",
+    noTeam: "Not set",
   },
   account: {
     title: "Account",
@@ -499,12 +690,27 @@ const en: Dictionary = {
       [WatchNowSignalType.TireAge]: "Tires",
       [WatchNowSignalType.GapConvergence]: "Closing",
       [WatchNowSignalType.UndercutThreat]: "Undercut",
+      [WatchNowSignalType.PitWindow]: "Pit now",
       [WatchNowSignalType.PositionSwing]: "Swing",
       [WatchNowSignalType.OvertakeForecast]: "Forecast",
     },
+    legendToggle: "What these signals mean",
+    signalHelp: {
+      [WatchNowSignalType.TireAge]: "Tires reaching a worn threshold",
+      [WatchNowSignalType.GapConvergence]: "Closing on the car ahead",
+      [WatchNowSignalType.UndercutThreat]: "A car behind pitted — undercut risk",
+      [WatchNowSignalType.PitWindow]: "Pit now to undercut the car ahead",
+      [WatchNowSignalType.PositionSwing]: "A big position change",
+      [WatchNowSignalType.OvertakeForecast]: "On track to battle in a few laps",
+    },
+    historyTitle: "Past signals",
+    historyMore: "Show all (+{count})",
+    historyLess: "Show less",
+    historyLap: "L{lap}",
     tireAge: "{code} on {laps}-lap tires",
     gapConvergence: "{code} {gap}s to car ahead",
     undercutThreat: "{code} — {rival} pitted",
+    pitWindow: "{code} — pit to undercut {rival}",
     positionSwing: "{code} P{from} to P{to}",
     overtakeForecast: "{code} expected within 1s of {rival} in {laps} laps",
     overtakeForecastSingular: "{code} expected within 1s of {rival} in 1 lap",
@@ -517,6 +723,49 @@ const en: Dictionary = {
     title: "Overtake forecast",
     laps: "{laps} laps",
     lapsSingular: "1 lap",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "High",
+      [OvertakeForecastConfidence.Medium]: "Medium",
+      [OvertakeForecastConfidence.Low]: "Low",
+    },
+  },
+  tireStrategy: {
+    title: "Tire strategy",
+    usedTitle: "Used this session",
+    remainingTitle: "Remaining sets",
+    noData: "No tire data yet",
+    new: "new",
+    used: "used",
+    setsCount: "{count} sets",
+    possibilities: "· {count} possible",
+    note: "Estimate from the mandatory returns plus the two reserved race sets (1 hard, 1 medium); returned compounds are the team's choice. Qualifying/practice use isn't included yet.",
+    noteNarrowed:
+      "Narrowed by this weekend's session use (sets run new after the returns can't have been returned) plus the two reserved race sets. Set counts approximated from new-tyre stints — OpenF1 has no set IDs.",
+  },
+  weekendTires: {
+    title: "Weekend tires",
+    subtitle: "Compounds each driver ran, session by session",
+    loading: "Loading weekend tires…",
+    empty: "No tire data for this weekend",
+    error: "Couldn't load weekend tires",
+    driverColumn: "Driver",
+    remainingColumn: "Remaining (est.)",
+    remainingNote:
+      "Remaining = regulation sets left, narrowed by sets run new after the mandatory returns plus the two reserved race sets. Set counts approximated from new-tyre stints — OpenF1 has no set IDs.",
+    newTire: "new",
+    usedTire: "used",
+  },
+  weekendResults: {
+    title: "Practice & Qualifying",
+    subtitle: "Best laps and Q1/Q2/Q3 with segment rank",
+    loading: "Loading results…",
+    empty: "No practice/qualifying results for this weekend",
+    error: "Couldn't load results",
+    position: "Pos",
+    driver: "Driver",
+    best: "Best",
+    gap: "Gap",
+    note: "PN under a Q1/Q2/Q3 time is the rank among drivers who set a time in that segment — different from the final classification.",
   },
   status: {
     [SessionStatus.Scheduled]: "Scheduled",
@@ -557,8 +806,38 @@ const en: Dictionary = {
 };
 
 const ko: Dictionary = {
-  appName: "F1 AI 세컨드 스크린",
+  appName: "Racepilot",
   tagline: "실시간으로 경기를 이해하세요",
+  onboarding: {
+    teamTitle: "응원하는 팀을 선택하세요",
+    teamSubtitle: "응원하는 팀을 고르면 홈 화면이 맞춤 구성됩니다.",
+    driverTitle: "응원하는 선수를 선택하세요",
+    driverSubtitle: "올 시즌 누구를 응원하시나요?",
+    skip: "나중에 하기",
+    back: "뒤로",
+    loading: "그리드 불러오는 중…",
+    unavailable: "지금은 그리드를 불러올 수 없어요. 나중에 설정할 수 있습니다.",
+  },
+  nextRace: {
+    title: "다음 레이스",
+    round: "{round}라운드",
+    startsIn: "시작까지",
+    live: "지금 진행 중",
+    loading: "일정 불러오는 중…",
+    unavailable: "예정된 레이스가 없어요.",
+    days: "일",
+    hours: "시간",
+    minutes: "분",
+    seconds: "초",
+  },
+  vs: {
+    season: "올 시즌",
+    vsLabel: "VS",
+    points: "포인트",
+    headToHead: "헤드투헤드",
+    wins: "우승",
+    podiums: "포디움",
+  },
   header: {
     lap: "랩",
     session: "세션",
@@ -583,6 +862,11 @@ const ko: Dictionary = {
   weather: {
     rain: "강수",
     dry: "건조",
+  },
+  weatherTransition: {
+    rainStarting: "비가 내리기 시작했어요",
+    trackDrying: "트랙이 마르고 있어요",
+    subtitle: "전략이 급변할 수 있어요 — 타이어 교체 주목",
   },
   commentarySheet: {
     open: "해설 상세 열고 질문하기",
@@ -612,6 +896,8 @@ const ko: Dictionary = {
     suggestions: "이렇게 물어보세요",
     confidenceLabel: "신뢰도",
     reset: "새 대화",
+    openPanel: "AI 질문 열기",
+    closePanel: "AI 패널 닫기",
     emptyHint: "질문을 입력하거나 아래 드라이버·이벤트를 탭해 보세요.",
     driverTapQuestion: "{code} 지금 상황 어때?",
     confidence: {
@@ -638,13 +924,34 @@ const ko: Dictionary = {
     retirements: "리타이어",
   },
   statusBar: {
-    appShort: "F1 AI",
+    appShort: "Racepilot",
     settings: "설정",
   },
   tabs: {
     race: "경기",
     archive: "기록",
-    ask: "AI",
+    news: "뉴스",
+  },
+  news: {
+    title: "뉴스",
+    subtitle: "경기 전후의 결과·규정·팀 소식을 한데 모아",
+    loading: "뉴스를 불러오는 중…",
+    empty: "아직 소식이 없어요",
+    error: "뉴스를 불러오지 못했어요",
+    filter: {
+      [NewsFilter.All]: "전체",
+      [NewsFilter.Result]: "결과",
+      [NewsFilter.Rule]: "규정",
+      [NewsFilter.TeamUpdate]: "팀",
+      [NewsFilter.Video]: "영상",
+      [NewsFilter.Social]: "소셜",
+    },
+    category: {
+      [NewsCategory.Result]: "결과",
+      [NewsCategory.Rule]: "규정",
+      [NewsCategory.TeamUpdate]: "팀",
+      [NewsCategory.General]: "일반",
+    },
   },
   archive: {
     title: "지난 레이스",
@@ -691,6 +998,9 @@ const ko: Dictionary = {
     title: "설정",
     close: "닫기",
     circuit: "서킷",
+    favoriteTeam: "응원 팀",
+    changeTeam: "변경",
+    noTeam: "미설정",
   },
   account: {
     title: "계정",
@@ -761,12 +1071,27 @@ const ko: Dictionary = {
       [WatchNowSignalType.TireAge]: "타이어",
       [WatchNowSignalType.GapConvergence]: "간격",
       [WatchNowSignalType.UndercutThreat]: "언더컷",
+      [WatchNowSignalType.PitWindow]: "피트 찬스",
       [WatchNowSignalType.PositionSwing]: "순위",
       [WatchNowSignalType.OvertakeForecast]: "예측",
     },
+    legendToggle: "이 신호들이 뭔가요",
+    signalHelp: {
+      [WatchNowSignalType.TireAge]: "타이어가 임계 랩수에 닳음",
+      [WatchNowSignalType.GapConvergence]: "앞차와 간격이 좁혀지는 중",
+      [WatchNowSignalType.UndercutThreat]: "뒤차가 피트인 — 언더컷 위협",
+      [WatchNowSignalType.PitWindow]: "지금 피트하면 앞차 언더컷 기회",
+      [WatchNowSignalType.PositionSwing]: "순위가 크게 변동",
+      [WatchNowSignalType.OvertakeForecast]: "몇 랩 후 배틀 진입 예상",
+    },
+    historyTitle: "지난 신호",
+    historyMore: "더보기 (+{count})",
+    historyLess: "접기",
+    historyLap: "{lap}랩",
     tireAge: "{code} 타이어 {laps}랩째",
     gapConvergence: "{code} 앞차와 {gap}초",
     undercutThreat: "{code} — {rival} 피트인",
+    pitWindow: "{code} — 지금 피트하면 {rival} 언더컷",
     positionSwing: "{code} P{from} → P{to}",
     overtakeForecast: "{code}, {laps}랩 후 {rival} 1초 내 진입 예상",
     overtakeForecastSingular: "{code}, 1랩 후 {rival} 1초 내 진입 예상",
@@ -779,6 +1104,49 @@ const ko: Dictionary = {
     title: "추월 예측",
     laps: "{laps}랩",
     lapsSingular: "1랩",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "높음",
+      [OvertakeForecastConfidence.Medium]: "보통",
+      [OvertakeForecastConfidence.Low]: "낮음",
+    },
+  },
+  tireStrategy: {
+    title: "타이어 전략",
+    usedTitle: "이번 세션 사용",
+    remainingTitle: "남은 세트",
+    noData: "아직 타이어 데이터가 없어요",
+    new: "신품",
+    used: "중고",
+    setsCount: "{count}세트 보유",
+    possibilities: "· {count}가지",
+    note: "반납 규정 + 레이스 의무 보유(하드·미디엄 각 1세트) 기준 추정이에요. 어떤 컴파운드를 반납할지는 팀 선택이라 경우의 수로 표시하며, 퀄리·프랙티스 사용분은 아직 반영하지 않았어요.",
+    noteNarrowed:
+      "이 주말의 세션 사용분(반납 이후 신품은 반납 불가)과 레이스 의무 보유까지 반영해 좁혔어요. 세트 ID가 없어 신품 스틴트로 세트 수를 근사합니다.",
+  },
+  weekendTires: {
+    title: "주말 타이어",
+    subtitle: "세션별로 각 드라이버가 쓴 컴파운드",
+    loading: "주말 타이어를 불러오는 중…",
+    empty: "이 주말의 타이어 데이터가 없어요",
+    error: "주말 타이어를 불러오지 못했어요",
+    driverColumn: "드라이버",
+    remainingColumn: "잔여(추정)",
+    remainingNote:
+      "잔여 = 규정상 남은 세트를, 반납 이후 신품으로 깐 세트(반납 불가) + 레이스 의무 보유로 좁힌 추정이에요. 세트 ID가 없어 신품 스틴트로 세트 수를 근사합니다.",
+    newTire: "신품",
+    usedTire: "중고",
+  },
+  weekendResults: {
+    title: "프랙티스 & 퀄리파잉",
+    subtitle: "베스트랩과 Q1/Q2/Q3 세그먼트 랭크",
+    loading: "결과를 불러오는 중…",
+    empty: "이 주말의 프랙티스/퀄리 결과가 없어요",
+    error: "결과를 불러오지 못했어요",
+    position: "순위",
+    driver: "드라이버",
+    best: "베스트",
+    gap: "갭",
+    note: "Q1/Q2/Q3 기록 아래 P숫자는 그 세그먼트에서 기록한 드라이버끼리의 순위예요 — 최종 순위와 다릅니다.",
   },
   status: {
     [SessionStatus.Scheduled]: "예정",
@@ -819,8 +1187,38 @@ const ko: Dictionary = {
 };
 
 const ja: Dictionary = {
-  appName: "F1 AI セカンドスクリーン",
+  appName: "Racepilot",
   tagline: "レースをリアルタイムで理解する",
+  onboarding: {
+    teamTitle: "応援するチームを選択",
+    teamSubtitle: "応援するチームを選ぶとホーム画面が最適化されます。",
+    driverTitle: "応援するドライバーを選択",
+    driverSubtitle: "今シーズン、誰を応援しますか？",
+    skip: "あとで",
+    back: "戻る",
+    loading: "グリッドを読み込み中…",
+    unavailable: "今はグリッドを読み込めません。あとで設定できます。",
+  },
+  nextRace: {
+    title: "次のレース",
+    round: "第{round}戦",
+    startsIn: "開始まで",
+    live: "進行中",
+    loading: "スケジュールを読み込み中…",
+    unavailable: "予定されているレースはありません。",
+    days: "日",
+    hours: "時間",
+    minutes: "分",
+    seconds: "秒",
+  },
+  vs: {
+    season: "今シーズン",
+    vsLabel: "VS",
+    points: "ポイント",
+    headToHead: "直接対決",
+    wins: "優勝",
+    podiums: "表彰台",
+  },
   header: {
     lap: "ラップ",
     session: "セッション",
@@ -845,6 +1243,11 @@ const ja: Dictionary = {
   weather: {
     rain: "降水",
     dry: "ドライ",
+  },
+  weatherTransition: {
+    rainStarting: "雨が降り始めました",
+    trackDrying: "路面が乾いてきています",
+    subtitle: "戦略が急変する可能性 — タイヤ交換に注目",
   },
   commentarySheet: {
     open: "解説の詳細を開いて質問する",
@@ -874,6 +1277,8 @@ const ja: Dictionary = {
     suggestions: "質問例",
     confidenceLabel: "信頼度",
     reset: "新しい会話",
+    openPanel: "AI に質問",
+    closePanel: "AI パネルを閉じる",
     emptyHint: "質問を入力するか、下のドライバー・イベントをタップしてください。",
     driverTapQuestion: "{code} は今どんな状況？",
     confidence: {
@@ -900,13 +1305,34 @@ const ja: Dictionary = {
     retirements: "リタイア",
   },
   statusBar: {
-    appShort: "F1 AI",
+    appShort: "Racepilot",
     settings: "設定",
   },
   tabs: {
     race: "レース",
     archive: "記録",
-    ask: "AI",
+    news: "ニュース",
+  },
+  news: {
+    title: "ニュース",
+    subtitle: "週末前後の結果・規則・チーム情報をまとめて",
+    loading: "ニュースを読み込み中…",
+    empty: "まだ情報がありません",
+    error: "ニュースを読み込めませんでした",
+    filter: {
+      [NewsFilter.All]: "すべて",
+      [NewsFilter.Result]: "結果",
+      [NewsFilter.Rule]: "規則",
+      [NewsFilter.TeamUpdate]: "チーム",
+      [NewsFilter.Video]: "動画",
+      [NewsFilter.Social]: "SNS",
+    },
+    category: {
+      [NewsCategory.Result]: "結果",
+      [NewsCategory.Rule]: "規則",
+      [NewsCategory.TeamUpdate]: "チーム",
+      [NewsCategory.General]: "一般",
+    },
   },
   archive: {
     title: "過去のレース",
@@ -953,6 +1379,9 @@ const ja: Dictionary = {
     title: "設定",
     close: "閉じる",
     circuit: "サーキット",
+    favoriteTeam: "応援チーム",
+    changeTeam: "変更",
+    noTeam: "未設定",
   },
   account: {
     title: "アカウント",
@@ -1023,12 +1452,27 @@ const ja: Dictionary = {
       [WatchNowSignalType.TireAge]: "タイヤ",
       [WatchNowSignalType.GapConvergence]: "接近",
       [WatchNowSignalType.UndercutThreat]: "アンダーカット",
+      [WatchNowSignalType.PitWindow]: "ピットチャンス",
       [WatchNowSignalType.PositionSwing]: "順位変動",
       [WatchNowSignalType.OvertakeForecast]: "予測",
     },
+    legendToggle: "この信号の意味",
+    signalHelp: {
+      [WatchNowSignalType.TireAge]: "タイヤが摩耗の閾値に到達",
+      [WatchNowSignalType.GapConvergence]: "前車との差が縮まっている",
+      [WatchNowSignalType.UndercutThreat]: "後車がピットイン — アンダーカットの脅威",
+      [WatchNowSignalType.PitWindow]: "今ピットで前車をアンダーカットの好機",
+      [WatchNowSignalType.PositionSwing]: "順位が大きく変動",
+      [WatchNowSignalType.OvertakeForecast]: "数周後にバトル圏内の見込み",
+    },
+    historyTitle: "過去の信号",
+    historyMore: "すべて表示 (+{count})",
+    historyLess: "折りたたむ",
+    historyLap: "{lap}周",
     tireAge: "{code} タイヤ{laps}周目",
     gapConvergence: "{code} 前車と{gap}秒",
     undercutThreat: "{code} — {rival} ピットイン",
+    pitWindow: "{code} — 今ピットで {rival} をアンダーカット",
     positionSwing: "{code} P{from} → P{to}",
     overtakeForecast: "{code}、{laps}周後に {rival} の1秒以内に接近見込み",
     overtakeForecastSingular: "{code}、1周後に {rival} の1秒以内に接近見込み",
@@ -1041,6 +1485,49 @@ const ja: Dictionary = {
     title: "オーバーテイク予測",
     laps: "{laps}周",
     lapsSingular: "1周",
+    confidence: {
+      [OvertakeForecastConfidence.High]: "高",
+      [OvertakeForecastConfidence.Medium]: "中",
+      [OvertakeForecastConfidence.Low]: "低",
+    },
+  },
+  tireStrategy: {
+    title: "タイヤ戦略",
+    usedTitle: "今セッションの使用",
+    remainingTitle: "残りセット",
+    noData: "タイヤデータがまだありません",
+    new: "新品",
+    used: "中古",
+    setsCount: "{count}セット保有",
+    possibilities: "· {count}通り",
+    note: "返却ルール + レース義務保有(ハード・ミディアム各1セット)に基づく推定です。どのコンパウンドを返却するかはチーム次第のため場合の数で示し、予選・フリー走行の使用分はまだ反映していません。",
+    noteNarrowed:
+      "この週末のセッション使用分(返却後の新品は返却不可)とレース義務保有まで反映して絞りました。セットIDがないため新品スティントでセット数を近似します。",
+  },
+  weekendTires: {
+    title: "週末のタイヤ",
+    subtitle: "セッションごとに各ドライバーが使ったコンパウンド",
+    loading: "週末のタイヤを読み込み中…",
+    empty: "この週末のタイヤデータがありません",
+    error: "週末のタイヤを読み込めませんでした",
+    driverColumn: "ドライバー",
+    remainingColumn: "残り(推定)",
+    remainingNote:
+      "残り = 規定上の残セットを、返却後に新品で使ったセット(返却不可)+ レース義務保有で絞った推定です。セットIDがないため新品スティントでセット数を近似します。",
+    newTire: "新品",
+    usedTire: "中古",
+  },
+  weekendResults: {
+    title: "フリー走行 & 予選",
+    subtitle: "ベストラップと Q1/Q2/Q3 のセグメント順位",
+    loading: "結果を読み込み中…",
+    empty: "この週末のフリー走行/予選結果がありません",
+    error: "結果を読み込めませんでした",
+    position: "順位",
+    driver: "ドライバー",
+    best: "ベスト",
+    gap: "差",
+    note: "Q1/Q2/Q3 タイムの下の P数字は、そのセグメントでタイムを出したドライバー間の順位です — 最終順位とは異なります。",
   },
   status: {
     [SessionStatus.Scheduled]: "予定",

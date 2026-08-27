@@ -15,6 +15,15 @@ export const DEFAULT_RECENT_LAP_COUNT = 3;
 // 본인 유효 랩 중앙값 대비 이 배율을 초과하는 랩은 이상치(SC 랩·트래픽)로 보고 제외한다.
 export const DEFAULT_OUTLIER_RATIO = 1.05;
 
+// 타이어 열화 반영(B1). 쫓는 차가 앞차보다 타이어가 낡았으면, 잡는 속도는 미래 랩으로 갈수록
+// 준다(스틴트 나이 열화). 이를 매 미래 랩마다 잡는 속도에서 빼는 감쇠로 근사한다.
+//   감쇠/랩 = closingRate × min(타이어 나이 열세 × 이 값, 상한)
+// 이 값은 물리 상수가 아니라 **튜닝 가능한 휴리스틱**이다(픽스처 실측으로 조정). 앞차가
+// 같거나 더 낡았으면 열세가 0 이라 감쇠도 0 → 기존 선형 예측 그대로다.
+export const DEFAULT_TIRE_DEGRADATION_PER_AGE_LAP = 0.03;
+// 감쇠가 한 랩에 잡는 속도의 이 비율을 넘지 않게 상한을 둔다(과도한 열세에서 폭주 방지).
+export const DEFAULT_MAX_TIRE_DEGRADATION_FRACTION = 0.6;
+
 export type OvertakeForecastConfig = {
   battleThresholdSeconds: number;
   minIntervalSeconds: number;
@@ -22,6 +31,9 @@ export type OvertakeForecastConfig = {
   maxLapsAhead: number;
   recentLapCount: number;
   outlierRatio: number;
+  // B1 타이어 열화.
+  tireDegradationPerAgeLap: number;
+  maxTireDegradationFraction: number;
 };
 
 export const DEFAULT_OVERTAKE_FORECAST_CONFIG: OvertakeForecastConfig = {
@@ -31,4 +43,6 @@ export const DEFAULT_OVERTAKE_FORECAST_CONFIG: OvertakeForecastConfig = {
   maxLapsAhead: DEFAULT_MAX_LAPS_AHEAD,
   recentLapCount: DEFAULT_RECENT_LAP_COUNT,
   outlierRatio: DEFAULT_OUTLIER_RATIO,
+  tireDegradationPerAgeLap: DEFAULT_TIRE_DEGRADATION_PER_AGE_LAP,
+  maxTireDegradationFraction: DEFAULT_MAX_TIRE_DEGRADATION_FRACTION,
 };

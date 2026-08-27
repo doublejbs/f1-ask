@@ -3,6 +3,8 @@
 import { ArchiveEventTimelineView } from "@/components/ArchiveEventTimelineView";
 import { ArchiveResultsView } from "@/components/ArchiveResultsView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
+import { WeekendResultsView } from "@/components/WeekendResultsView";
+import { WeekendTiresView } from "@/components/WeekendTiresView";
 import { Button } from "@/components/ui/Button";
 import { Dictionary } from "@/i18n/Messages";
 import { formatRaceDate } from "@/lib/Format";
@@ -66,6 +68,20 @@ export const ArchiveRaceDetailView = ({
       />
 
       <ArchiveResultsView dictionary={dictionary} results={detail.results} />
+
+      {/* 주말 타이어 — 프랙티스·퀄리·레이스에서 쓴 compound (docs/29). 상세가 열릴 때
+          meeting_key 로 지연 로드한다. */}
+      {/* 프랙티스·퀄리 결과(순위·세그먼트 랭크) — docs/27, E1. */}
+      <WeekendResultsView
+        dictionary={dictionary}
+        meetingKey={detail.session.meetingKey}
+      />
+
+      <WeekendTiresView
+        dictionary={dictionary}
+        meetingKey={detail.session.meetingKey}
+        driverOrder={detail.results.map((row) => row.driverNumber)}
+      />
 
       <ArchiveEventTimelineView
         dictionary={dictionary}

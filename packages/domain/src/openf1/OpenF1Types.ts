@@ -67,6 +67,9 @@ export type OpenF1Stint = {
   // 워커가 매 폴링마다 같은 자리에서 죽어 화면이 랩 40 부터 종료까지 약 30 분 얼었다.
   compound: string | null;
   tyre_age_at_start: number;
+  // 여러 세션을 한 번에(meeting_key) 조회할 때만 의미가 있다 — 세션별 그룹핑에 쓴다.
+  // 단일 세션 조회에서는 무시한다.
+  session_key?: number;
 };
 
 export type OpenF1Lap = {
@@ -109,10 +112,13 @@ export type OpenF1SessionResult = {
   driver_number: number;
   position: number | null;
   number_of_laps: number | null;
-  points: number | null;
-  duration: number | null;
-  // 숫자(초)이거나 "+1 LAP" 같은 문자열, 또는 null 일 수 있다.
-  gap_to_leader: number | string | null;
+  // 프랙티스·퀄리 응답엔 아예 없다(docs/27) — optional 로 정정.
+  points?: number | null;
+  // **세션 종류마다 형태가 다르다**(docs/27): 프랙티스=베스트랩(스칼라), 레이스=총 시간(스칼라),
+  // 퀄리=Q1/Q2/Q3 랩타임 배열(무기록 세그먼트는 null). null 도 있다.
+  duration: number | (number | null)[] | null;
+  // 숫자(초)·"+1 LAP" 문자열·퀄리 세그먼트별 갭 배열·null.
+  gap_to_leader: number | string | (number | null)[] | null;
   dnf: boolean;
   dns: boolean;
   dsq: boolean;

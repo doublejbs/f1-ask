@@ -1,8 +1,24 @@
 "use client";
 
 import { getWatchNowDetectorConfig } from "@/lib/Env";
-import { LiveRaceSnapshot, SessionStatus, WatchNowFeed, WatchNowLanes } from "@f1/domain";
+import {
+  loadWatchNowHistory,
+  saveWatchNowHistory,
+} from "@/lib/WatchNowHistoryStorage";
+import {
+  LiveRaceSnapshot,
+  SessionStatus,
+  WatchNowFeed,
+  WatchNowLanes,
+  WatchNowSignal,
+} from "@f1/domain";
 import { useMemo, useRef } from "react";
+
+export type WatchNowView = {
+  lanes: WatchNowLanes;
+  // 경기 시작부터의 지난 신호(최신 먼저, 중복 제거). 화면이 접힘=5개/펼침=전체로 자른다(B4).
+  history: WatchNowSignal[];
+};
 
 // 레이스가 진행 중일 때만 "지금 볼 것"이 의미를 갖는다.
 //
@@ -39,24 +55,63 @@ export type UseWatchNowLanesOptions = {
 export const useWatchNowLanes = ({
   snapshot,
   favoriteDriverNumbers,
-}: UseWatchNowLanesOptions): WatchNowLanes | null => {
+}: UseWatchNowLanesOptions): WatchNowView | null => {
   const feedRef = useRef<WatchNowFeed | null>(null);
+  // 마지막으로 저장/복원에 쓴 세션 id. 경기가 바뀌면 그 세션의 저장 기록으로 갈아끼운다.
+  const sessionRef = useRef<string | null>(null);
+  // 마지막으로 localStorage 에 쓴 이력 길이. 이력이 늘었을 때만 직렬화해 매 프레임 낭비를 막는다.
+  const savedLengthRef = useRef(0);
 
   if (feedRef.current === null) {
-    feedRef.current = new WatchNowFeed({
+    const feed = new WatchNowFeed({
       detectorConfig: getWatchNowDetectorConfig(),
     });
+    // 새 인스턴스(첫 렌더·PWA 재시작)면 이 세션의 저장 기록을 먼저 복원한다 — 그래야 껐다
+    // 켜도 "그동안 나온 모든 기록"이 더보기에 그대로 남는다. 아직 아무 프레임도 관측하지
+    // 않았으므로(lastSessionId=null) 첫 observe 가 이 복원본을 리셋하지 않는다.
+    const restored = loadWatchNowHistory(snapshot.sessionId);
+    if (restored.length > 0) {
+      feed.hydrateHistory(restored);
+    }
+    feedRef.current = feed;
+    sessionRef.current = snapshot.sessionId;
+    savedLengthRef.current = feed.exportHistory().length;
   }
 
   const feed = feedRef.current;
 
   return useMemo(() => {
+    // 세션(경기)이 바뀌면 feed.observe 가 내부에서 reset 하므로, 관측 뒤 새 세션의 저장
+    // 기록을 복원해 이번 프레임 신호 앞에 이어 붙인다.
+    const sessionChanged =
+      sessionRef.current !== null && sessionRef.current !== snapshot.sessionId;
+
     feed.observe(snapshot);
+
+    if (sessionChanged) {
+      const restored = loadWatchNowHistory(snapshot.sessionId);
+      if (restored.length > 0) {
+        feed.hydrateHistory([...restored, ...feed.exportHistory()]);
+      }
+      sessionRef.current = snapshot.sessionId;
+      savedLengthRef.current = 0;
+    }
+
+    // 이력이 실제로 늘었을 때만 저장한다(중복 제거된 새 발화가 생겼을 때). 매 폴링마다
+    // 수백 개를 직렬화하지 않게 하는 최적화다.
+    const current = feed.exportHistory();
+    if (current.length !== savedLengthRef.current) {
+      saveWatchNowHistory(snapshot.sessionId, current);
+      savedLengthRef.current = current.length;
+    }
 
     if (!isWatchNowVisibleStatus(snapshot.status)) {
       return null;
     }
 
-    return feed.buildLanes(snapshot, favoriteDriverNumbers);
+    return {
+      lanes: feed.buildLanes(snapshot, favoriteDriverNumbers),
+      history: feed.allHistory(),
+    };
   }, [feed, snapshot, favoriteDriverNumbers]);
 };

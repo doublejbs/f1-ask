@@ -308,3 +308,93 @@ describe("WatchNowFeed", () => {
     expect(undercuts).toHaveLength(0);
   });
 });
+
+describe("WatchNowFeed — 지난 신호 이력 (B5)", () => {
+  it("발화한 신호를 이력에 남기고, 같은 프레임 재관측은 늘리지 않는다", () => {
+    const feed = new WatchNowFeed();
+
+    // 타이어 노후(≥20)로 A 신호 발화.
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+    // 같은 버전 재관측(리렌더/StrictMode) — 프레임 중복이라 이력이 늘지 않는다.
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+
+    const history = feed.recentHistory(5);
+
+    expect(history).toHaveLength(1);
+    expect(history[0]?.type).toBe(WatchNowSignalType.TireAge);
+    expect(history[0]?.driverNumber).toBe(5);
+  });
+
+  it("recentHistory 는 상한을 지키고, 0 이면 빈 배열이다", () => {
+    const feed = new WatchNowFeed();
+
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+
+    expect(feed.recentHistory(0)).toEqual([]);
+    expect(feed.recentHistory(5).length).toBeLessThanOrEqual(5);
+  });
+
+  it("reset 은 이력도 비운다", () => {
+    const feed = new WatchNowFeed();
+
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+    feed.reset();
+
+    expect(feed.recentHistory(5)).toEqual([]);
+  });
+});
+
+describe("WatchNowFeed — allHistory 경기 시작부터 (B4)", () => {
+  it("발화한 지난 신호를 전부(최신 먼저) 돌려주고, reset 이 비운다", () => {
+    const feed = new WatchNowFeed();
+
+    feed.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+
+    const all = feed.allHistory();
+    expect(all.length).toBeGreaterThanOrEqual(1);
+    expect(all[0]?.type).toBe(WatchNowSignalType.TireAge);
+
+    feed.reset();
+    expect(feed.allHistory()).toEqual([]);
+  });
+});
+
+// 저장/복원(localStorage — 웹 훅)이 밟는 경로를 고정한다: exportHistory 로 내보낸 뒤 새
+// 인스턴스에 hydrateHistory 로 되살리면 이력이 그대로 남고, 되살린 신호는 다시 관측해도
+// 중복으로 쌓이지 않는다. PWA 재시작 뒤에도 "그동안 나온 모든 기록"이 유지되는 근거다.
+describe("WatchNowFeed — exportHistory/hydrateHistory 저장·복원", () => {
+  it("export 로 내보낸 이력을 새 인스턴스가 hydrate 하면 그대로 복원된다", () => {
+    const first = new WatchNowFeed();
+    first.observe(createSnapshot([createAgedTireDriver(25)], { version: 1 }));
+
+    const exported = first.exportHistory();
+    expect(exported.length).toBeGreaterThanOrEqual(1);
+
+    const restored = new WatchNowFeed();
+    restored.hydrateHistory(exported);
+
+    // 화면용(allHistory)은 최신 먼저 — 복원 후에도 동일하게 나온다.
+    expect(restored.allHistory()).toEqual(first.allHistory());
+  });
+
+  it("복원한 신호는 같은 상황을 다시 관측해도 중복으로 쌓이지 않는다", () => {
+    const first = new WatchNowFeed();
+    const snapshot = createSnapshot([createAgedTireDriver(25)], { version: 1 });
+    first.observe(snapshot);
+
+    const restored = new WatchNowFeed();
+    restored.hydrateHistory(first.exportHistory());
+
+    // 같은 스틴트 상황을 다음 프레임에서 다시 본다(버전만 증가).
+    restored.observe(
+      createSnapshot([createAgedTireDriver(26)], { version: 2, offsetMs: 6_000 }),
+    );
+
+    const tireAge = restored
+      .allHistory()
+      .filter((signal) => signal.type === WatchNowSignalType.TireAge);
+
+    // 스틴트당 1회 — 복원본 중복 키가 유지돼 두 번 쌓이지 않는다.
+    expect(tireAge).toHaveLength(1);
+  });
+});

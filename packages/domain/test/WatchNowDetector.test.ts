@@ -5,6 +5,7 @@ import { SessionStatus } from "../src/SessionStatus";
 import { TireCompound } from "../src/TireCompound";
 import { WatchNowDetector } from "../src/watchnow/WatchNowDetector";
 import { DEFAULT_WATCH_NOW_DETECTOR_CONFIG } from "../src/watchnow/WatchNowDetectorConfig";
+import { WatchNowSignal } from "../src/watchnow/WatchNowSignal";
 import { WatchNowSignalType } from "../src/watchnow/WatchNowSignalType";
 
 // 감지에 쓰는 필드만 지정하고 나머지는 기본값으로 채우는 드라이버 팩토리.
@@ -473,5 +474,148 @@ describe("WatchNowDetector — 세션 상태 게이트", () => {
     );
 
     expect(signals).toHaveLength(1);
+  });
+});
+
+describe("WatchNowDetector — F 피트 윈도우", () => {
+  // 언더컷 사거리(≤2.5초) 안, 내 타이어 낡음(≥15랩), 앞차도 낡은 타이어. 기본 조건 세트.
+  // 타이어 나이는 A(20랩) 아래, 간격은 B(1.0초) 위로 두어 F 만 발화하도록 격리한다.
+  const makePair = (
+    overrides: {
+      gap?: number;
+      chaserTireAge?: number | null;
+      targetTireAge?: number | null;
+      chaserInPit?: boolean;
+      targetInPit?: boolean;
+    } = {},
+  ): LiveDriverState[] => [
+    makeDriver({
+      driverNumber: 1,
+      code: "VER",
+      position: 1,
+      tireAgeLaps: overrides.targetTireAge ?? 18,
+      inPit: overrides.targetInPit ?? false,
+    }),
+    makeDriver({
+      driverNumber: 2,
+      code: "NOR",
+      position: 2,
+      intervalToAheadSeconds: overrides.gap ?? 2.0,
+      tireAgeLaps: overrides.chaserTireAge ?? 16,
+      inPit: overrides.chaserInPit ?? false,
+    }),
+  ];
+
+  const pitWindowOf = (signals: WatchNowSignal[]): WatchNowSignal[] =>
+    signals.filter((signal) => signal.type === WatchNowSignalType.PitWindow);
+
+  it("사거리 안·내 타이어 낡음·앞차도 낡음이면 발화한다 — 주체는 나, 상대는 앞차다", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = pitWindowOf(detector.observe(makeSnapshot(makePair())));
+
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.driverNumber).toBe(2);
+    expect(signals[0]?.driverCode).toBe("NOR");
+    expect(signals[0]?.rivalDriverNumber).toBe(1);
+    expect(signals[0]?.gapSeconds).toBe(2.0);
+    expect(signals[0]?.tireAgeLaps).toBe(16);
+  });
+
+  it("같은 윈도우가 유지되는 동안 한 번만 발화한다(엣지 트리거)", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = pitWindowOf(observeRepeated(detector, makePair(), 5));
+
+    expect(signals).toHaveLength(1);
+  });
+
+  it("내 타이어가 아직 새것(임계 미만)이면 발화하지 않는다", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = pitWindowOf(
+      detector.observe(makeSnapshot(makePair({ chaserTireAge: 10 }))),
+    );
+
+    expect(signals).toHaveLength(0);
+  });
+
+  it("앞차 간격이 사거리 밖(임계 초과)이면 발화하지 않는다", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = pitWindowOf(
+      detector.observe(makeSnapshot(makePair({ gap: 3.5 }))),
+    );
+
+    expect(signals).toHaveLength(0);
+  });
+
+  it("앞차가 방금 새 타이어로 갈았으면(임계 미만) 언더컷이 무의미하므로 발화하지 않는다", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = pitWindowOf(
+      detector.observe(makeSnapshot(makePair({ targetTireAge: 3 }))),
+    );
+
+    expect(signals).toHaveLength(0);
+  });
+
+  it("앞차 타이어 나이를 모르면(null) 보수적으로 대상으로 인정한다", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = pitWindowOf(
+      detector.observe(makeSnapshot(makePair({ targetTireAge: null }))),
+    );
+
+    expect(signals).toHaveLength(1);
+  });
+
+  it("선두(앞차 없음)는 발화하지 않는다", () => {
+    const detector = new WatchNowDetector();
+    // 단독 선두 P1 을 낡은 타이어·짧은 간격으로 둬도 앞차가 없어 대상이 아니다.
+    const leader = makeDriver({
+      driverNumber: 1,
+      position: 1,
+      intervalToAheadSeconds: 2.0,
+      tireAgeLaps: 18,
+    });
+
+    const signals = pitWindowOf(detector.observe(makeSnapshot([leader])));
+
+    expect(signals).toHaveLength(0);
+  });
+
+  it("내가 피트레인에 있으면 발화하지 않는다", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = pitWindowOf(
+      detector.observe(makeSnapshot(makePair({ chaserInPit: true }))),
+    );
+
+    expect(signals).toHaveLength(0);
+  });
+
+  it("SC 중에는 억제된다 — 간격이 인위적이기 때문이다", () => {
+    const detector = new WatchNowDetector();
+
+    const signals = pitWindowOf(
+      detector.observe(makeSnapshot(makePair(), SessionStatus.SafetyCar)),
+    );
+
+    expect(signals).toHaveLength(0);
+  });
+
+  it("사거리를 벗어났다 다시 들어오면 재무장해 다시 발화한다", () => {
+    const detector = new WatchNowDetector();
+
+    // 1) 발화
+    const first = pitWindowOf(detector.observe(makeSnapshot(makePair())));
+    // 2) 간격이 벌어져 조건이 깨진다(재무장)
+    detector.observe(makeSnapshot(makePair({ gap: 4.0 })));
+    // 3) 다시 사거리 안으로 들어오면 새 윈도우로 발화
+    const third = pitWindowOf(detector.observe(makeSnapshot(makePair())));
+
+    expect(first).toHaveLength(1);
+    expect(third).toHaveLength(1);
   });
 });

@@ -56,8 +56,13 @@ const buildDriverLookup = (
 // gap_to_leader 는 숫자(초)이거나 "+1 LAP" 같은 문자열이다.
 // 숫자만 초 값으로 쓰고, 문자열은 표기 그대로 남겨 랩 다운 정보를 잃지 않는다.
 const parseGap = (
-  value: number | string | null | undefined,
+  value: number | string | (number | null)[] | null | undefined,
 ): { seconds: number | null; label: string | null } => {
+  // 레이스는 스칼라/문자열이다. 퀄리 세그먼트 배열은 이 최종 순위표의 관심사가 아니므로 무시.
+  if (Array.isArray(value)) {
+    return { seconds: null, label: null };
+  }
+
   if (typeof value === "number" && Number.isFinite(value)) {
     return { seconds: value, label: null };
   }
@@ -116,7 +121,9 @@ export const buildArchiveResultRows = (
         teamColour: driver?.team_colour ?? null,
         gapToLeaderSeconds: gap.seconds,
         gapLabel: gap.label,
-        totalTimeSeconds: result.duration ?? null,
+        // 레이스 duration 은 스칼라(총 시간). 혹시 배열(퀄리)이 섞여 와도 총 시간 아님 → null.
+        totalTimeSeconds:
+          typeof result.duration === "number" ? result.duration : null,
         lapsCompleted: result.number_of_laps ?? null,
         points: result.points ?? null,
         status: resolveArchiveResultStatus(result),

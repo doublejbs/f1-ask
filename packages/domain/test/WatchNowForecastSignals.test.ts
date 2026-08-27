@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LiveDriverState } from "../src/LiveDriverState";
 import { LiveRaceSnapshot } from "../src/LiveRaceSnapshot";
 import { OvertakeForecast } from "../src/openf1/OvertakeForecast";
+import { OvertakeForecastConfidence } from "../src/openf1/OvertakeForecastConfidence";
 import { SessionStatus } from "../src/SessionStatus";
 import { TireCompound } from "../src/TireCompound";
 import { WatchNowFeed } from "../src/watchnow/WatchNowFeed";
@@ -55,6 +56,7 @@ const createForecast = (
   closingRateSecondsPerLap: 0.4,
   predictedLapsToBattle,
   predictedLap: 20 + predictedLapsToBattle,
+  confidence: OvertakeForecastConfidence.High,
 });
 
 const createSnapshot = (

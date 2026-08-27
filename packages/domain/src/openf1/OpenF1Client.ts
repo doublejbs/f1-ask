@@ -334,6 +334,19 @@ export const fetchOpenF1PodiumResults = async (
     options,
   );
 
+// 한 드라이버의 시즌 전체 session_result(모든 포지션·포인트). 팀메이트 비교(docs 계획 §Phase 3)가
+// 세션 종류(레이스)로 걸러 집계한다. 드라이버 하나당 한 요청이라 팀메이트 비교는 2요청이다.
+export const fetchOpenF1DriverSeasonResults = async (
+  minSessionKey: number,
+  driverNumber: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1SessionResult[]> =>
+  fetchEndpointWithQuery<OpenF1SessionResult>(
+    "session_result",
+    `session_key>=${minSessionKey}&driver_number=${driverNumber}`,
+    options,
+  );
+
 // 시즌 전체 드라이버 로스터. 행마다 session_key 가 있어 세션별로 좁힐 수 있다.
 export const fetchOpenF1SeasonDrivers = async (
   minSessionKey: number,
@@ -342,6 +355,42 @@ export const fetchOpenF1SeasonDrivers = async (
   fetchEndpointWithQuery<OpenF1Driver>(
     "drivers",
     `session_key>=${minSessionKey}`,
+    options,
+  );
+
+// 한 미팅(그랑프리 주말)의 전체 세션 목록. 프랙티스·퀄리·스프린트·레이스가 모두 온다.
+// 주말 타이어(docs/29 §범위 밖 → 구현)에서 세션을 지목·정렬하는 데 쓴다.
+export const fetchOpenF1MeetingSessions = async (
+  meetingKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Session[]> =>
+  fetchEndpoint<OpenF1Session>("sessions", "meeting_key", meetingKey, options);
+
+// 한 미팅의 전체 스틴트. 행마다 session_key 가 있어 세션별로 나눌 수 있다.
+// meeting_key 한 번으로 주말 전 세션 스틴트를 받아 요청 수를 아낀다(docs/27 §경량 경로).
+export const fetchOpenF1MeetingStints = async (
+  meetingKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Stint[]> =>
+  fetchEndpoint<OpenF1Stint>("stints", "meeting_key", meetingKey, options);
+
+// 한 미팅의 드라이버 로스터. 세션별 로스터가 다를 수 있어(FP1 루키 등) 미팅 전체를 받는다.
+export const fetchOpenF1MeetingDrivers = async (
+  meetingKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1Driver[]> =>
+  fetchEndpoint<OpenF1Driver>("drivers", "meeting_key", meetingKey, options);
+
+// 한 미팅의 전 세션 결과(프랙티스·퀄리·레이스). 행마다 session_key 로 나눈다. 취소 세션은
+// 행이 없을 뿐이라 optional 로 흡수한다(docs/27 §실측 — 취소 세션 session_result 404).
+export const fetchOpenF1MeetingSessionResults = async (
+  meetingKey: number,
+  options: OpenF1ClientOptions = {},
+): Promise<OpenF1SessionResult[]> =>
+  fetchOptionalEndpoint<OpenF1SessionResult>(
+    "session_result",
+    "meeting_key",
+    meetingKey,
     options,
   );
 

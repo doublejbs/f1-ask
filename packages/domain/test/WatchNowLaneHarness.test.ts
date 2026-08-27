@@ -56,6 +56,7 @@ const TYPE_LABEL: Record<WatchNowSignalType, string> = {
   [WatchNowSignalType.TireAge]: "타이어 노후",
   [WatchNowSignalType.GapConvergence]: "간격 수렴",
   [WatchNowSignalType.UndercutThreat]: "언더컷 위협",
+  [WatchNowSignalType.PitWindow]: "피트 찬스",
   [WatchNowSignalType.PositionSwing]: "순위 급변",
   [WatchNowSignalType.OvertakeForecast]: "추월 예측",
 };

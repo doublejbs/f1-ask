@@ -1,11 +1,23 @@
 import "./globals.css";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { DEFAULT_LOCALE } from "@f1/domain";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+// PWA 설치형 앱 메타 (docs/30-app-service.md §1). manifest 는 app/manifest.ts.
 export const metadata: Metadata = {
-  title: "F1 AI Second Screen",
+  title: "Racepilot",
   description: "Understand Formula 1 races in real time.",
+  applicationName: "Racepilot",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Racepilot",
+  },
+  icons: {
+    icon: "/icons/icon.svg",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 // viewport-fit=cover 로 노치/홈 인디케이터 영역까지 배경을 확장하고,
@@ -20,7 +32,10 @@ export const viewport: Viewport = {
 // 루트 레이아웃. lang 은 [locale] 세그먼트에서 클라이언트로 갱신한다.
 const RootLayout = ({ children }: { children: ReactNode }) => (
   <html lang={DEFAULT_LOCALE} suppressHydrationWarning>
-    <body className="min-h-screen antialiased">{children}</body>
+    <body className="min-h-screen antialiased">
+      <ServiceWorkerRegister />
+      {children}
+    </body>
   </html>
 );
 

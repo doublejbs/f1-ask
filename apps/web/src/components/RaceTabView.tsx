@@ -7,6 +7,8 @@ import { ForecastPanelView } from "@/components/ForecastPanelView";
 import { RaceSummaryView } from "@/components/RaceSummaryView";
 import { SessionStatusStripView } from "@/components/SessionStatusStripView";
 import { WatchNowLanesView } from "@/components/WatchNowLanesView";
+import { WeatherTransitionBannerView } from "@/components/WeatherTransitionBannerView";
+import { useWeatherTransition } from "@/hooks/UseWeatherTransition";
 import { WeatherChipView } from "@/components/WeatherChipView";
 import { useTeamRadioPlayer } from "@/hooks/UseTeamRadioPlayer";
 import { useWatchNowLanes } from "@/hooks/UseWatchNowLanes";
@@ -25,11 +27,14 @@ import {
   SessionStatus,
   SupportedLocale,
   TeamRadioClip,
+  WatchNowSignal,
+  computeRemainingMinimums,
   selectBattles,
   selectDriverStateMarkers,
   selectImminentOvertakeForecasts,
   selectRecentDriverEvents,
 } from "@f1/domain";
+import { useWeekendTires } from "@/hooks/UseWeekendTires";
 import { RaceSummaryResponse } from "@f1/schemas";
 import { useMemo, useState } from "react";
 
@@ -51,6 +56,7 @@ type Props = {
 };
 
 const EMPTY_RADIO_CLIPS: TeamRadioClip[] = [];
+const EMPTY_WATCH_NOW_HISTORY: WatchNowSignal[] = [];
 
 const EMPTY_BATTLES: Battle[] = [];
 
@@ -151,10 +157,15 @@ export const RaceTabView = ({
 
   // "지금 볼 것" 칸 3개. 감지기 인스턴스는 훅이 ref 로 붙들고 있으므로 여기서 다시
   // 만들거나 초기화하지 않는다.
-  const watchNowLanes = useWatchNowLanes({
+  const watchNow = useWatchNowLanes({
     snapshot,
     favoriteDriverNumbers,
   });
+  const watchNowLanes = watchNow?.lanes ?? null;
+  const watchNowHistory = watchNow?.history ?? EMPTY_WATCH_NOW_HISTORY;
+
+  // 날씨 전환 배너(B3) — 비 시작/트랙 건조 = 전략 급변.
+  const weatherTransition = useWeatherTransition(snapshot);
 
   // 칸에 못 올라간 신호는 버리지 않고 순위표 행 표시로 내려보낸다(docs/19 수용 기준 7).
   // 칸당 2줄이라는 좁은 예산의 근거가 "나머지는 행에서 볼 수 있다" 이므로, 이 연결이
@@ -168,6 +179,34 @@ export const RaceTabView = ({
     selectedDriver === null
       ? EMPTY_RADIO_CLIPS
       : (radiosByDriver.get(selectedDriver.driverNumber) ?? EMPTY_RADIO_CLIPS);
+
+  // 선택된 드라이버가 이번 세션에서 쓴 타이어 이력. 워커가 스틴트 요약에 실어 준다
+  // (mock 모드엔 contextSummary 가 없어 null → 타이어 전략 섹션이 "데이터 없음"으로 뜬다).
+  const selectedUsedCompounds = useMemo(() => {
+    if (selectedDriver === null) {
+      return null;
+    }
+
+    const stint = snapshot.contextSummary?.stints.find(
+      (entry) => entry.driverNumber === selectedDriver.driverNumber,
+    );
+
+    return stint?.usedCompounds ?? null;
+  }, [selectedDriver, snapshot.contextSummary]);
+
+  // 남은 타이어 경우의 수 축소(A1): 시트가 열릴 때만 주말 사용분을 지연 로드한다.
+  // mock·replay 는 meetingKey 가 OpenF1 에 없어 빈 결과 → 하한 없이 규정만 표시(폴백).
+  const { usage: weekendUsage } = useWeekendTires(
+    selectedDriver === null ? null : snapshot.meetingKey,
+  );
+
+  const selectedRemainingMinimums = useMemo(() => {
+    if (selectedDriver === null || weekendUsage === null) {
+      return undefined;
+    }
+
+    return computeRemainingMinimums(weekendUsage, selectedDriver.driverNumber);
+  }, [selectedDriver, weekendUsage]);
 
   const handleCloseSheet = () => {
     setSelectedDriver(null);
@@ -232,8 +271,14 @@ export const RaceTabView = ({
       <WatchNowLanesView
         dictionary={dictionary}
         lanes={watchNowLanes}
+        history={watchNowHistory}
         drivers={snapshot.drivers}
         onSelectDriver={setSelectedDriver}
+      />
+
+      <WeatherTransitionBannerView
+        dictionary={dictionary}
+        transition={weatherTransition}
       />
 
       {snapshot.weather !== undefined ? (
@@ -273,6 +318,9 @@ export const RaceTabView = ({
         dictionary={dictionary}
         locale={locale}
         driver={selectedDriver}
+        usedCompounds={selectedUsedCompounds}
+        weekendFormat={weekendUsage?.format}
+        remainingMinimums={selectedRemainingMinimums}
         fieldBestSectors={fieldBestSectors}
         radioClips={selectedRadioClips}
         playingRadioUrl={playingUrl}
