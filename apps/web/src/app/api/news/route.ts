@@ -1,7 +1,10 @@
 import { NEWS_FEEDS, NewsFeedConfig } from "@/lib/RssNewsFeeds";
+import { createOpenF1ClientOptions } from "@/server/OpenF1ServerClient";
 import { translateNews } from "@/server/NewsTranslator";
 import {
   dedupeNewsItems,
+  extractDriverTags,
+  loadRoster,
   NewsItem,
   parseNewsFeedXml,
   sortNewsItems,
@@ -18,6 +21,7 @@ export const revalidate = 300;
 // 피드 한 개가 느리거나 죽어도 전체가 막히면 안 된다 — 개별 타임아웃 + allSettled.
 const FEED_TIMEOUT_MS = 8000;
 const MAX_ITEMS = 40;
+const SEASON_YEAR = 2026;
 
 const fetchFeed = async (feed: NewsFeedConfig): Promise<NewsItem[]> => {
   try {
@@ -49,18 +53,45 @@ const fetchFeed = async (feed: NewsFeedConfig): Promise<NewsItem[]> => {
   }
 };
 
-// 원문(영어) 뉴스 — 로케일 무관. 피드는 공용이라 한 번만 캐시한다.
+// 원문(영어) 뉴스 — 로케일 무관. 피드 + 로스터를 병렬로 받아, 각 기사에 언급된 드라이버
+// 코드 해시태그를 붙인다(로스터 매칭). 태그는 코드라 언어 무관 → 번역 후에도 그대로 유지된다.
 const getBaseNews = unstable_cache(
   async (): Promise<NewsItem[]> => {
-    const settled = await Promise.allSettled(NEWS_FEEDS.map(fetchFeed));
+    const [settled, roster] = await Promise.all([
+      Promise.allSettled(NEWS_FEEDS.map(fetchFeed)),
+      loadRoster({
+        year: SEASON_YEAR,
+        clientOptions: createOpenF1ClientOptions(revalidate),
+        nowMs: Date.now(),
+      }).catch(() => []),
+    ]);
 
     const collected = settled.flatMap((result) =>
       result.status === "fulfilled" ? result.value : [],
     );
 
-    return sortNewsItems(dedupeNewsItems(collected)).slice(0, MAX_ITEMS);
+    const items = sortNewsItems(dedupeNewsItems(collected)).slice(0, MAX_ITEMS);
+
+    const drivers = roster.flatMap((team) =>
+      team.drivers.map((driver) => ({
+        code: driver.code,
+        fullName: driver.fullName,
+      })),
+    );
+
+    if (drivers.length === 0) {
+      return items;
+    }
+
+    return items.map((item) => ({
+      ...item,
+      driverTags: extractDriverTags(
+        `${item.title} ${item.summary ?? ""}`,
+        drivers,
+      ),
+    }));
   },
-  ["news-base", "v1"],
+  ["news-base", "v2"],
   { revalidate, tags: ["news"] },
 );
 
@@ -69,7 +100,7 @@ const getBaseNews = unstable_cache(
 const getLocalizedNews = (locale: string): Promise<NewsItem[]> =>
   unstable_cache(
     async (): Promise<NewsItem[]> => translateNews(await getBaseNews(), locale),
-    ["news-localized", "v1", locale],
+    ["news-localized", "v2", locale],
     { revalidate, tags: ["news"] },
   )();
 

@@ -80,6 +80,20 @@ export const NewsCardView = ({ dictionary, locale, item }: Props) => {
         </p>
       )}
 
+      {/* 기사에 언급된 드라이버 해시태그. 서버가 로스터 매칭으로 채운다. */}
+      {item.driverTags && item.driverTags.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {item.driverTags.map((code) => (
+            <span
+              key={code}
+              className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold tracking-tight text-primary"
+            >
+              #{code}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       <time
         dateTime={item.publishedAt}
         className="text-[11px] tabular-nums text-muted-foreground/70"

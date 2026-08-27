@@ -22,6 +22,9 @@ export type NewsItem = {
   publishedAt: string;
   // 원문 언어. 제목은 이 언어 그대로다(번역은 이후 단계).
   lang: string;
+  // 기사에서 언급된 드라이버 코드 해시태그(예: ["VER","NOR"]). 서버가 로스터로 채운다.
+  // optional — mock·파서 단계엔 없고, /api/news 가 로스터 매칭으로 나중에 붙인다.
+  driverTags?: string[];
 };
 
 // 라이브(RSS·YouTube) 소스와 Mock 소스가 공유하는 인터페이스 (docs/28 §Mock 뉴스 소스).

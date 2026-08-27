@@ -279,6 +279,10 @@ export { MockNewsSource, buildMockNewsItems } from "./news/MockNewsSource";
 export { categorizeNewsTitle } from "./news/NewsCategoryRules";
 export { applyNewsTranslation } from "./news/NewsTranslationParse";
 export {
+  extractDriverTags,
+  type NewsTagDriver,
+} from "./news/NewsDriverTags";
+export {
   parseNewsFeedXml,
   type NewsFeedSource,
 } from "./news/RssNewsParser";
